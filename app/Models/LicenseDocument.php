@@ -17,6 +17,13 @@ class LicenseDocument extends Model
     /** @use HasFactory<LicenseDocumentFactory> */
     use HasFactory;
 
+    public const DIRECTORY = 'license-documents';
+
+    public static function disk(): string
+    {
+        return config('portal.documents_disk');
+    }
+
     protected function casts(): array
     {
         return [

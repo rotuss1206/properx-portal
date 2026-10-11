@@ -55,9 +55,11 @@ SSO із зовнішніми провайдерами, обмін повідо�
 - Меню Nova будується автоматично з `viewAny` у policies, окреме меню для кожної ролі не потрібне.
 - Учасник бачить лише свої записи: `indexQuery` через `Resource::ownRecordsUnless()` плюс `view` у policy.
 - Ресурси `Staff` і `Member` обидва працюють з моделлю `User`: `viewAny` і `create` для них розведені в трейті `AuthorizesUserResource`.
-- Middleware [RequireTwoFactorForStaff](app/Http/Middleware/RequireTwoFactorForStaff.php): співробітник без підтвердженої 2FA потрапляє лише на `/nova/user-security`. Для учасників 2FA опційна.
-- Файли зберігаються на приватному диску `local` і видаються лише через download-ендпоінт Nova (з перевіркою policy).
-- Тестові акаунти з сідера (пароль `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. Співробітники при першому вході мусять налаштувати 2FA в застосунку-автентифікаторі.
+- Middleware [RequireTwoFactorForStaff](app/Http/Middleware/RequireTwoFactorForStaff.php): співробітник без підтвердженої 2FA потрапляє лише на `/nova/user-security`. Для учасників 2FA опційна. `NOVA_REQUIRE_STAFF_2FA=false` вимикає вимогу, але діє лише при `APP_ENV=local`.
+- Файли лежать на приватному диску `config('portal.documents_disk')` (поки `local`). Видаються лише через download-ендпоінт Nova з перевіркою policy, кожне скачування фіксується в журналі (`App\Services\DocumentDownloader`).
+- Журнал аудиту: `AuditLog::record($action, $resource)`. Вхід і вихід пишуть слухачі в `app/Listeners`, вони ж оновлюють `last_login_at`.
+- Тестові акаунти з сідера (пароль `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. Сідер створює файли-заглушки для документів (`DemoFilesSeeder`).
+- Тести: базовий `Tests\TestCase` викликає `Nova::flushState()`, бо Nova кешує дані запиту в статичних властивостях.
 
 ## Локальне середовище (Windows, OSPanel 6)
 

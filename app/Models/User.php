@@ -54,10 +54,12 @@ class User extends Authenticatable
 
     /**
      * Staff must have confirmed TOTP two-factor authentication (ТЗ, розділ 8).
+     * The requirement can be switched off only in the local environment.
      */
     public function requiresTwoFactor(): bool
     {
-        return $this->isStaff();
+        return $this->isStaff()
+            && (config('portal.require_staff_two_factor') || ! app()->isLocal());
     }
 
     public function hasConfirmedTwoFactor(): bool

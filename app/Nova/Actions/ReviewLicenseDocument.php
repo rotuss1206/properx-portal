@@ -3,6 +3,7 @@
 namespace App\Nova\Actions;
 
 use App\Enums\VerificationStatus;
+use App\Models\AuditLog;
 use App\Models\LicenseDocument;
 use Illuminate\Support\Collection;
 use Laravel\Nova\Actions\Action;
@@ -16,6 +17,11 @@ abstract class ReviewLicenseDocument extends Action
 {
     abstract protected function status(): VerificationStatus;
 
+    protected function auditAction(): string
+    {
+        return $this->status() === VerificationStatus::Approved ? 'document_verified' : 'document_rejected';
+    }
+
     /**
      * @param  Collection<int, LicenseDocument>  $models
      */
@@ -26,6 +32,8 @@ abstract class ReviewLicenseDocument extends Action
                 'verification_status' => $this->status(),
                 'admin_notes' => $fields->get('admin_notes') ?: $document->admin_notes,
             ]);
+
+            AuditLog::record($this->auditAction(), $document);
         }
 
         return Action::message(trans_choice(':count document marked as :status.|:count documents marked as :status.', $models->count(), [

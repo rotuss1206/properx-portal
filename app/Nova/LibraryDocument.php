@@ -2,10 +2,10 @@
 
 namespace App\Nova;
 
+use App\Services\DocumentDownloader;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\File;
@@ -22,10 +22,6 @@ use Laravel\Nova\Http\Requests\NovaRequest;
  */
 class LibraryDocument extends Resource
 {
-    public const DISK = 'local';
-
-    public const DIRECTORY = 'library';
-
     public static $model = \App\Models\LibraryDocument::class;
 
     public static $title = 'title';
@@ -80,12 +76,13 @@ class LibraryDocument extends Resource
                 ->rules('nullable', 'max:5000')
                 ->alwaysShow(),
 
-            File::make('File', 'file_path', self::DISK)
-                ->path(self::DIRECTORY)
+            File::make('File', 'file_path', \App\Models\LibraryDocument::disk())
+                ->path(\App\Models\LibraryDocument::DIRECTORY)
                 ->acceptedTypes('.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.mp4')
                 ->creationRules('required')
                 ->rules('max:51200')
-                ->download(fn ($request, $model) => Storage::disk(self::DISK)->download($model->file_path, basename($model->file_path)))
+                ->download(fn ($request, $model, $disk) => app(DocumentDownloader::class)
+                    ->download($model, $disk, $model->file_path, basename($model->file_path)))
                 ->prunable()
                 ->hideFromIndex(),
 

@@ -22,6 +22,13 @@ class LibraryDocument extends Model
         'Forms & Templates',
     ];
 
+    public const DIRECTORY = 'library';
+
+    public static function disk(): string
+    {
+        return config('portal.documents_disk');
+    }
+
     protected function casts(): array
     {
         return [

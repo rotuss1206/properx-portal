@@ -74,7 +74,9 @@ class RoleAccessTest extends TestCase
             ->assertOk()
             ->viewData('page')['props']['novaConfig']['mainMenu'];
 
-        preg_match_all('#"path":"\\\\/nova\\\\/resources\\\\/([a-z-]+)"#', json_encode($menu), $matches);
+        $json = json_encode($menu, JSON_UNESCAPED_SLASHES);
+        $this->assertIsString($json, json_last_error_msg());
+        preg_match_all('#"path":"/nova/resources/([a-z-]+)"#', $json, $matches);
 
         $resources = array_values(array_unique($matches[1]));
         sort($resources);
@@ -114,10 +116,8 @@ class RoleAccessTest extends TestCase
             ->getJson('/nova-api/dashboards/main')
             ->assertNotFound();
 
-        // Nova errors out (500) rather than 404 for metrics of an unavailable dashboard; either way no data leaks.
-        $response = $this->getJson('/nova-api/dashboards/cards/main/metrics/expiring-licenses');
-        $this->assertFalse($response->isSuccessful());
-        $response->assertJsonMissingPath('value');
+        $this->getJson('/nova-api/dashboards/cards/main/metrics/expiring-licenses')->assertNotFound();
+        $this->getJson('/nova-api/dashboards/cards/main')->assertNotFound();
     }
 
     public function test_member_dashboard_shows_own_license(): void

@@ -5,10 +5,10 @@ namespace App\Nova;
 use App\Enums\VerificationStatus;
 use App\Nova\Actions\RejectLicenseDocument;
 use App\Nova\Actions\VerifyLicenseDocument;
+use App\Services\DocumentDownloader;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Laravel\Nova\Fields\Badge;
@@ -25,10 +25,6 @@ use Laravel\Nova\Http\Requests\NovaRequest;
  */
 class LicenseDocument extends Resource
 {
-    public const DISK = 'local';
-
-    public const DIRECTORY = 'license-documents';
-
     public static $model = \App\Models\LicenseDocument::class;
 
     public static $title = 'original_filename';
@@ -76,17 +72,18 @@ class LicenseDocument extends Resource
                 ->canSee(fn (Request $request) => static::viewerIsStaff($request))
                 ->readonly(fn () => $this->resource->exists),
 
-            File::make('File', 'stored_filename', self::DISK)
+            File::make('File', 'stored_filename', \App\Models\LicenseDocument::disk())
                 ->acceptedTypes('.pdf,.jpg,.jpeg,.png')
                 ->creationRules('required')
                 ->rules('mimes:pdf,jpg,jpeg,png', 'max:10240')
                 ->store(fn (Request $request, $model, $attribute, $requestAttribute) => [
-                    'stored_filename' => $request->file($requestAttribute)->store(self::DIRECTORY, self::DISK),
+                    'stored_filename' => $request->file($requestAttribute)->store(\App\Models\LicenseDocument::DIRECTORY, \App\Models\LicenseDocument::disk()),
                     'original_filename' => $request->file($requestAttribute)->getClientOriginalName(),
                     'mime_type' => $request->file($requestAttribute)->getMimeType(),
                     'size' => $request->file($requestAttribute)->getSize(),
                 ])
-                ->download(fn ($request, $model) => Storage::disk(self::DISK)->download($model->stored_filename, $model->original_filename))
+                ->download(fn ($request, $model, $disk) => app(DocumentDownloader::class)
+                    ->download($model, $disk, $model->stored_filename, $model->original_filename))
                 ->prunable()
                 ->hideFromIndex()
                 ->hideWhenUpdating(),

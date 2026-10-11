@@ -52,6 +52,26 @@ class TwoFactorEnforcementTest extends TestCase
             ->assertOk();
     }
 
+    public function test_requirement_can_be_disabled_in_local_environment(): void
+    {
+        config(['portal.require_staff_two_factor' => false]);
+        $this->app->detectEnvironment(fn () => 'local');
+
+        $this->actingAs($this->staff(Role::ExecutiveDirector, withTwoFactor: false))
+            ->get('/nova/dashboards/main')
+            ->assertOk();
+    }
+
+    public function test_requirement_cannot_be_disabled_outside_local(): void
+    {
+        config(['portal.require_staff_two_factor' => false]);
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->actingAs($this->staff(Role::ExecutiveDirector, withTwoFactor: false))
+            ->getJson('/nova-api/member-profiles')
+            ->assertForbidden();
+    }
+
     public function test_two_factor_is_optional_for_members(): void
     {
         $member = $this->member();

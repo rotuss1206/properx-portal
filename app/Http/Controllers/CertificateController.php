@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
+use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -20,6 +21,8 @@ class CertificateController extends Controller
         Gate::authorize('downloadCertificate', $memberProfile);
 
         $signatory = User::role(Role::ExecutiveDirector->value)->oldest()->first();
+
+        AuditLog::record('certificate_downloaded', $memberProfile);
 
         return Pdf::loadView('certificates.membership', [
             'profile' => $memberProfile,

@@ -27,7 +27,7 @@ class TaxDocumentFactory extends Factory
             'user_id' => User::factory(),
             'document_type' => $type,
             'tax_year' => $year,
-            'stored_filename' => Str::uuid().'.pdf',
+            'stored_filename' => TaxDocument::DIRECTORY.'/'.Str::uuid().'.pdf',
             'original_filename' => Str::slug($type)."-{$year}.pdf",
             'uploaded_at' => $uploadedAt,
             'downloaded_at' => fake()->optional(0.5)->dateTimeBetween($uploadedAt),

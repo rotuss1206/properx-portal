@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureNovaDashboardIsAvailable;
 use App\Http\Middleware\RequireTwoFactorForStaff;
 use Illuminate\Http\Middleware\CheckResponseForModifications;
 use Laravel\Nova\Actions\ActionResource;
@@ -111,6 +112,7 @@ return [
         // \Laravel\Nova\Http\Middleware\EnsureEmailIsVerified::class,
         Authorize::class,
         RequireTwoFactorForStaff::class,
+        EnsureNovaDashboardIsAvailable::class,
     ],
 
     'asset_middleware' => [

@@ -2,10 +2,10 @@
 
 namespace App\Nova;
 
+use App\Services\DocumentDownloader;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Nova\Fields\BelongsTo;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\File;
@@ -22,10 +22,6 @@ use Laravel\Nova\Http\Requests\NovaRequest;
  */
 class TaxDocument extends Resource
 {
-    public const DISK = 'local';
-
-    public const DIRECTORY = 'tax-documents';
-
     public static $model = \App\Models\TaxDocument::class;
 
     public static $title = 'original_filename';
@@ -77,19 +73,22 @@ class TaxDocument extends Resource
                 ->sortable()
                 ->filterable(),
 
-            File::make('File', 'stored_filename', self::DISK)
-                ->path(self::DIRECTORY)
+            File::make('File', 'stored_filename', \App\Models\TaxDocument::disk())
+                ->path(\App\Models\TaxDocument::DIRECTORY)
                 ->storeOriginalName('original_filename')
                 ->acceptedTypes('.pdf')
                 ->creationRules('required')
                 ->rules('mimes:pdf', 'max:10240')
-                ->download(function ($request, $model) {
+                ->download(function ($request, $model, $disk) {
+                    $response = app(DocumentDownloader::class)
+                        ->download($model, $disk, $model->stored_filename, $model->original_filename);
+
                     // Track when the member themselves retrieves the document (ТЗ, розділ 3.1).
                     if ($request->user()->is($model->user)) {
                         $model->forceFill(['downloaded_at' => now()])->save();
                     }
 
-                    return Storage::disk(self::DISK)->download($model->stored_filename, $model->original_filename);
+                    return $response;
                 })
                 ->prunable()
                 ->hideFromIndex(),

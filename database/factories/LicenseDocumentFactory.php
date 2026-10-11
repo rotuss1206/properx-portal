@@ -31,7 +31,7 @@ class LicenseDocumentFactory extends Factory
 
         return [
             'user_id' => User::factory(),
-            'stored_filename' => Str::uuid().'.'.$extension,
+            'stored_filename' => LicenseDocument::DIRECTORY.'/'.Str::uuid().'.'.$extension,
             'original_filename' => 'license-'.fake()->word().'.'.$extension,
             'mime_type' => self::FILE_TYPES[$extension],
             'size' => fake()->numberBetween(50 * 1024, 10 * 1024 * 1024),

@@ -18,6 +18,13 @@ class TaxDocument extends Model
 
     public const DOCUMENT_TYPES = ['1099-NEC', '1099-MISC', 'W-9', 'Dues Receipt'];
 
+    public const DIRECTORY = 'tax-documents';
+
+    public static function disk(): string
+    {
+        return config('portal.documents_disk');
+    }
+
     protected function casts(): array
     {
         return [

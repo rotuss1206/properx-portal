@@ -23,5 +23,7 @@ class DatabaseSeeder extends Seeder
 
         LibraryDocument::factory()->count(12)->published()->create();
         LibraryDocument::factory()->count(3)->draft()->create();
+
+        $this->call(DemoFilesSeeder::class);
     }
 }

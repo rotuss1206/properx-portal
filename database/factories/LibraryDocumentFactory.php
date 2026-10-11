@@ -24,7 +24,7 @@ class LibraryDocumentFactory extends Factory
             'title' => $title,
             'description' => fake()->paragraph(),
             'category' => fake()->randomElement(LibraryDocument::CATEGORIES),
-            'file_path' => 'library/'.Str::slug($title).'-'.Str::random(6).'.pdf',
+            'file_path' => LibraryDocument::DIRECTORY.'/'.Str::slug($title).'-'.Str::random(6).'.pdf',
             'published' => fake()->boolean(80),
             'uploaded_at' => fake()->dateTimeBetween('-1 year'),
         ];

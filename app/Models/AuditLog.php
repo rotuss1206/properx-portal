@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Str;
 
 /**
  * Append-only: rows are never updated, so there is no updated_at column.
@@ -32,8 +33,29 @@ class AuditLog extends Model
         'document_uploaded',
         'document_downloaded',
         'document_deleted',
+        'document_verified',
+        'document_rejected',
+        'certificate_generated',
+        'certificate_downloaded',
         'role_changed',
     ];
+
+    /**
+     * Append an entry for the current request (IP, user agent, signed-in user).
+     */
+    public static function record(string $action, ?Model $resource = null, ?User $user = null): self
+    {
+        $request = request();
+
+        return static::create([
+            'user_id' => ($user ?? $request->user())?->getKey(),
+            'action' => $action,
+            'resource_type' => $resource?->getMorphClass(),
+            'resource_id' => $resource?->getKey(),
+            'ip_address' => $request->ip(),
+            'user_agent' => Str::limit((string) $request->userAgent(), 1000, ''),
+        ]);
+    }
 
     /**
      * @return BelongsTo<User, $this>
