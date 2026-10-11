@@ -36,6 +36,9 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         Nova::initialPath(fn (Request $request) => $request->user()?->isMember()
             ? '/dashboards/my-membership'
             : '/dashboards/main');
+
+        // Branding: replaces the default "Powered by Laravel Nova" footer.
+        Nova::footer(fn (Request $request) => view('nova.footer')->render());
     }
 
     /**

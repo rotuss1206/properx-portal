@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 40" height="40" role="img" aria-label="ProPerx Alliance">
+    <!-- Placeholder text logo until the client supplies the real artwork. -->
+    <rect x="0" y="4" width="32" height="32" rx="7" fill="#1e3a5f"/>
+    <path d="M10 28V12h7.2c3.6 0 5.8 2 5.8 5.1s-2.2 5.1-5.8 5.1H14V28h-4Zm4-9.3h2.9c1.6 0 2.4-.6 2.4-1.6s-.8-1.6-2.4-1.6H14v3.2Z" fill="#ffffff"/>
+    <rect x="22" y="25" width="6" height="3" rx="1" fill="#c8a24a"/>
+    <text x="42" y="22" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="700" fill="currentColor">ProPerx</text>
+    <text x="42" y="35" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="9.5" font-weight="600" letter-spacing="2.6" fill="#c8a24a">ALLIANCE</text>
+</svg>

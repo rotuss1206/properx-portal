@@ -52,6 +52,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 
 ## Access and Nova
 
+- Branding: name "ProPerx Alliance", placeholder text logo `resources/images/logo.svg`, navy primary palette in `config/nova.php` (`brand`), footer `resources/views/nova/footer.blade.php`. Replace the logo and signature placeholders when the client provides artwork.
 - The `viewNova` gate ([NovaServiceProvider](app/Providers/NovaServiceProvider.php)) applies in every environment, including local. Four roles get into Nova; the API Service account does not.
 - Permissions are defined in [RolesAndPermissionsSeeder](database/seeders/RolesAndPermissionsSeeder.php). Policies in `app/Policies` check spatie permissions only (`checkPermissionTo`), never role names.
 - The Nova menu is built automatically from the policies' `viewAny`; no per-role menu is needed.
