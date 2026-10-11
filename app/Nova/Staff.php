@@ -6,6 +6,9 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Nova\Concerns\AuthorizesUserResource;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Laravel\Nova\Auth\PasswordValidationRules;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\DateTime;
@@ -51,6 +54,17 @@ class Staff extends Resource
         return 'staff';
     }
 
+    /**
+     * Safety net: Nova runs this inside the create transaction, so an account that
+     * somehow ended up without a staff role is rolled back instead of being saved.
+     */
+    public static function afterCreate(NovaRequest $request, Model $model)
+    {
+        if (! $model->hasAnyRole(self::staffRoleNames())) {
+            throw ValidationException::withMessages(['role' => 'A staff account must have a staff role.']);
+        }
+    }
+
     public static function indexQuery(NovaRequest $request, Builder $query): Builder
     {
         return $query->role(self::staffRoleNames())->with('roles');
@@ -78,7 +92,8 @@ class Staff extends Resource
 
             Select::make('Role')
                 ->options(array_combine(self::staffRoleNames(), self::staffRoleNames()))
-                ->rules('required')
+                // Only the three staff roles; anything else would leave the account without a role.
+                ->rules('required', Rule::in(self::staffRoleNames()))
                 ->resolveUsing(fn ($value, $user) => $user->getRoleNames()->first())
                 // The Executive Director role cannot be revoked from the UI.
                 ->readonly(fn () => $this->resource->exists && $this->resource->isExecutiveDirector())
