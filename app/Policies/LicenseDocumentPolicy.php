@@ -11,7 +11,7 @@ class LicenseDocumentPolicy
     public function viewAny(User $user): bool
     {
         return $user->checkPermissionTo('license-documents.view')
-            || $user->checkPermissionTo('own-license-documents.manage');
+            || ($user->checkPermissionTo('own-license-documents.manage') && ! $user->hasRestrictedMembership());
     }
 
     public function view(User $user, LicenseDocument $document): bool
@@ -22,7 +22,7 @@ class LicenseDocumentPolicy
     public function create(User $user): bool
     {
         return $user->checkPermissionTo('license-documents.verify')
-            || $user->checkPermissionTo('own-license-documents.manage');
+            || ($user->checkPermissionTo('own-license-documents.manage') && ! $user->hasRestrictedMembership());
     }
 
     /**
@@ -57,8 +57,13 @@ class LicenseDocumentPolicy
         return $user->checkPermissionTo('license-documents.verify');
     }
 
+    /**
+     * Members with a canceled / lapsed membership lose access to license documents (Spec §7).
+     */
     private function ownsAndManages(User $user, LicenseDocument $document): bool
     {
-        return $document->user_id === $user->id && $user->checkPermissionTo('own-license-documents.manage');
+        return $document->user_id === $user->id
+            && $user->checkPermissionTo('own-license-documents.manage')
+            && ! $user->hasRestrictedMembership();
     }
 }

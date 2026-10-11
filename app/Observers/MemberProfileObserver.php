@@ -17,9 +17,12 @@ class MemberProfileObserver
     ];
 
     /**
-     * Changed by the system (nightly status refresh), not by a person editing the profile.
+     * Changed by the system (nightly status refresh, Stripe webhooks), not by a person
+     * editing the profile; payment changes are audited as "payment_status_changed".
      */
-    private const SYSTEM_ATTRIBUTES = ['license_status', 'updated_at'];
+    private const SYSTEM_ATTRIBUTES = [
+        'license_status', 'updated_at', 'stripe_customer_id', 'payment_status', 'payment_status_updated_at', 'payment_event_at',
+    ];
 
     public function __construct(private CertificateGeneratorService $certificates) {}
 

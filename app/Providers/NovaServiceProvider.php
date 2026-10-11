@@ -6,10 +6,12 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Nova\Dashboards\Main;
 use App\Nova\Dashboards\MyMembership;
+use App\Support\MembershipBanner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Fortify\Features;
 use Laravel\Nova\Dashboard;
+use Laravel\Nova\Events\ServingNova;
 use Laravel\Nova\Nova;
 use Laravel\Nova\NovaApplicationServiceProvider;
 use Laravel\Nova\Tool;
@@ -39,6 +41,12 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
         // Branding: replaces the default "Powered by Laravel Nova" footer.
         Nova::footer(fn (Request $request) => view('nova.footer')->render());
+
+        // Past-due / inactive membership banner for members (Spec §7).
+        Nova::serving(function (ServingNova $event) {
+            Nova::provideToScript(['membershipBanner' => MembershipBanner::for($event->request->user())]);
+            Nova::script('membership-banner', resource_path('js/nova/membership-banner.js'));
+        });
     }
 
     /**

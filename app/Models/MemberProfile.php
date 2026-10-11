@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Enums\LicenseStatus;
+use App\Enums\PaymentStatus;
 use App\Observers\MemberProfileObserver;
+use Carbon\CarbonInterface;
 use Database\Factories\MemberProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -43,12 +45,52 @@ class MemberProfile extends Model
         });
     }
 
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'payment_status' => 'unknown',
+    ];
+
     protected function casts(): array
     {
         return [
             'license_expires_at' => 'date',
             'license_status' => LicenseStatus::class,
+            'payment_status' => PaymentStatus::class,
+            'payment_status_updated_at' => 'datetime',
+            'payment_event_at' => 'datetime',
         ];
+    }
+
+    /**
+     * End of the grace period for a past-due membership (Spec §7), null otherwise.
+     */
+    public function paymentGraceEndsAt(): ?CarbonInterface
+    {
+        if ($this->payment_status !== PaymentStatus::PastDue || $this->payment_status_updated_at === null) {
+            return null;
+        }
+
+        return $this->payment_status_updated_at->copy()->addDays(config('portal.payments.grace_days'));
+    }
+
+    /**
+     * Canceled, or past due beyond the grace period: certificate, library and license
+     * documents are closed; the profile, notification settings and tax documents stay open.
+     */
+    public function hasRestrictedMembership(): bool
+    {
+        return match ($this->payment_status) {
+            PaymentStatus::Canceled => true,
+            PaymentStatus::PastDue => $this->paymentGraceEndsAt()?->isPast() ?? false,
+            default => false,
+        };
+    }
+
+    public function isInPaymentGracePeriod(): bool
+    {
+        return $this->payment_status === PaymentStatus::PastDue && ! $this->hasRestrictedMembership();
     }
 
     /**

@@ -39,6 +39,8 @@ class AuditLog extends Model
         'certificate_generated',
         'certificate_downloaded',
         'role_changed',
+        'payment_status_changed',
+        'stripe_event_processed',
     ];
 
     /**

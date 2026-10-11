@@ -3,6 +3,7 @@
 namespace App\Nova\Metrics;
 
 use App\Enums\LicenseStatus;
+use App\Enums\PaymentStatus;
 use App\Exceptions\CertificateUnavailableException;
 use App\Models\MemberProfile;
 use App\Services\Certificates\CertificateGeneratorService;
@@ -16,7 +17,7 @@ use Laravel\Nova\Metrics\Table;
  */
 class MyLicense extends Table
 {
-    public $name = 'My License';
+    public $name = 'My License & Membership';
 
     public $emptyText = 'No member profile yet. Please contact the membership team.';
 
@@ -53,7 +54,41 @@ class MyLicense extends Table
                         ? MenuItem::externalLink('Download my certificate', route('certificates.download', $profile))
                         : null,
                 ]))),
+
+            $this->membershipRow($profile),
         ];
+    }
+
+    /**
+     * Membership dues status from Stripe (Spec §7).
+     */
+    private function membershipRow(MemberProfile $profile): MetricTableRow
+    {
+        $paymentUrl = config('portal.payments.payment_url');
+
+        [$icon, $class, $title, $subtitle] = match (true) {
+            $profile->hasRestrictedMembership() => [
+                'x-circle', 'text-red-500', 'Membership: Inactive',
+                'Certificate, library and license documents are unavailable until dues are paid.',
+            ],
+            $profile->isInPaymentGracePeriod() => [
+                'exclamation-circle', 'text-amber-500', 'Membership: Payment past due',
+                'Full access until '.$profile->paymentGraceEndsAt()->toFormattedDateString().'. Please update your payment.',
+            ],
+            $profile->payment_status === PaymentStatus::Active => [
+                'check-circle', 'text-green-500', 'Membership: Active', 'Dues are paid.',
+            ],
+            default => ['information-circle', 'text-gray-400', 'Membership: Status pending', 'No payment information received yet.'],
+        };
+
+        return MetricTableRow::make()
+            ->icon($icon)
+            ->iconClass($class)
+            ->title($title)
+            ->subtitle($subtitle)
+            ->actions(fn () => $paymentUrl && $profile->payment_status !== PaymentStatus::Active
+                ? [MenuItem::externalLink('Pay membership dues', $paymentUrl)->openInNewTab()]
+                : []);
     }
 
     public function uriKey(): string

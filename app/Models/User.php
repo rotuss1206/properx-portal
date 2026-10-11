@@ -50,6 +50,14 @@ class User extends Authenticatable
         return $this->hasRole(Role::Member->value);
     }
 
+    /**
+     * A member whose dues are canceled or past the grace period (Spec §7).
+     */
+    public function hasRestrictedMembership(): bool
+    {
+        return $this->isMember() && (bool) $this->memberProfile?->hasRestrictedMembership();
+    }
+
     public function isExecutiveDirector(): bool
     {
         return $this->hasRole(Role::ExecutiveDirector->value);

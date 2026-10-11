@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\NotificationCategory;
+use App\Enums\PaymentStatus;
 use App\Enums\ReminderType;
 use App\Enums\Role;
 use App\Models\AuditLog;
@@ -31,12 +32,42 @@ class MemberSeeder extends Seeder
 
         foreach (self::COUNTS as $state => $count) {
             for ($i = 0; $i < $count; $i++, $index++) {
-                $this->createMember($state, sprintf('member%02d@properx.test', $index));
+                $user = $this->createMember($state, sprintf('member%02d@properx.test', $index));
+                $this->setPaymentStatus($user->memberProfile, $index);
             }
         }
     }
 
-    private function createMember(string $state, string $email): void
+    /**
+     * Fixed payment scenarios for member01–member05 (documented test accounts), random for the rest.
+     */
+    private function setPaymentStatus(MemberProfile $profile, int $index): void
+    {
+        [$status, $daysAgo] = match ($index) {
+            1 => [PaymentStatus::Active, 40],
+            2 => [PaymentStatus::PastDue, 3],    // within the 14-day grace period
+            3 => [PaymentStatus::PastDue, 20],   // grace period over: restricted
+            4 => [PaymentStatus::Canceled, 10],  // restricted
+            5 => [PaymentStatus::Unknown, null], // no Stripe data yet
+            default => fake()->randomElement([
+                [PaymentStatus::Active, fake()->numberBetween(1, 300)],
+                [PaymentStatus::Active, fake()->numberBetween(1, 300)],
+                [PaymentStatus::Active, fake()->numberBetween(1, 300)],
+                [PaymentStatus::PastDue, fake()->numberBetween(1, 30)],
+                [PaymentStatus::Canceled, fake()->numberBetween(1, 90)],
+                [PaymentStatus::Unknown, null],
+            ]),
+        };
+
+        $profile->forceFill([
+            'payment_status' => $status,
+            'payment_status_updated_at' => $daysAgo === null ? null : now()->subDays($daysAgo),
+            'payment_event_at' => $daysAgo === null ? null : now()->subDays($daysAgo),
+            'stripe_customer_id' => $status === PaymentStatus::Unknown ? null : 'cus_demo'.str_pad((string) $index, 6, '0', STR_PAD_LEFT),
+        ])->saveQuietly();
+    }
+
+    private function createMember(string $state, string $email): User
     {
         $user = User::factory()->create(['email' => $email]);
         $user->assignRole(Role::Member->value);
@@ -70,5 +101,7 @@ class MemberSeeder extends Seeder
         }
 
         AuditLog::factory()->count(3)->for($user)->create();
+
+        return $user->load('memberProfile');
     }
 }

@@ -9,6 +9,8 @@
         <div class="status valid"><span class="dot"></span>Valid certificate</div>
     @elseif ($status === 'expired')
         <div class="status expired"><span class="dot"></span>This certificate has expired</div>
+    @elseif ($status === 'inactive')
+        <div class="status expired"><span class="dot"></span>Membership is not active</div>
     @else
         <div class="status invalid"><span class="dot"></span>This certificate could not be verified</div>
     @endif

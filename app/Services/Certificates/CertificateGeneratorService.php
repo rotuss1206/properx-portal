@@ -52,6 +52,11 @@ class CertificateGeneratorService
             throw CertificateUnavailableException::missingFields($missing);
         }
 
+        // Canceled, or past due beyond the grace period (Spec §7).
+        if ($profile->hasRestrictedMembership()) {
+            throw CertificateUnavailableException::membershipInactive();
+        }
+
         // Check the date itself too, in case the nightly status update has not run yet.
         if (LicenseStatus::fromExpiryDate($profile->license_expires_at) === LicenseStatus::Expired) {
             throw CertificateUnavailableException::licenseExpired($profile->license_expires_at);

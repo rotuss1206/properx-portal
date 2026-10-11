@@ -17,6 +17,11 @@ class CertificateUnavailableException extends RuntimeException
             : 'A certificate cannot be issued: the license has expired.');
     }
 
+    public static function membershipInactive(): self
+    {
+        return new self('A certificate cannot be issued while the membership is inactive. Please settle the outstanding membership dues.');
+    }
+
     /**
      * @param  list<string>  $fields  Human-readable field names.
      */

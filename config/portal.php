@@ -90,6 +90,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Membership payments (Spec §7)
+    |--------------------------------------------------------------------------
+    |
+    | The portal never takes payments; it only mirrors the status sent by Stripe.
+    | Past-due members keep full access for the grace period, then are treated
+    | as canceled. Login is never blocked.
+    |
+    */
+
+    'payments' => [
+        // Where members settle their dues (e.g. the Stripe customer portal or the application site).
+        'payment_url' => env('PAYMENT_PORTAL_URL'),
+        'grace_days' => (int) env('PAYMENT_GRACE_DAYS', 14),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Security (Spec §3.3, §8)
     |--------------------------------------------------------------------------
     |

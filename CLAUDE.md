@@ -1,7 +1,7 @@
 # ProPerx Member Portal
 
 Member self-service portal for ProPerx Alliance (a professional association of licensed insurance agents).
-The requirements spec (Rev. 2, KEENEY) is kept outside the repository; reference it as "Spec §N".
+The requirements spec (Rev. 2, KEENEY) is kept outside the repository (local `docs/*.docx` is git-excluded); reference it as "Spec §N".
 Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in Azure Key Vault.
 
 **Language:** everything in the repository is English (code, comments, tests, UI texts, emails, docs, commit messages). The client is in the US.
@@ -94,6 +94,15 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Mail: `MAIL_MAILER=postmark` with `POSTMARK_TOKEN` (`POSTMARK_API_TEST` = Postmark's test token, nothing is delivered) or `log`.
   - Reminder emails carry the Postmark tag `license-expiry-reminder` and `reminder_log_id` metadata.
   - `POST /webhooks/postmark` (basic auth `POSTMARK_WEBHOOK_USERNAME/PASSWORD`, stateless routes in `routes/webhooks.php`) maps Delivery / Bounce / SpamComplaint to `reminder_logs.delivery_status`; never downgrades a worse status.
+
+## Stripe payment status (Spec §7)
+
+- The portal takes no payments. `POST /api/webhooks/stripe` (signature via `STRIPE_WEBHOOK_SECRET`, `stripe/stripe-php`) runs as the API Service account through `App\Services\Stripe\StripeWebhookHandler`.
+- Idempotency: `stripe_events` (event id primary key). Out-of-order events: ignored when older than `member_profiles.payment_event_at`.
+- `payment_status_updated_at` = when the status last changed; it starts the `PAYMENT_GRACE_DAYS` grace period for `past_due`.
+- `MemberProfile::hasRestrictedMembership()` (canceled, or past due beyond grace) closes certificate, library and license documents for the member; profile, notification settings and tax documents stay open. Login is never blocked.
+- Banner: `App\Support\MembershipBanner` + `resources/js/nova/membership-banner.js` (Nova script, fixed to the bottom; no innerHTML, CSP-safe).
+- Local testing with the Stripe CLI and the test accounts: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Local environment (Windows, OSPanel 6)
 

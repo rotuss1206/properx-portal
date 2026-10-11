@@ -26,6 +26,13 @@ return [
         ],
     ],
 
+    // Membership payment status webhooks (Spec §7). Only the signing secret is needed:
+    // the portal never calls the Stripe API or takes payments.
+    'stripe' => [
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'webhook_tolerance' => 300,
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

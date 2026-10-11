@@ -7,9 +7,12 @@ use App\Models\User;
 
 class LibraryDocumentPolicy
 {
+    /**
+     * Closed to members whose dues are canceled or past the grace period (Spec §7).
+     */
     public function viewAny(User $user): bool
     {
-        return $user->checkPermissionTo('library.view');
+        return $user->checkPermissionTo('library.view') && ! $user->hasRestrictedMembership();
     }
 
     /**
@@ -17,7 +20,7 @@ class LibraryDocumentPolicy
      */
     public function view(User $user, LibraryDocument $document): bool
     {
-        return $user->checkPermissionTo('library.view')
+        return $this->viewAny($user)
             && ($document->published || $user->checkPermissionTo('library.update'));
     }
 

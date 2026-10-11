@@ -20,6 +20,7 @@ class VerifyCertificateController extends Controller
 
         $status = match (true) {
             $profile === null, $profile->license_expires_at === null => 'invalid',
+            $profile->hasRestrictedMembership() => 'inactive',
             LicenseStatus::fromExpiryDate($profile->license_expires_at) === LicenseStatus::Expired => 'expired',
             default => 'valid',
         };
