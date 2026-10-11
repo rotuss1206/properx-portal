@@ -15,6 +15,13 @@ class LibraryDocument extends Model
     /** @use HasFactory<LibraryDocumentFactory> */
     use HasFactory;
 
+    public const CATEGORIES = [
+        'Compliance Briefings',
+        'Training',
+        'Regulatory Updates',
+        'Forms & Templates',
+    ];
+
     protected function casts(): array
     {
         return [

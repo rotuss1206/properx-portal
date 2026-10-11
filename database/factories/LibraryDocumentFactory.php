@@ -11,13 +11,6 @@ use Illuminate\Support\Str;
  */
 class LibraryDocumentFactory extends Factory
 {
-    public const CATEGORIES = [
-        'Compliance Briefings',
-        'Training',
-        'Regulatory Updates',
-        'Forms & Templates',
-    ];
-
     /**
      * Define the model's default state.
      *
@@ -30,7 +23,7 @@ class LibraryDocumentFactory extends Factory
         return [
             'title' => $title,
             'description' => fake()->paragraph(),
-            'category' => fake()->randomElement(self::CATEGORIES),
+            'category' => fake()->randomElement(LibraryDocument::CATEGORIES),
             'file_path' => 'library/'.Str::slug($title).'-'.Str::random(6).'.pdf',
             'published' => fake()->boolean(80),
             'uploaded_at' => fake()->dateTimeBetween('-1 year'),

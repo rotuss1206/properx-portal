@@ -21,6 +21,21 @@ class AuditLog extends Model
     public const UPDATED_AT = null;
 
     /**
+     * Audited actions (ТЗ, розділ 8).
+     */
+    public const ACTIONS = [
+        'login',
+        'logout',
+        'password_changed',
+        'mfa_enrolled',
+        'profile_updated',
+        'document_uploaded',
+        'document_downloaded',
+        'document_deleted',
+        'role_changed',
+    ];
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo

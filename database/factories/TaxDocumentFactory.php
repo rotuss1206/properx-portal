@@ -19,7 +19,7 @@ class TaxDocumentFactory extends Factory
      */
     public function definition(): array
     {
-        $type = fake()->randomElement(['1099-NEC', '1099-MISC', 'W-9', 'Dues Receipt']);
+        $type = fake()->randomElement(TaxDocument::DOCUMENT_TYPES);
         $year = fake()->numberBetween(now()->year - 3, now()->year - 1);
         $uploadedAt = fake()->dateTimeBetween('-1 year');
 

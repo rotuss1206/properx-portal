@@ -2,14 +2,30 @@
 
 namespace App\Providers;
 
+use App\Enums\Role;
 use App\Models\User;
+use App\Nova\Dashboards\Main;
+use App\Nova\Dashboards\MyMembership;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Fortify\Features;
+use Laravel\Nova\Dashboard;
 use Laravel\Nova\Nova;
 use Laravel\Nova\NovaApplicationServiceProvider;
+use Laravel\Nova\Tool;
 
 class NovaServiceProvider extends NovaApplicationServiceProvider
 {
+    /**
+     * Roles allowed into Nova. The API service account is deliberately absent.
+     */
+    private const NOVA_ROLES = [
+        Role::ExecutiveDirector,
+        Role::MembershipCoordinator,
+        Role::ComplianceSpecialist,
+        Role::Member,
+    ];
+
     /**
      * Bootstrap any application services.
      */
@@ -17,7 +33,9 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     {
         parent::boot();
 
-        //
+        Nova::initialPath(fn (Request $request) => $request->user()?->isMember()
+            ? '/dashboards/my-membership'
+            : '/dashboards/main');
     }
 
     /**
@@ -25,13 +43,17 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      */
     protected function fortify(): void
     {
+        $features = [
+            Features::updatePasswords(),
+            Features::twoFactorAuthentication(['confirm' => true, 'confirmPassword' => true]),
+        ];
+
+        // Nova syncs these into Fortify only while serving Nova; routes are
+        // registered earlier, so set them up front too (keeps passkeys off).
+        config(['fortify.features' => $features]);
+
         Nova::fortify()
-            ->features([
-                Features::updatePasswords(),
-                // Features::emailVerification(),
-                // Features::twoFactorAuthentication(['confirm' => true, 'confirmPassword' => true]),
-                // Features::passkeys(),
-            ])
+            ->features($features)
             ->register();
     }
 
@@ -48,35 +70,41 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     }
 
     /**
+     * Use the viewNova gate in every environment, including local
+     * (the parent lets everyone in when APP_ENV=local).
+     */
+    protected function authorization(): void
+    {
+        Nova::auth(static fn (Request $request) => Gate::check('viewNova', [Nova::user($request)]));
+    }
+
+    /**
      * Register the Nova gate.
-     *
-     * This gate determines who can access Nova in non-local environments.
      */
     protected function gate(): void
     {
         Gate::define('viewNova', function (User $user) {
-            return in_array($user->email, [
-                //
-            ]);
+            return $user->hasAnyRole(array_map(fn (Role $role) => $role->value, self::NOVA_ROLES));
         });
     }
 
     /**
      * Get the dashboards that should be listed in the Nova sidebar.
      *
-     * @return array<int, \Laravel\Nova\Dashboard>
+     * @return array<int, Dashboard>
      */
     protected function dashboards(): array
     {
         return [
-            new \App\Nova\Dashboards\Main,
+            Main::make()->canSee(fn (Request $request) => $request->user()?->isStaff() ?? false),
+            MyMembership::make()->canSee(fn (Request $request) => $request->user()?->isMember() ?? false),
         ];
     }
 
     /**
      * Get the tools that should be listed in the Nova sidebar.
      *
-     * @return array<int, \Laravel\Nova\Tool>
+     * @return array<int, Tool>
      */
     public function tools(): array
     {

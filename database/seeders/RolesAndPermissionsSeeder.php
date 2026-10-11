@@ -58,6 +58,7 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     private const EXECUTIVE_ONLY = [
         'staff.manage',
+        'members.delete',
         'certificates.sign',
         'audit-logs.view',
     ];

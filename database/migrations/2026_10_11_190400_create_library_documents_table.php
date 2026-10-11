@@ -23,7 +23,11 @@ return new class extends Migration
 
             $table->index(['published', 'category']);
             $table->index('uploaded_at');
-            $table->fullText(['title', 'description']);
+
+            // SQLite (used by the test suite) has no fulltext indexes.
+            if (in_array(Schema::getConnection()->getDriverName(), ['mysql', 'mariadb', 'pgsql'], true)) {
+                $table->fullText(['title', 'description']);
+            }
         });
     }
 

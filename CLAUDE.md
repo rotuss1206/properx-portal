@@ -7,7 +7,8 @@
 ## Стек
 
 - **Laravel 13**, PHP 8.4, MySQL.
-- **Laravel Nova**: адмінка для співробітників. Встановлюється вручну власником проєкту, агент її не ставить.
+- **Laravel Nova 5.11**: адмінка для співробітників і кабінет учасника (`/nova`). Встановлюється й оновлюється вручну власником проєкту, агент її не ставить.
+- **Laravel Fortify** (іде з Nova): вхід, скидання пароля, TOTP 2FA з кодами відновлення.
 - **spatie/laravel-permission**: ролі та дозволи (трейт `HasRoles` на `App\Models\User`).
 - **barryvdh/laravel-dompdf**: PDF-сертифікат членства.
 - **Postmark**: транзакційна пошта (у локальному середовищі `MAIL_MAILER=log`).
@@ -45,7 +46,18 @@ SSO із зовнішніми провайдерами, обмін повідо�
 - **Eloquent-зв'язки** (`hasOne`, `hasMany`, `belongsTo` тощо) замість ручних join і сирих запитів. Уникаємо N+1 за допомогою `with()`.
 - **Без хардкоду секретів**: ключі, паролі, токени та URL сервісів беремо лише з `.env` через `config/*.php`. У коді `config()`, а не `env()`. Нові змінні додаємо також в `.env.example` з порожнім значенням.
 - Авторизація через Policies і дозволи spatie. Доступ до файлів перевіряється на сервері для кожного запиту, публічних URL немає.
-- Чутливі поля (секрет MFA тощо) зберігаємо із шифрованим cast, коди відновлення лише хешованими.
+- Чутливі поля зберігаємо зашифрованими. MFA-секрет і коди відновлення: колонки Fortify `two_factor_*` (Fortify шифрує коди відновлення, а не хешує, як просить ТЗ; це відоме відхилення).
+
+## Доступ і Nova
+
+- Gate `viewNova` ([NovaServiceProvider](app/Providers/NovaServiceProvider.php)) діє в усіх середовищах, включно з local. До Nova пускає чотири ролі; API Service не пускає.
+- Права описані в [RolesAndPermissionsSeeder](database/seeders/RolesAndPermissionsSeeder.php). Policies в `app/Policies` перевіряють лише права spatie (`checkPermissionTo`), а не назви ролей.
+- Меню Nova будується автоматично з `viewAny` у policies, окреме меню для кожної ролі не потрібне.
+- Учасник бачить лише свої записи: `indexQuery` через `Resource::ownRecordsUnless()` плюс `view` у policy.
+- Ресурси `Staff` і `Member` обидва працюють з моделлю `User`: `viewAny` і `create` для них розведені в трейті `AuthorizesUserResource`.
+- Middleware [RequireTwoFactorForStaff](app/Http/Middleware/RequireTwoFactorForStaff.php): співробітник без підтвердженої 2FA потрапляє лише на `/nova/user-security`. Для учасників 2FA опційна.
+- Файли зберігаються на приватному диску `local` і видаються лише через download-ендпоінт Nova (з перевіркою policy).
+- Тестові акаунти з сідера (пароль `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. Співробітники при першому вході мусять налаштувати 2FA в застосунку-автентифікаторі.
 
 ## Локальне середовище (Windows, OSPanel 6)
 

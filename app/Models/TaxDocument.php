@@ -16,6 +16,8 @@ class TaxDocument extends Model
     /** @use HasFactory<TaxDocumentFactory> */
     use HasFactory;
 
+    public const DOCUMENT_TYPES = ['1099-NEC', '1099-MISC', 'W-9', 'Dues Receipt'];
+
     protected function casts(): array
     {
         return [

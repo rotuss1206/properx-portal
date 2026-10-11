@@ -20,7 +20,7 @@ class AuditLogFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'action' => fake()->randomElement(['login', 'logout', 'password_changed', 'profile_updated']),
+            'action' => fake()->randomElement(AuditLog::ACTIONS),
             'resource_type' => null,
             'resource_id' => null,
             'ip_address' => fake()->ipv4(),

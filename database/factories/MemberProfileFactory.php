@@ -7,21 +7,12 @@ use App\Models\MemberProfile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<MemberProfile>
  */
 class MemberProfileFactory extends Factory
 {
-    private const LICENSE_TYPES = [
-        'Life & Health',
-        'Property & Casualty',
-        'Life Only',
-        'Accident & Health',
-        'Personal Lines',
-    ];
-
     /**
      * Define the model's default state.
      *
@@ -39,13 +30,13 @@ class MemberProfileFactory extends Factory
             'npn' => fake()->unique()->numerify('########'),
             'license_number' => strtoupper(fake()->unique()->bothify('??-#######')),
             'license_state' => fake()->stateAbbr(),
-            'license_type' => fake()->randomElement(self::LICENSE_TYPES),
+            'license_type' => fake()->randomElement(MemberProfile::LICENSE_TYPES),
             'license_expires_at' => fake()->dateTimeBetween('+61 days', '+2 years'),
             // Resolved after states are applied, so it always matches license_expires_at.
             'license_status' => fn (array $attributes) => LicenseStatus::fromExpiryDate(
                 Carbon::parse($attributes['license_expires_at'])
             ),
-            'certificate_code' => fn () => 'PPX-'.strtoupper(Str::random(10)),
+            'certificate_code' => fn () => MemberProfile::generateCertificateCode(),
         ];
     }
 
