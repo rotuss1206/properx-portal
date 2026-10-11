@@ -1,47 +1,59 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# ProPerx Member Portal
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+Портал самообслуговування учасника ProPerx Alliance (професійна асоціація ліцензованих страхових агентів).
+Повне ТЗ: `Portal_uchasnyka_Vymohy_dlia_rozrobnyka.docx` (Ред. 2, KEENEY). Файл не входить у репозиторій.
+Цільовий хостинг: Azure AKS (HIPAA-рівень, обліковий запис SHN). Секрети в проді лежать в Azure Key Vault.
 
-## Prerequisites
+## Стек
 
-Verify that PHP and Composer are available:
+- **Laravel 13**, PHP 8.4, MySQL.
+- **Laravel Nova**: адмінка для співробітників. Встановлюється вручну власником проєкту, агент її не ставить.
+- **spatie/laravel-permission**: ролі та дозволи (трейт `HasRoles` на `App\Models\User`).
+- **barryvdh/laravel-dompdf**: PDF-сертифікат членства.
+- **Postmark**: транзакційна пошта (у локальному середовищі `MAIL_MAILER=log`).
+- **Azure Blob Storage**: сховище файлів. Поки що використовується локальний приватний диск через фасад `Storage`. Код пишемо лише через `Storage::disk(...)`, щоб перехід на Azure зводився до зміни конфігурації.
 
-```sh
-php -v
-composer -V
-```
+## Ролі (ТЗ, розділ 3.7)
 
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
+| Роль | Ключові права |
+|---|---|
+| Executive Director | Повний доступ. Єдина роль, що створює та змінює акаунти співробітників. Підписант сертифікатів. Не відкликається через UI. |
+| Membership Coordinator | CRUD учасників, перевірка документів ліцензій, повідомлення учасникам. Без бібліотеки, податкових документів і керування співробітниками. |
+| Compliance Specialist | CRUD бібліотеки, завантаження податкових документів з прив'язкою до учасника, перегляд учасників лише для читання. |
+| Member | Тільки власні профіль, документи, сертифікат і налаштування; бібліотека лише для читання. |
+| Службовий API-акаунт | Не людина, без вебвходу. Автентифікація API-ключем (ротація щокварталу), мінімальні права під кожне завдання (вебхуки Stripe, заплановані завдання). |
 
-macOS:
+Ролі Auditor/Board Member і Treasurer сюди не входять: їх додадуть пізніше.
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
-```
+## Основні функції (ТЗ, розділ 2)
 
-Windows PowerShell:
+- Вхід за email і паролем, скидання пароля, опційна TOTP MFA з кодами відновлення (обов'язкова для співробітників).
+- Профіль учасника: контакти, бізнес, NPN, ліцензія (номер, штат, тип, дата закінчення).
+- Документи ліцензії: PDF/JPG/PNG до 10 МБ, приватне шифроване зберігання, видача лише через серверний ендпоінт з перевіркою ролі та власника.
+- Щоденне завдання за статусами ліцензій (active / expiring / expired) і нагадування за 60, 30 і 7 днів з урахуванням налаштувань сповіщень. Кожен надісланий або пропущений лист пишеться в журнал нагадувань.
+- PDF-сертифікат членства з контрольним номером для перевірки. Кеш 24 години, перегенерація лише при зміні даних.
+- Сховище податкових документів, бібліотека комплаєнсу (категорії, пошук), налаштування сповіщень за категоріями.
+- Журнал аудиту: вхід, вихід, пароль, MFA, профіль, завантаження, скачування та видалення документів, зміна ролі; з IP і user agent.
 
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
-```
+## Поза обсягом робіт
 
-Linux:
+SSO із зовнішніми провайдерами, обмін повідомленнями між учасниками, події та календар, облік CE-кредитів, сторонні API перевірки ліцензій, нативні мобільні застосунки.
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
-```
+## Правила розробки
 
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
+- **Міграції з індексами**: на всіх зовнішніх ключах (`foreignId()->constrained()`) і на полях, за якими фільтруємо чи сортуємо (статуси, дати закінчення, `member_id + created_at` у журналах).
+- **Eloquent-зв'язки** (`hasOne`, `hasMany`, `belongsTo` тощо) замість ручних join і сирих запитів. Уникаємо N+1 за допомогою `with()`.
+- **Без хардкоду секретів**: ключі, паролі, токени та URL сервісів беремо лише з `.env` через `config/*.php`. У коді `config()`, а не `env()`. Нові змінні додаємо також в `.env.example` з порожнім значенням.
+- Авторизація через Policies і дозволи spatie. Доступ до файлів перевіряється на сервері для кожного запиту, публічних URL немає.
+- Чутливі поля (секрет MFA тощо) зберігаємо із шифрованим cast, коди відновлення лише хешованими.
 
-## Agent Setup
+## Локальне середовище (Windows, OSPanel 6)
 
-Install Laravel Boost from the application root before making application changes:
+`php`, `composer` і `git` не додані в PATH, тому викликаємо їх за повним шляхом:
 
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
-```
-
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+- PHP: `D:\WORK\OSPanel6\modules\PHP-8.4\php.exe`
+- Composer: `<php> D:\WORK\OSPanel6\data\PHP-8.4\default\composer\composer.phar`
+- Git (із GitHub Desktop, шлях змінюється при оновленні): `C:\Users\PC\AppData\Local\GitHubDesktop\app-*\resources\app\git\cmd\git.exe`
+- Сайт: `https://properx-portal.local` (Apache + PHP-8.4, корінь `public`).
+- Репозиторій: `https://github.com/rotuss1206/properx-portal`, гілка `main`.
+- Тести: `<php> vendor\bin\phpunit`.
