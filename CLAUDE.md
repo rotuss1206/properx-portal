@@ -61,6 +61,22 @@ SSO із зовнішніми провайдерами, обмін повідо�
 - Тестові акаунти з сідера (пароль `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. Сідер створює файли-заглушки для документів (`DemoFilesSeeder`).
 - Тести: базовий `Tests\TestCase` викликає `Nova::flushState()`, бо Nova кешує дані запиту в статичних властивостях.
 
+## Сертифікати й нагадування
+
+- [CertificateGeneratorService](app/Services/Certificates/CertificateGeneratorService.php): PDF із шаблону `resources/views/pdf/certificate.blade.php`.
+  - Кеш на 24 год на диску `portal.certificates.disk`; ім'я файлу — хеш даних, надрукованих на сертифікаті.
+  - `MemberProfileObserver` скидає кеш, коли змінюються ці дані.
+  - Для простроченої ліцензії або неповного профілю кидає `CertificateUnavailableException` з повідомленням, яке можна показати користувачу.
+  - Після зміни шаблону збільшити `TEMPLATE_VERSION`.
+- Скачування сертифіката лише через маршрут `certificates.download` (policy `downloadCertificate`). Публічна перевірка: `/verify-certificate/{code}`, ліміт 10 запитів на хвилину з IP; показує тільки ім'я й дати.
+- «Дійсний з» = дата створення акаунта учасника, «дійсний до» = `license_expires_at` (окремих дат членства в моделі немає).
+- `app:check-license-expirations` запускається щодня о 02:00 за `PORTAL_SCHEDULE_TIMEZONE`.
+  - Оновлює статуси ліцензій і надсилає нагадування за 60/30/7 днів.
+  - Дублі відсікає за `reminder_logs` (`user_id + reminder_type + license_expires_at`).
+  - Учасникам, які вимкнули сповіщення, лист не надсилає: у журнал іде запис `skipped`.
+  - При помилках сповіщає Executive Director.
+- Пошта: `MAIL_MAILER=log` локально; для проду `postmark` з `POSTMARK_API_KEY`.
+
 ## Локальне середовище (Windows, OSPanel 6)
 
 `php`, `composer` і `git` не додані в PATH, тому викликаємо їх за повним шляхом:
@@ -71,3 +87,5 @@ SSO із зовнішніми провайдерами, обмін повідо�
 - Сайт: `https://properx-portal.local` (Apache + PHP-8.4, корінь `public`).
 - Репозиторій: `https://github.com/rotuss1206/properx-portal`, гілка `main`.
 - Тести: `<php> vendor\bin\phpunit`.
+- Черга (`QUEUE_CONNECTION=database`) локально не обробляється сама: `<php> artisan queue:work`. Планувальник: `<php> artisan schedule:work`.
+- PowerShell 5.1 читає файли як ANSI: не правити PHP-файли з кирилицею через `Get-Content`/`Set-Content`, лише через Edit.

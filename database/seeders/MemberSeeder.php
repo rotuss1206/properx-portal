@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\NotificationCategory;
+use App\Enums\ReminderType;
 use App\Enums\Role;
 use App\Models\AuditLog;
 use App\Models\LicenseDocument;
@@ -53,8 +54,19 @@ class MemberSeeder extends Seeder
         LicenseDocument::factory()->count(fake()->numberBetween(1, 2))->for($user)->create();
         TaxDocument::factory()->count(fake()->numberBetween(0, 2))->for($user)->create();
 
-        if ($state !== 'active') {
-            ReminderLog::factory()->count(fake()->numberBetween(1, 3))->for($user)->create();
+        // History of reminders that would already have gone out for this expiry date.
+        foreach (ReminderType::cases() as $type) {
+            $dueAt = $profile->license_expires_at->copy()->subDays($type->value)->setTime(2, 0);
+
+            if ($dueAt->isFuture()) {
+                continue;
+            }
+
+            ReminderLog::factory()->for($user)->create([
+                'reminder_type' => $type,
+                'license_expires_at' => $profile->license_expires_at,
+                'sent_at' => $dueAt,
+            ]);
         }
 
         AuditLog::factory()->count(3)->for($user)->create();

@@ -51,4 +51,15 @@ return [
         'requests_per_minute' => 10,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scheduled jobs
+    |--------------------------------------------------------------------------
+    |
+    | Timezone for "night-time" schedules such as the license expiry job.
+    |
+    */
+
+    'schedule_timezone' => env('PORTAL_SCHEDULE_TIMEZONE', 'America/New_York'),
+
 ];

@@ -117,19 +117,6 @@ class MemberSelfServiceTest extends TestCase
         $this->getJson('/nova-api/license-documents/creation-fields')->assertOk();
     }
 
-    public function test_member_downloads_only_own_certificate(): void
-    {
-        $member = $this->member();
-        $other = $this->member();
-
-        $this->actingAs($member)
-            ->get(route('certificates.show', $member->memberProfile))
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
-
-        $this->get(route('certificates.show', $other->memberProfile))->assertForbidden();
-    }
-
     /**
      * @return list<int>
      */

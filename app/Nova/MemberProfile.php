@@ -5,7 +5,8 @@ namespace App\Nova;
 use App\Enums\LicenseStatus;
 use App\Enums\NotificationCategory;
 use App\Models\NotificationSetting;
-use App\Nova\Actions\DownloadCertificate;
+use App\Nova\Actions\DownloadMyCertificate;
+use App\Nova\Actions\GenerateCertificate;
 use App\Support\UsStates;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -175,10 +176,20 @@ class MemberProfile extends Resource
 
     public function actions(NovaRequest $request): array
     {
+        $canDownload = fn (NovaRequest $request, \App\Models\MemberProfile $profile) => Gate::forUser($request->user())
+            ->check('downloadCertificate', $profile);
+
         return [
-            DownloadCertificate::make()
+            GenerateCertificate::make()
                 ->showInline()
-                ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => Gate::forUser($request->user())->check('downloadCertificate', $profile)),
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request))
+                ->canRun($canDownload),
+
+            DownloadMyCertificate::make()
+                ->showInline()
+                ->canSee(fn (Request $request) => static::viewerIsMember($request))
+                ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => $profile->user_id === $request->user()->id
+                    && $canDownload($request, $profile)),
         ];
     }
 }

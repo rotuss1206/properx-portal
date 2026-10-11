@@ -3,6 +3,9 @@
 namespace App\Nova\Metrics;
 
 use App\Enums\LicenseStatus;
+use App\Exceptions\CertificateUnavailableException;
+use App\Models\MemberProfile;
+use App\Services\Certificates\CertificateGeneratorService;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Menu\MenuItem;
 use Laravel\Nova\Metrics\MetricTableRow;
@@ -44,14 +47,28 @@ class MyLicense extends Table
                 ->subtitle($expires
                     ? 'Expires '.$expires->toFormattedDateString().' ('.$expires->diffForHumans().')'
                     : 'No expiry date on file')
-                ->actions(fn () => [
+                ->actions(fn () => array_values(array_filter([
                     MenuItem::link('Open my profile', "/resources/member-profiles/{$profile->getKey()}"),
-                ]),
+                    $this->canIssueCertificate($profile)
+                        ? MenuItem::externalLink('Download my certificate', route('certificates.download', $profile))
+                        : null,
+                ]))),
         ];
     }
 
     public function uriKey(): string
     {
         return 'my-license';
+    }
+
+    private function canIssueCertificate(MemberProfile $profile): bool
+    {
+        try {
+            app(CertificateGeneratorService::class)->assertEligible($profile);
+
+            return true;
+        } catch (CertificateUnavailableException) {
+            return false;
+        }
     }
 }

@@ -2,35 +2,35 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Role;
+use App\Exceptions\CertificateUnavailableException;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
-use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Certificates\CertificateGeneratorService;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Membership certificate PDF (ТЗ, розділ 3.6).
- * TODO: 24h cache with regeneration on data change and a public verification page.
+ * Serves the membership certificate PDF through the app (no direct file URLs),
+ * after checking role and ownership (MemberProfilePolicy::downloadCertificate).
  */
 class CertificateController extends Controller
 {
-    public function __invoke(MemberProfile $memberProfile): Response
+    public function download(MemberProfile $memberProfile, CertificateGeneratorService $certificates): Response
     {
         Gate::authorize('downloadCertificate', $memberProfile);
 
-        $signatory = User::role(Role::ExecutiveDirector->value)->oldest()->first();
+        try {
+            $certificate = $certificates->generate($memberProfile);
+        } catch (CertificateUnavailableException $e) {
+            return response()->view('certificates.unavailable', ['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         AuditLog::record('certificate_downloaded', $memberProfile);
 
-        return Pdf::loadView('certificates.membership', [
-            'profile' => $memberProfile,
-            'memberSince' => $memberProfile->user->created_at,
-            'issuedAt' => now(),
-            'signatory' => $signatory,
-        ])
-            ->setPaper('letter', 'landscape')
-            ->stream("membership-certificate-{$memberProfile->certificate_code}.pdf");
+        return Storage::disk($certificate->disk)->download($certificate->path, $certificate->filename, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 }

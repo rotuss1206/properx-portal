@@ -13,9 +13,9 @@ use Illuminate\Support\Str;
 class StaffSeeder extends Seeder
 {
     private const STAFF = [
-        'director@properx.test' => ['Executive Director', Role::ExecutiveDirector],
-        'coordinator@properx.test' => ['Membership Coordinator', Role::MembershipCoordinator],
-        'compliance@properx.test' => ['Compliance Specialist', Role::ComplianceSpecialist],
+        'director@properx.test' => ['Jordan Ellis', Role::ExecutiveDirector],
+        'coordinator@properx.test' => ['Casey Morgan', Role::MembershipCoordinator],
+        'compliance@properx.test' => ['Riley Chen', Role::ComplianceSpecialist],
     ];
 
     public function run(): void

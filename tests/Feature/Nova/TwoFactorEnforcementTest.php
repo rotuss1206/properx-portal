@@ -90,7 +90,7 @@ class TwoFactorEnforcementTest extends TestCase
         $profile = $this->member()->memberProfile;
 
         $this->actingAs($this->staff(Role::ExecutiveDirector, withTwoFactor: false))
-            ->get(route('certificates.show', $profile))
+            ->get(route('certificates.download', $profile))
             ->assertRedirect(route('nova.pages.user-security'));
     }
 

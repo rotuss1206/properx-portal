@@ -53,12 +53,13 @@ return [
             'transport' => 'ses',
         ],
 
+        // Transactional mail (ТЗ, розділ 3.4). Token: services.postmark.key (POSTMARK_API_KEY).
         'postmark' => [
             'transport' => 'postmark',
-            // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
-            // 'client' => [
-            //     'timeout' => 5,
-            // ],
+            'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID', 'outbound'),
+            'client' => [
+                'timeout' => 10,
+            ],
         ],
 
         'resend' => [

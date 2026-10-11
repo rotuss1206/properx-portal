@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Enums\LicenseStatus;
+use App\Observers\MemberProfileObserver;
 use Database\Factories\MemberProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +16,7 @@ use Illuminate\Support\Str;
     'first_name', 'last_name', 'phone', 'address', 'firm_name', 'npn',
     'license_number', 'license_state', 'license_type', 'license_expires_at',
 ])]
+#[ObservedBy(MemberProfileObserver::class)]
 class MemberProfile extends Model
 {
     /** @use HasFactory<MemberProfileFactory> */
