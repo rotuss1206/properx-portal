@@ -147,7 +147,7 @@ class CheckLicenseExpirations extends Command
         }
 
         try {
-            $user->notify(new LicenseExpiryReminder($profile, $type));
+            $user->notify(new LicenseExpiryReminder($profile, $type, $log->id));
             $this->stats['sent']++;
         } catch (Throwable $e) {
             $log->update(['delivery_status' => DeliveryStatus::Failed]);

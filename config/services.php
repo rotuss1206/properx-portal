@@ -14,8 +14,16 @@ return [
     |
     */
 
+    // Transactional mail (Spec §3.4). "POSTMARK_API_TEST" is Postmark's test token:
+    // requests are validated but nothing is delivered.
     'postmark' => [
-        'key' => env('POSTMARK_API_KEY'),
+        'token' => env('POSTMARK_TOKEN'),
+
+        // Basic auth credentials configured on the Postmark bounce/spam webhook URL.
+        'webhook' => [
+            'username' => env('POSTMARK_WEBHOOK_USERNAME'),
+            'password' => env('POSTMARK_WEBHOOK_PASSWORD'),
+        ],
     ],
 
     'resend' => [

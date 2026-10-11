@@ -57,6 +57,7 @@ class ReminderLog extends Resource
                     DeliveryStatus::Delivered->value => 'success',
                     DeliveryStatus::Skipped->value => 'warning',
                     DeliveryStatus::Bounced->value => 'danger',
+                    DeliveryStatus::Complained->value => 'danger',
                     DeliveryStatus::Failed->value => 'danger',
                 ])
                 ->labels(collect(DeliveryStatus::cases())

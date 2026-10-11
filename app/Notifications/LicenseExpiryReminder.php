@@ -9,6 +9,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Laravel\Nova\Nova;
+use Symfony\Component\Mailer\Header\MetadataHeader;
+use Symfony\Component\Mailer\Header\TagHeader;
 use Symfony\Component\Mime\Email;
 
 /**
@@ -19,9 +21,13 @@ class LicenseExpiryReminder extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    public const TAG = 'license-expiry-reminder';
+
     public function __construct(
         public readonly MemberProfile $profile,
         public readonly ReminderType $type,
+        // Sent to Postmark as metadata and echoed back by its bounce/spam webhook.
+        public readonly ?int $reminderLogId = null,
     ) {}
 
     /**
@@ -48,7 +54,13 @@ class LicenseExpiryReminder extends Notification implements ShouldQueue
             ->salutation("Regards,\nProPerx Alliance Membership Team")
             ->line("To stop license expiry emails, change your notification preferences: {$preferencesUrl}")
             ->withSymfonyMessage(function (Email $message) use ($preferencesUrl) {
-                $message->getHeaders()->addTextHeader('List-Unsubscribe', "<{$preferencesUrl}>");
+                $headers = $message->getHeaders();
+                $headers->addTextHeader('List-Unsubscribe', "<{$preferencesUrl}>");
+                $headers->add(new TagHeader(self::TAG));
+
+                if ($this->reminderLogId !== null) {
+                    $headers->add(new MetadataHeader('reminder_log_id', (string) $this->reminderLogId));
+                }
             });
     }
 

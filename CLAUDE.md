@@ -81,7 +81,9 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Deduplicates via `reminder_logs` (`user_id + reminder_type + license_expires_at`).
   - Members who opted out get no email; a `skipped` entry is logged instead.
   - Alerts the Executive Director on errors.
-- Mail: `MAIL_MAILER=log` locally; `postmark` with `POSTMARK_API_KEY` in production.
+- Mail: `MAIL_MAILER=postmark` with `POSTMARK_TOKEN` (`POSTMARK_API_TEST` = Postmark's test token, nothing is delivered) or `log`.
+  - Reminder emails carry the Postmark tag `license-expiry-reminder` and `reminder_log_id` metadata.
+  - `POST /webhooks/postmark` (basic auth `POSTMARK_WEBHOOK_USERNAME/PASSWORD`, stateless routes in `routes/webhooks.php`) maps Delivery / Bounce / SpamComplaint to `reminder_logs.delivery_status`; never downgrades a worse status.
 
 ## Local environment (Windows, OSPanel 6)
 

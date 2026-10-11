@@ -1,6 +1,9 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\NovaServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\NovaServiceProvider::class,
+    AppServiceProvider::class,
+    NovaServiceProvider::class,
 ];
