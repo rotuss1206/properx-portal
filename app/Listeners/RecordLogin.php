@@ -2,6 +2,7 @@
 
 namespace App\Listeners;
 
+use App\Http\Middleware\EnforceAbsoluteSessionTimeout;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Auth\Events\Login;
@@ -18,6 +19,11 @@ class RecordLogin
         }
 
         $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
+
+        // Start of the 8-hour absolute session window.
+        if (request()->hasSession()) {
+            request()->session()->put(EnforceAbsoluteSessionTimeout::SESSION_KEY, now()->getTimestamp());
+        }
 
         AuditLog::record('login', user: $event->user);
     }

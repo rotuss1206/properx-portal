@@ -63,6 +63,10 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Uploads are limited to PDF/JPG/PNG up to 10 MB (`DocumentVault::uploadRules()`).
   - License and tax documents are AES-encrypted by the app (`.enc` suffix, key `DOCUMENTS_ENCRYPTION_KEY`, falling back to `APP_KEY`).
 - Downloads go only through Nova's download endpoint after a policy check (`App\Services\DocumentDownloader`): encrypted files are decrypted and streamed, others get a 5-minute SAS link (or a signed local URL). Every download is audited.
+- Security (Spec §3.3, §8):
+  - Login: max 5 failed attempts per 15 minutes per IP (`App\Auth\LoginRateLimiter` replaces Fortify's). The 2FA challenge allows 5 tries per minute.
+  - Session: 30 minutes idle (`SESSION_LIFETIME`), 8 hours absolute (`EnforceAbsoluteSessionTimeout`); "remember me" is ignored (`DisableRememberMe`). Cookies are `Secure`, `HttpOnly`, `SameSite=Strict`.
+  - `SecurityHeaders` sends HSTS (HTTPS or production), `nosniff`, `X-Frame-Options: DENY` and a CSP. Nova's inline scripts get the per-request nonce via `Nova::cspNonce()`; no `unsafe-eval`. `CSP_REPORT_ONLY=true` switches to report-only while debugging.
 - Audit log: `AuditLog::record($action, $resource)`. Login and logout are recorded by listeners in `app/Listeners`, which also update `last_login_at`.
 - Seeded test accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. The seeder writes placeholder files for documents (`DemoFilesSeeder`).
 - Tests: the base `Tests\TestCase` calls `Nova::flushState()` because Nova caches request data in static properties.

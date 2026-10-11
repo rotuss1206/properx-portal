@@ -88,4 +88,27 @@ return [
 
     'schedule_timezone' => env('PORTAL_SCHEDULE_TIMEZONE', 'America/New_York'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Security (Spec §3.3, §8)
+    |--------------------------------------------------------------------------
+    |
+    | Idle timeout is SESSION_LIFETIME (30 minutes); the absolute lifetime below
+    | ends a session 8 hours after login regardless of activity.
+    |
+    */
+
+    'security' => [
+        'session_absolute_minutes' => (int) env('SESSION_ABSOLUTE_LIFETIME', 480),
+
+        'login_max_attempts' => 5,
+        'login_decay_minutes' => 15,
+
+        'hsts_max_age' => 31536000,
+
+        // Content-Security-Policy; report-only mode helps when rolling out changes.
+        'csp_enabled' => env('CSP_ENABLED', true),
+        'csp_report_only' => env('CSP_REPORT_ONLY', false),
+    ],
+
 ];

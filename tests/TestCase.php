@@ -9,8 +9,9 @@ abstract class TestCase extends BaseTestCase
 {
     protected function tearDown(): void
     {
-        // Nova keeps per-request data (e.g. the current user id) in static properties.
+        // Nova keeps per-request data (e.g. the current user id, the CSP nonce) in static properties.
         Nova::flushState();
+        Nova::$nonceAttribute = null;
 
         parent::tearDown();
     }

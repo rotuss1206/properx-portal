@@ -50,7 +50,12 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
         // Nova syncs these into Fortify only while serving Nova; routes are
         // registered earlier, so set them up front too (keeps passkeys off).
-        config(['fortify.features' => $features]);
+        // Login attempts are limited by App\Auth\LoginRateLimiter; the 2FA
+        // challenge uses the "two-factor" limiter from AppServiceProvider.
+        config([
+            'fortify.features' => $features,
+            'fortify.limiters.two-factor' => 'two-factor',
+        ]);
 
         Nova::fortify()
             ->features($features)

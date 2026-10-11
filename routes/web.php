@@ -5,9 +5,8 @@ use App\Http\Controllers\VerifyCertificateController;
 use App\Http\Middleware\RequireTwoFactorForStaff;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// The portal lives in Nova; the bare domain sends visitors there.
+Route::redirect('/', '/nova');
 
 Route::middleware(['auth', RequireTwoFactorForStaff::class])->group(function () {
     Route::get('/certificates/{memberProfile}/download', [CertificateController::class, 'download'])
