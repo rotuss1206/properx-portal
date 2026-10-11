@@ -3,15 +3,18 @@
 namespace App\Models;
 
 use App\Enums\VerificationStatus;
+use App\Observers\DocumentObserver;
 use Database\Factories\LicenseDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['original_filename', 'mime_type', 'size', 'uploaded_at', 'verification_status', 'admin_notes'])]
 #[Hidden(['stored_filename'])]
+#[ObservedBy(DocumentObserver::class)]
 class LicenseDocument extends Model
 {
     /** @use HasFactory<LicenseDocumentFactory> */

@@ -29,6 +29,7 @@ class AuditLog extends Model
         'logout',
         'password_changed',
         'mfa_enrolled',
+        'mfa_disabled',
         'profile_updated',
         'document_uploaded',
         'document_downloaded',
@@ -48,7 +49,7 @@ class AuditLog extends Model
         $request = request();
 
         return static::create([
-            'user_id' => ($user ?? $request->user())?->getKey(),
+            'user_id' => ($user ?? $request->user() ?? auth()->user())?->getKey(),
             'action' => $action,
             'resource_type' => $resource?->getMorphClass(),
             'resource_id' => $resource?->getKey(),

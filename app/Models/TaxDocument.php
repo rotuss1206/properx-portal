@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use App\Observers\DocumentObserver;
 use Database\Factories\TaxDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['document_type', 'tax_year', 'original_filename', 'uploaded_at'])]
 #[Hidden(['stored_filename'])]
+#[ObservedBy(DocumentObserver::class)]
 class TaxDocument extends Model
 {
     /** @use HasFactory<TaxDocumentFactory> */

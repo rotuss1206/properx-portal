@@ -67,7 +67,12 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Login: max 5 failed attempts per 15 minutes per IP (`App\Auth\LoginRateLimiter` replaces Fortify's). The 2FA challenge allows 5 tries per minute.
   - Session: 30 minutes idle (`SESSION_LIFETIME`), 8 hours absolute (`EnforceAbsoluteSessionTimeout`); "remember me" is ignored (`DisableRememberMe`). Cookies are `Secure`, `HttpOnly`, `SameSite=Strict`.
   - `SecurityHeaders` sends HSTS (HTTPS or production), `nosniff`, `X-Frame-Options: DENY` and a CSP. Nova's inline scripts get the per-request nonce via `Nova::cspNonce()`; no `unsafe-eval`. `CSP_REPORT_ONLY=true` switches to report-only while debugging.
-- Audit log: `AuditLog::record($action, $resource)`. Login and logout are recorded by listeners in `app/Listeners`, which also update `last_login_at`.
+- Audit log: `AuditLog::record($action, $resource)` (actor = current user). Sources:
+  - listeners in `app/Listeners`: login/logout (also updates `last_login_at`), role changes via spatie events (`permission.events_enabled`);
+  - `UserObserver`: password changes, 2FA enrolment/removal;
+  - `MemberProfileObserver`: profile edits (not the nightly status refresh);
+  - `DocumentObserver`: uploads and deletions of license, tax and library documents;
+  - explicit calls: document review actions, document and certificate downloads, certificate generation.
 - Seeded test accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. The seeder writes placeholder files for documents (`DemoFilesSeeder`).
 - Tests: the base `Tests\TestCase` calls `Nova::flushState()` because Nova caches request data in static properties.
 

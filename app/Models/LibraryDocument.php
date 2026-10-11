@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
+use App\Observers\DocumentObserver;
 use Database\Factories\LibraryDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable(['title', 'description', 'category', 'file_path', 'published', 'uploaded_at'])]
+#[ObservedBy(DocumentObserver::class)]
 class LibraryDocument extends Model
 {
     /** @use HasFactory<LibraryDocumentFactory> */
