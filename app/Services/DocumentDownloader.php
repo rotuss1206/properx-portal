@@ -3,22 +3,48 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Services\Documents\DocumentVault;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Streams a private document through the app (no direct storage URLs)
- * and records the download in the audit log (Spec §8).
+ * Serves a private document after the caller has authorised the request (Spec §3.2, §8):
+ * encrypted documents are decrypted and streamed by the app; others get a short-lived
+ * SAS link when the disk supports it, otherwise they are streamed. Every download is audited.
  */
 class DocumentDownloader
 {
-    public function download(Model $document, string $disk, string $path, string $filename): StreamedResponse
+    public function __construct(private DocumentVault $vault) {}
+
+    public function download(Model $document, string $disk, string $path, string $filename, ?string $mimeType = null): Response
     {
-        abort_unless(Storage::disk($disk)->exists($path), 404, 'The file is no longer available.');
+        /** @var FilesystemAdapter $storage */
+        $storage = Storage::disk($disk);
+
+        abort_unless($storage->exists($path), 404, 'The file is no longer available.');
 
         AuditLog::record('document_downloaded', $document);
 
-        return Storage::disk($disk)->download($path, $filename);
+        if (DocumentVault::isEncrypted($path)) {
+            $contents = $this->vault->read($path);
+
+            return response()->streamDownload(fn () => print ($contents), $filename, [
+                'Content-Type' => $mimeType ?? 'application/octet-stream',
+                'Cache-Control' => 'private, no-store',
+            ]);
+        }
+
+        if ($storage->providesTemporaryUrls()) {
+            return redirect()->away($storage->temporaryUrl(
+                $path,
+                now()->addMinutes(config('portal.temporary_url_minutes')),
+                ['httpHeaders' => ['contentDisposition' => HeaderUtils::makeDisposition('attachment', $filename, 'document')]],
+            ));
+        }
+
+        return $storage->download($path, $filename, ['Cache-Control' => 'private, no-store']);
     }
 }

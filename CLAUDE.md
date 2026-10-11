@@ -14,7 +14,7 @@ Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in 
 - **spatie/laravel-permission**: roles and permissions (`HasRoles` trait on `App\Models\User`).
 - **barryvdh/laravel-dompdf**: membership certificate PDF.
 - **Postmark**: transactional email (`MAIL_MAILER=log` locally).
-- **Azure Blob Storage**: file storage. A local private disk is used for now via the `Storage` facade. Always go through `Storage::disk(...)` so switching to Azure is a config change only.
+- **Azure Blob Storage** (`azure-oss/storage-blob-laravel`, disk `azure`): file storage for documents and the certificate cache. `PORTAL_DOCUMENTS_DISK` / `PORTAL_CERTIFICATES_DISK` switch between `local` and `azure`. Locally the Azurite emulator stands in for Azure. Always go through `Storage::disk(...)`.
 
 ## Roles (Spec §3.7)
 
@@ -58,7 +58,11 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Members see only their own records: `indexQuery` via `Resource::ownRecordsUnless()` plus `view` in the policy.
 - The `Staff` and `Member` resources both use the `User` model; their `viewAny` and `create` checks are split in the `AuthorizesUserResource` trait.
 - [RequireTwoFactorForStaff](app/Http/Middleware/RequireTwoFactorForStaff.php) middleware: staff without confirmed 2FA can only reach `/nova/user-security`. 2FA is optional for members. `NOVA_REQUIRE_STAFF_2FA=false` disables the requirement, but only when `APP_ENV=local`.
-- Files live on the private disk `config('portal.documents_disk')` (currently `local`). They are served only through Nova's download endpoint after a policy check, and every download is audited (`App\Services\DocumentDownloader`).
+- Files live on the private disk `config('portal.documents_disk')`. All writes go through [DocumentVault](app/Services/Documents/DocumentVault.php):
+  - UUID file names; the extension comes from the MIME type sniffed with `finfo`, never from the client.
+  - Uploads are limited to PDF/JPG/PNG up to 10 MB (`DocumentVault::uploadRules()`).
+  - License and tax documents are AES-encrypted by the app (`.enc` suffix, key `DOCUMENTS_ENCRYPTION_KEY`, falling back to `APP_KEY`).
+- Downloads go only through Nova's download endpoint after a policy check (`App\Services\DocumentDownloader`): encrypted files are decrypted and streamed, others get a 5-minute SAS link (or a signed local URL). Every download is audited.
 - Audit log: `AuditLog::record($action, $resource)`. Login and logout are recorded by listeners in `app/Listeners`, which also update `last_login_at`.
 - Seeded test accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. The seeder writes placeholder files for documents (`DemoFilesSeeder`).
 - Tests: the base `Tests\TestCase` calls `Nova::flushState()` because Nova caches request data in static properties.
@@ -89,6 +93,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Site: `https://properx-portal.local` (Apache + PHP-8.4, document root `public`).
 - Repository: `https://github.com/rotuss1206/properx-portal`, branch `main`.
 - Tests: `<php> vendor\bin\phpunit`.
+- Azure emulator: `npm install` once, then `npm run azurite` (data in `storage/azurite`) and `<php> artisan app:storage:init` to create the container. The local `.env` uses `PORTAL_DOCUMENTS_DISK=azure`, so Azurite must be running for document downloads. Tests use the local disk; `AzuriteIntegrationTest` runs only when Azurite is up.
 - Nova assets (`public/vendor/nova`) are not committed; Composer publishes them (`nova:publish`) after install/update.
 - The queue (`QUEUE_CONNECTION=database`) is not processed automatically locally: `<php> artisan queue:work`. Scheduler: `<php> artisan schedule:work`.
 - PowerShell 5.1 reads files as ANSI: never edit files containing non-ASCII text via `Get-Content`/`Set-Content`; use the Edit tool.

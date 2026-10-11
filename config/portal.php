@@ -16,6 +16,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Document encryption and uploads
+    |--------------------------------------------------------------------------
+    |
+    | License and tax documents are encrypted by the application before they are
+    | written to storage (on top of Azure server-side encryption). The key falls
+    | back to APP_KEY; in production supply a dedicated key from Key Vault.
+    | Format: "base64:..." as produced by `php artisan key:generate --show`.
+    |
+    */
+
+    'documents_encryption_key' => env('DOCUMENTS_ENCRYPTION_KEY'),
+
+    'uploads' => [
+        'max_kilobytes' => 10240,
+        'mime_types' => [
+            'application/pdf' => 'pdf',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+        ],
+    ],
+
+    // Lifetime of SAS download links for unencrypted documents.
+    'temporary_url_minutes' => 5,
+
+    /*
+    |--------------------------------------------------------------------------
     | Staff two-factor authentication
     |--------------------------------------------------------------------------
     |

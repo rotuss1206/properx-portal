@@ -6,6 +6,7 @@ use App\Enums\VerificationStatus;
 use App\Nova\Actions\RejectLicenseDocument;
 use App\Nova\Actions\VerifyLicenseDocument;
 use App\Services\DocumentDownloader;
+use App\Services\Documents\DocumentVault;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -72,18 +73,23 @@ class LicenseDocument extends Resource
                 ->canSee(fn (Request $request) => static::viewerIsStaff($request))
                 ->readonly(fn () => $this->resource->exists),
 
-            File::make('File', 'stored_filename', \App\Models\LicenseDocument::disk())
-                ->acceptedTypes('.pdf,.jpg,.jpeg,.png')
+            File::make('File', 'stored_filename', DocumentVault::diskName())
+                ->acceptedTypes(DocumentVault::acceptedExtensions())
                 ->creationRules('required')
-                ->rules('mimes:pdf,jpg,jpeg,png', 'max:10240')
-                ->store(fn (Request $request, $model, $attribute, $requestAttribute) => [
-                    'stored_filename' => $request->file($requestAttribute)->store(\App\Models\LicenseDocument::DIRECTORY, \App\Models\LicenseDocument::disk()),
-                    'original_filename' => $request->file($requestAttribute)->getClientOriginalName(),
-                    'mime_type' => $request->file($requestAttribute)->getMimeType(),
-                    'size' => $request->file($requestAttribute)->getSize(),
-                ])
+                ->rules(DocumentVault::uploadRules())
+                ->store(function (Request $request, $model, $attribute, $requestAttribute) {
+                    $document = app(DocumentVault::class)
+                        ->store($request->file($requestAttribute), \App\Models\LicenseDocument::DIRECTORY, encrypt: true);
+
+                    return [
+                        'stored_filename' => $document->path,
+                        'original_filename' => $document->originalName,
+                        'mime_type' => $document->mimeType,
+                        'size' => $document->size,
+                    ];
+                })
                 ->download(fn ($request, $model, $disk) => app(DocumentDownloader::class)
-                    ->download($model, $disk, $model->stored_filename, $model->original_filename))
+                    ->download($model, $disk, $model->stored_filename, $model->original_filename, $model->mime_type))
                 ->prunable()
                 ->hideFromIndex()
                 ->hideWhenUpdating(),

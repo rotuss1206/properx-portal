@@ -3,6 +3,7 @@
 namespace App\Nova;
 
 use App\Services\DocumentDownloader;
+use App\Services\Documents\DocumentVault;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -73,15 +74,24 @@ class TaxDocument extends Resource
                 ->sortable()
                 ->filterable(),
 
-            File::make('File', 'stored_filename', \App\Models\TaxDocument::disk())
-                ->path(\App\Models\TaxDocument::DIRECTORY)
-                ->storeOriginalName('original_filename')
-                ->acceptedTypes('.pdf')
+            File::make('File', 'stored_filename', DocumentVault::diskName())
+                ->acceptedTypes(DocumentVault::acceptedExtensions())
                 ->creationRules('required')
-                ->rules('mimes:pdf', 'max:10240')
+                ->rules(DocumentVault::uploadRules())
+                ->store(function (Request $request, $model, $attribute, $requestAttribute) {
+                    $document = app(DocumentVault::class)
+                        ->store($request->file($requestAttribute), \App\Models\TaxDocument::DIRECTORY, encrypt: true);
+
+                    return [
+                        'stored_filename' => $document->path,
+                        'original_filename' => $document->originalName,
+                    ];
+                })
                 ->download(function ($request, $model, $disk) {
-                    $response = app(DocumentDownloader::class)
-                        ->download($model, $disk, $model->stored_filename, $model->original_filename);
+                    $response = app(DocumentDownloader::class)->download(
+                        $model, $disk, $model->stored_filename, $model->original_filename,
+                        DocumentVault::mimeTypeForPath($model->stored_filename),
+                    );
 
                     // Track when the member themselves retrieves the document (Spec §3.1).
                     if ($request->user()->is($model->user)) {

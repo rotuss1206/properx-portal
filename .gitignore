@@ -21,6 +21,7 @@
 /public/vendor/nova
 /storage/*.key
 /storage/pail
+/storage/azurite
 /vendor
 _ide_helper.php
 Homestead.json

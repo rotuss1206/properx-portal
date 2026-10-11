@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
 use App\Models\TaxDocument;
+use App\Services\Documents\DocumentVault;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesPortalUsers;
@@ -83,22 +84,32 @@ class AuditLogTest extends TestCase
     public function test_document_downloads_are_audited(): void
     {
         $member = $this->member();
-        $license = LicenseDocument::factory()->for($member)->create(['mime_type' => 'application/pdf']);
-        $tax = TaxDocument::factory()->for($member)->create(['downloaded_at' => null]);
-        $library = LibraryDocument::factory()->published()->create();
+        $vault = app(DocumentVault::class);
 
-        $disk = Storage::disk(config('portal.documents_disk'));
-        $disk->put($license->stored_filename, '%PDF-1.4 license');
-        $disk->put($tax->stored_filename, '%PDF-1.4 tax');
-        $disk->put($library->file_path, '%PDF-1.4 library');
+        $license = LicenseDocument::factory()->for($member)->create([
+            'mime_type' => 'application/pdf',
+            'stored_filename' => $vault->put(LicenseDocument::DIRECTORY, 'pdf', '%PDF-1.4 license', encrypt: true),
+        ]);
+        $tax = TaxDocument::factory()->for($member)->create([
+            'downloaded_at' => null,
+            'stored_filename' => $vault->put(TaxDocument::DIRECTORY, 'pdf', '%PDF-1.4 tax', encrypt: true),
+        ]);
+        $library = LibraryDocument::factory()->published()->create([
+            'file_path' => $vault->put(LibraryDocument::DIRECTORY, 'pdf', '%PDF-1.4 library', encrypt: false),
+        ]);
 
         $this->actingAs($member);
 
-        $this->get("/nova-api/license-documents/{$license->id}/download/stored_filename")
+        // Encrypted documents are decrypted and streamed by the app.
+        $response = $this->get("/nova-api/license-documents/{$license->id}/download/stored_filename")
             ->assertOk()
             ->assertDownload($license->original_filename);
-        $this->get("/nova-api/tax-documents/{$tax->id}/download/stored_filename")->assertOk();
-        $this->get("/nova-api/library-documents/{$library->id}/download/file_path")->assertOk();
+        $this->assertSame('%PDF-1.4 license', $response->streamedContent());
+
+        $this->assertSame('%PDF-1.4 tax', $this->get("/nova-api/tax-documents/{$tax->id}/download/stored_filename")->streamedContent());
+
+        // Unencrypted library files are handed out as short-lived signed links.
+        $this->get("/nova-api/library-documents/{$library->id}/download/file_path")->assertRedirect();
 
         $this->assertSame(3, AuditLog::where('action', 'document_downloaded')->where('user_id', $member->id)->count());
         $this->assertNotNull($tax->fresh()->downloaded_at);

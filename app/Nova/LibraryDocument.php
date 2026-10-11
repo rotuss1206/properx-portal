@@ -3,9 +3,11 @@
 namespace App\Nova;
 
 use App\Services\DocumentDownloader;
+use App\Services\Documents\DocumentVault;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\File;
@@ -76,13 +78,20 @@ class LibraryDocument extends Resource
                 ->rules('nullable', 'max:5000')
                 ->alwaysShow(),
 
-            File::make('File', 'file_path', \App\Models\LibraryDocument::disk())
-                ->path(\App\Models\LibraryDocument::DIRECTORY)
-                ->acceptedTypes('.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.mp4')
+            File::make('File', 'file_path', DocumentVault::diskName())
+                ->acceptedTypes(DocumentVault::acceptedExtensions())
                 ->creationRules('required')
-                ->rules('max:51200')
-                ->download(fn ($request, $model, $disk) => app(DocumentDownloader::class)
-                    ->download($model, $disk, $model->file_path, basename($model->file_path)))
+                ->rules(DocumentVault::uploadRules())
+                ->store(fn (Request $request, $model, $attribute, $requestAttribute) => [
+                    'file_path' => app(DocumentVault::class)
+                        ->store($request->file($requestAttribute), \App\Models\LibraryDocument::DIRECTORY, encrypt: false)
+                        ->path,
+                ])
+                ->download(fn ($request, $model, $disk) => app(DocumentDownloader::class)->download(
+                    $model, $disk, $model->file_path,
+                    Str::slug($model->title).'.'.pathinfo($model->file_path, PATHINFO_EXTENSION),
+                    DocumentVault::mimeTypeForPath($model->file_path),
+                ))
                 ->prunable()
                 ->hideFromIndex(),
 
