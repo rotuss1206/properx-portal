@@ -1,7 +1,7 @@
 # ProPerx Member Portal
 
 Портал самообслуговування учасника ProPerx Alliance (професійна асоціація ліцензованих страхових агентів).
-Повне ТЗ: `Portal_uchasnyka_Vymohy_dlia_rozrobnyka.docx` (Ред. 2, KEENEY). Файл не входить у репозиторій.
+Повне ТЗ: [docs/Portal_uchasnyka_Vymohy_dlia_rozrobnyka.docx](docs/Portal_uchasnyka_Vymohy_dlia_rozrobnyka.docx) (Ред. 2, KEENEY).
 Цільовий хостинг: Azure AKS (HIPAA-рівень, обліковий запис SHN). Секрети в проді лежать в Azure Key Vault.
 
 ## Стек
