@@ -15,7 +15,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Membership certificate PDF (ТЗ, розділи 2 і 3.6).
+ * Membership certificate PDF (Spec §2, §3.6).
  *
  * PDFs are cached per member for 24 hours. The cache file name is a fingerprint
  * of everything printed on the certificate, so changed data never serves a stale

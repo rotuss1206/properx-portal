@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 /**
- * Spatie role names (ТЗ, розділ 3.7).
+ * Spatie role names (Spec §3.7).
  */
 enum Role: string
 {

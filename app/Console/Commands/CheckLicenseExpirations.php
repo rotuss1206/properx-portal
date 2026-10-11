@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 /**
- * Nightly license job (ТЗ, розділ 3.5): refresh license statuses and send
+ * Nightly license job (Spec §3.5): refresh license statuses and send
  * 60 / 30 / 7-day expiry reminders, honouring notification preferences.
  */
 #[Signature('app:check-license-expirations')]

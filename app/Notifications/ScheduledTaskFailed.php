@@ -6,7 +6,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * Alert to the Executive Director when a scheduled job fails (ТЗ, розділ 3.5).
+ * Alert to the Executive Director when a scheduled job fails (Spec §3.5).
  * Sent synchronously on purpose: the queue itself may be what is broken.
  */
 class ScheduledTaskFailed extends Notification

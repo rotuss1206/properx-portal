@@ -10,7 +10,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Which Nova resources and dashboards each role may open (ТЗ, розділ 3.7).
+ * Which Nova resources and dashboards each role may open (Spec §3.7).
  */
 class RoleAccessTest extends TestCase
 {

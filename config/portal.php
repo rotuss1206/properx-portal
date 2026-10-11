@@ -19,7 +19,7 @@ return [
     | Staff two-factor authentication
     |--------------------------------------------------------------------------
     |
-    | Mandatory for staff (ТЗ, розділ 8). Setting NOVA_REQUIRE_STAFF_2FA=false
+    | Mandatory for staff (Spec §8). Setting NOVA_REQUIRE_STAFF_2FA=false
     | only takes effect when APP_ENV=local, for development convenience.
     |
     */
@@ -28,7 +28,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Membership certificates (ТЗ, розділ 3.6)
+    | Membership certificates (Spec §3.6)
     |--------------------------------------------------------------------------
     */
 

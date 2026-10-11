@@ -1,91 +1,94 @@
 # ProPerx Member Portal
 
-Портал самообслуговування учасника ProPerx Alliance (професійна асоціація ліцензованих страхових агентів).
-Повне ТЗ: [docs/Portal_uchasnyka_Vymohy_dlia_rozrobnyka.docx](docs/Portal_uchasnyka_Vymohy_dlia_rozrobnyka.docx) (Ред. 2, KEENEY).
-Цільовий хостинг: Azure AKS (HIPAA-рівень, обліковий запис SHN). Секрети в проді лежать в Azure Key Vault.
+Member self-service portal for ProPerx Alliance (a professional association of licensed insurance agents).
+The requirements spec (Rev. 2, KEENEY) is kept outside the repository; reference it as "Spec §N".
+Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in Azure Key Vault.
 
-## Стек
+**Language:** everything in the repository is English (code, comments, tests, UI texts, emails, docs, commit messages). The client is in the US.
+
+## Stack
 
 - **Laravel 13**, PHP 8.4, MySQL.
-- **Laravel Nova 5.11**: адмінка для співробітників і кабінет учасника (`/nova`). Встановлюється й оновлюється вручну власником проєкту, агент її не ставить.
-- **Laravel Fortify** (іде з Nova): вхід, скидання пароля, TOTP 2FA з кодами відновлення.
-- **spatie/laravel-permission**: ролі та дозволи (трейт `HasRoles` на `App\Models\User`).
-- **barryvdh/laravel-dompdf**: PDF-сертифікат членства.
-- **Postmark**: транзакційна пошта (у локальному середовищі `MAIL_MAILER=log`).
-- **Azure Blob Storage**: сховище файлів. Поки що використовується локальний приватний диск через фасад `Storage`. Код пишемо лише через `Storage::disk(...)`, щоб перехід на Azure зводився до зміни конфігурації.
+- **Laravel Nova 5.11**: staff admin panel and member area (`/nova`). Installed and upgraded manually by the project owner; agents do not install it.
+- **Laravel Fortify** (bundled with Nova): login, password reset, TOTP 2FA with recovery codes.
+- **spatie/laravel-permission**: roles and permissions (`HasRoles` trait on `App\Models\User`).
+- **barryvdh/laravel-dompdf**: membership certificate PDF.
+- **Postmark**: transactional email (`MAIL_MAILER=log` locally).
+- **Azure Blob Storage**: file storage. A local private disk is used for now via the `Storage` facade. Always go through `Storage::disk(...)` so switching to Azure is a config change only.
 
-## Ролі (ТЗ, розділ 3.7)
+## Roles (Spec §3.7)
 
-| Роль | Ключові права |
+| Role | Key permissions |
 |---|---|
-| Executive Director | Повний доступ. Єдина роль, що створює та змінює акаунти співробітників. Підписант сертифікатів. Не відкликається через UI. |
-| Membership Coordinator | CRUD учасників, перевірка документів ліцензій, повідомлення учасникам. Без бібліотеки, податкових документів і керування співробітниками. |
-| Compliance Specialist | CRUD бібліотеки, завантаження податкових документів з прив'язкою до учасника, перегляд учасників лише для читання. |
-| Member | Тільки власні профіль, документи, сертифікат і налаштування; бібліотека лише для читання. |
-| Службовий API-акаунт | Не людина, без вебвходу. Автентифікація API-ключем (ротація щокварталу), мінімальні права під кожне завдання (вебхуки Stripe, заплановані завдання). |
+| Executive Director | Full access. The only role that creates and changes staff accounts. Certificate signatory. Cannot be revoked through the UI. |
+| Membership Coordinator | Member CRUD, license document review, member communications. No library, tax documents or staff management. |
+| Compliance Specialist | Library CRUD, tax document uploads linked to members, read-only access to members. |
+| Member | Own profile, documents, certificate and settings only; read-only library. |
+| API service account | Not a person, no web login. Authenticates with an API key (rotated quarterly); least privilege per task (Stripe webhooks, scheduled jobs). |
 
-Ролі Auditor/Board Member і Treasurer сюди не входять: їх додадуть пізніше.
+Auditor/Board Member and Treasurer roles are out of scope for the initial build.
 
-## Основні функції (ТЗ, розділ 2)
+## Main features (Spec §2)
 
-- Вхід за email і паролем, скидання пароля, опційна TOTP MFA з кодами відновлення (обов'язкова для співробітників).
-- Профіль учасника: контакти, бізнес, NPN, ліцензія (номер, штат, тип, дата закінчення).
-- Документи ліцензії: PDF/JPG/PNG до 10 МБ, приватне шифроване зберігання, видача лише через серверний ендпоінт з перевіркою ролі та власника.
-- Щоденне завдання за статусами ліцензій (active / expiring / expired) і нагадування за 60, 30 і 7 днів з урахуванням налаштувань сповіщень. Кожен надісланий або пропущений лист пишеться в журнал нагадувань.
-- PDF-сертифікат членства з контрольним номером для перевірки. Кеш 24 години, перегенерація лише при зміні даних.
-- Сховище податкових документів, бібліотека комплаєнсу (категорії, пошук), налаштування сповіщень за категоріями.
-- Журнал аудиту: вхід, вихід, пароль, MFA, профіль, завантаження, скачування та видалення документів, зміна ролі; з IP і user agent.
+- Email and password login, password reset, optional TOTP MFA with recovery codes (mandatory for staff).
+- Member profile: contact details, business, NPN, license (number, state, type, expiry date).
+- License documents: PDF/JPG/PNG up to 10 MB, private encrypted storage, served only through a server endpoint that checks role and ownership.
+- Daily job for license statuses (active / expiring / expired) and reminders 60, 30 and 7 days ahead, honouring notification preferences. Every sent or skipped email is written to the reminder log.
+- Membership certificate PDF with a verification number. Cached for 24 hours, regenerated only when its data changes.
+- Tax document vault, compliance and training library (categories, search), notification preferences per category.
+- Audit log: login, logout, password, MFA, profile, document upload/download/deletion, role changes; with IP and user agent.
 
-## Поза обсягом робіт
+## Out of scope
 
-SSO із зовнішніми провайдерами, обмін повідомленнями між учасниками, події та календар, облік CE-кредитів, сторонні API перевірки ліцензій, нативні мобільні застосунки.
+SSO with external identity providers, member-to-member messaging, events and calendars, CE credit tracking, third-party license verification APIs, native mobile apps.
 
-## Правила розробки
+## Development rules
 
-- **Міграції з індексами**: на всіх зовнішніх ключах (`foreignId()->constrained()`) і на полях, за якими фільтруємо чи сортуємо (статуси, дати закінчення, `member_id + created_at` у журналах).
-- **Eloquent-зв'язки** (`hasOne`, `hasMany`, `belongsTo` тощо) замість ручних join і сирих запитів. Уникаємо N+1 за допомогою `with()`.
-- **Без хардкоду секретів**: ключі, паролі, токени та URL сервісів беремо лише з `.env` через `config/*.php`. У коді `config()`, а не `env()`. Нові змінні додаємо також в `.env.example` з порожнім значенням.
-- Авторизація через Policies і дозволи spatie. Доступ до файлів перевіряється на сервері для кожного запиту, публічних URL немає.
-- Чутливі поля зберігаємо зашифрованими. MFA-секрет і коди відновлення: колонки Fortify `two_factor_*` (Fortify шифрує коди відновлення, а не хешує, як просить ТЗ; це відоме відхилення).
+- **Migrations with indexes**: on every foreign key (`foreignId()->constrained()`) and on columns used for filtering or sorting (statuses, expiry dates, `user_id + created_at` in logs).
+- **Eloquent relationships** (`hasOne`, `hasMany`, `belongsTo`, ...) instead of manual joins and raw queries. Avoid N+1 with `with()`.
+- **No hard-coded secrets**: keys, passwords, tokens and service URLs come only from `.env` via `config/*.php`. Use `config()` in code, never `env()`. Add new variables to `.env.example` with an empty value.
+- Authorization through Policies and spatie permissions. File access is checked server-side on every request; there are no public URLs.
+- Sensitive fields are stored encrypted. MFA secret and recovery codes: Fortify's `two_factor_*` columns (Fortify encrypts recovery codes rather than hashing them as Spec §3.3 asks; known deviation).
 
-## Доступ і Nova
+## Access and Nova
 
-- Gate `viewNova` ([NovaServiceProvider](app/Providers/NovaServiceProvider.php)) діє в усіх середовищах, включно з local. До Nova пускає чотири ролі; API Service не пускає.
-- Права описані в [RolesAndPermissionsSeeder](database/seeders/RolesAndPermissionsSeeder.php). Policies в `app/Policies` перевіряють лише права spatie (`checkPermissionTo`), а не назви ролей.
-- Меню Nova будується автоматично з `viewAny` у policies, окреме меню для кожної ролі не потрібне.
-- Учасник бачить лише свої записи: `indexQuery` через `Resource::ownRecordsUnless()` плюс `view` у policy.
-- Ресурси `Staff` і `Member` обидва працюють з моделлю `User`: `viewAny` і `create` для них розведені в трейті `AuthorizesUserResource`.
-- Middleware [RequireTwoFactorForStaff](app/Http/Middleware/RequireTwoFactorForStaff.php): співробітник без підтвердженої 2FA потрапляє лише на `/nova/user-security`. Для учасників 2FA опційна. `NOVA_REQUIRE_STAFF_2FA=false` вимикає вимогу, але діє лише при `APP_ENV=local`.
-- Файли лежать на приватному диску `config('portal.documents_disk')` (поки `local`). Видаються лише через download-ендпоінт Nova з перевіркою policy, кожне скачування фіксується в журналі (`App\Services\DocumentDownloader`).
-- Журнал аудиту: `AuditLog::record($action, $resource)`. Вхід і вихід пишуть слухачі в `app/Listeners`, вони ж оновлюють `last_login_at`.
-- Тестові акаунти з сідера (пароль `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. Сідер створює файли-заглушки для документів (`DemoFilesSeeder`).
-- Тести: базовий `Tests\TestCase` викликає `Nova::flushState()`, бо Nova кешує дані запиту в статичних властивостях.
+- The `viewNova` gate ([NovaServiceProvider](app/Providers/NovaServiceProvider.php)) applies in every environment, including local. Four roles get into Nova; the API Service account does not.
+- Permissions are defined in [RolesAndPermissionsSeeder](database/seeders/RolesAndPermissionsSeeder.php). Policies in `app/Policies` check spatie permissions only (`checkPermissionTo`), never role names.
+- The Nova menu is built automatically from the policies' `viewAny`; no per-role menu is needed.
+- Members see only their own records: `indexQuery` via `Resource::ownRecordsUnless()` plus `view` in the policy.
+- The `Staff` and `Member` resources both use the `User` model; their `viewAny` and `create` checks are split in the `AuthorizesUserResource` trait.
+- [RequireTwoFactorForStaff](app/Http/Middleware/RequireTwoFactorForStaff.php) middleware: staff without confirmed 2FA can only reach `/nova/user-security`. 2FA is optional for members. `NOVA_REQUIRE_STAFF_2FA=false` disables the requirement, but only when `APP_ENV=local`.
+- Files live on the private disk `config('portal.documents_disk')` (currently `local`). They are served only through Nova's download endpoint after a policy check, and every download is audited (`App\Services\DocumentDownloader`).
+- Audit log: `AuditLog::record($action, $resource)`. Login and logout are recorded by listeners in `app/Listeners`, which also update `last_login_at`.
+- Seeded test accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`. The seeder writes placeholder files for documents (`DemoFilesSeeder`).
+- Tests: the base `Tests\TestCase` calls `Nova::flushState()` because Nova caches request data in static properties.
 
-## Сертифікати й нагадування
+## Certificates and reminders
 
-- [CertificateGeneratorService](app/Services/Certificates/CertificateGeneratorService.php): PDF із шаблону `resources/views/pdf/certificate.blade.php`.
-  - Кеш на 24 год на диску `portal.certificates.disk`; ім'я файлу — хеш даних, надрукованих на сертифікаті.
-  - `MemberProfileObserver` скидає кеш, коли змінюються ці дані.
-  - Для простроченої ліцензії або неповного профілю кидає `CertificateUnavailableException` з повідомленням, яке можна показати користувачу.
-  - Після зміни шаблону збільшити `TEMPLATE_VERSION`.
-- Скачування сертифіката лише через маршрут `certificates.download` (policy `downloadCertificate`). Публічна перевірка: `/verify-certificate/{code}`, ліміт 10 запитів на хвилину з IP; показує тільки ім'я й дати.
-- «Дійсний з» = дата створення акаунта учасника, «дійсний до» = `license_expires_at` (окремих дат членства в моделі немає).
-- `app:check-license-expirations` запускається щодня о 02:00 за `PORTAL_SCHEDULE_TIMEZONE`.
-  - Оновлює статуси ліцензій і надсилає нагадування за 60/30/7 днів.
-  - Дублі відсікає за `reminder_logs` (`user_id + reminder_type + license_expires_at`).
-  - Учасникам, які вимкнули сповіщення, лист не надсилає: у журнал іде запис `skipped`.
-  - При помилках сповіщає Executive Director.
-- Пошта: `MAIL_MAILER=log` локально; для проду `postmark` з `POSTMARK_API_KEY`.
+- [CertificateGeneratorService](app/Services/Certificates/CertificateGeneratorService.php): PDF from `resources/views/pdf/certificate.blade.php`.
+  - Cached for 24 h on the `portal.certificates.disk` disk; the file name is a hash of the data printed on the certificate.
+  - `MemberProfileObserver` clears the cache when that data changes.
+  - Throws `CertificateUnavailableException` (with a user-safe message) for expired licenses or incomplete profiles.
+  - Bump `TEMPLATE_VERSION` after changing the template.
+- Certificates are downloaded only through the `certificates.download` route (policy `downloadCertificate`). Public check: `/verify-certificate/{code}`, limited to 10 requests per minute per IP; shows name and dates only.
+- "Valid from" = member account creation date, "Valid through" = `license_expires_at` (the data model has no separate membership dates).
+- `app:check-license-expirations` runs daily at 02:00 in `PORTAL_SCHEDULE_TIMEZONE`.
+  - Refreshes license statuses and sends 60/30/7-day reminders.
+  - Deduplicates via `reminder_logs` (`user_id + reminder_type + license_expires_at`).
+  - Members who opted out get no email; a `skipped` entry is logged instead.
+  - Alerts the Executive Director on errors.
+- Mail: `MAIL_MAILER=log` locally; `postmark` with `POSTMARK_API_KEY` in production.
 
-## Локальне середовище (Windows, OSPanel 6)
+## Local environment (Windows, OSPanel 6)
 
-`php`, `composer` і `git` не додані в PATH, тому викликаємо їх за повним шляхом:
+`php`, `composer` and `git` are not on PATH, so call them by full path:
 
 - PHP: `D:\WORK\OSPanel6\modules\PHP-8.4\php.exe`
 - Composer: `<php> D:\WORK\OSPanel6\data\PHP-8.4\default\composer\composer.phar`
-- Git (із GitHub Desktop, шлях змінюється при оновленні): `C:\Users\PC\AppData\Local\GitHubDesktop\app-*\resources\app\git\cmd\git.exe`
-- Сайт: `https://properx-portal.local` (Apache + PHP-8.4, корінь `public`).
-- Репозиторій: `https://github.com/rotuss1206/properx-portal`, гілка `main`.
-- Тести: `<php> vendor\bin\phpunit`.
-- Черга (`QUEUE_CONNECTION=database`) локально не обробляється сама: `<php> artisan queue:work`. Планувальник: `<php> artisan schedule:work`.
-- PowerShell 5.1 читає файли як ANSI: не правити PHP-файли з кирилицею через `Get-Content`/`Set-Content`, лише через Edit.
+- Git (bundled with GitHub Desktop; the path changes on updates): `C:\Users\PC\AppData\Local\GitHubDesktop\app-*\resources\app\git\cmd\git.exe`
+- Site: `https://properx-portal.local` (Apache + PHP-8.4, document root `public`).
+- Repository: `https://github.com/rotuss1206/properx-portal`, branch `main`.
+- Tests: `<php> vendor\bin\phpunit`.
+- Nova assets (`public/vendor/nova`) are not committed; Composer publishes them (`nova:publish`) after install/update.
+- The queue (`QUEUE_CONNECTION=database`) is not processed automatically locally: `<php> artisan queue:work`. Scheduler: `<php> artisan schedule:work`.
+- PowerShell 5.1 reads files as ANSI: never edit files containing non-ASCII text via `Get-Content`/`Set-Content`; use the Edit tool.

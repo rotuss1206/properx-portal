@@ -13,7 +13,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Audit trail and last login tracking (ТЗ, розділ 8).
+ * Audit trail and last login tracking (Spec §8).
  */
 class AuditLogTest extends TestCase
 {

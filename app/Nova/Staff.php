@@ -16,7 +16,7 @@ use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
 /**
- * Staff accounts (Executive Director only, ТЗ розділ 3.7).
+ * Staff accounts (Executive Director only, Spec §3.7).
  *
  * @extends \App\Nova\Resource<User>
  */

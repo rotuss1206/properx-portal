@@ -22,7 +22,7 @@ class AuditLog extends Model
     public const UPDATED_AT = null;
 
     /**
-     * Audited actions (ТЗ, розділ 8).
+     * Audited actions (Spec §8).
      */
     public const ACTIONS = [
         'login',

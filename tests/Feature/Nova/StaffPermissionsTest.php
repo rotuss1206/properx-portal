@@ -15,7 +15,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Staff role boundaries from ТЗ, розділ 3.7.
+ * Staff role boundaries from Spec §3.7.
  */
 class StaffPermissionsTest extends TestCase
 {

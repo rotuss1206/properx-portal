@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Streams a private document through the app (no direct storage URLs)
- * and records the download in the audit log (ТЗ, розділ 8).
+ * and records the download in the audit log (Spec §8).
  */
 class DocumentDownloader
 {

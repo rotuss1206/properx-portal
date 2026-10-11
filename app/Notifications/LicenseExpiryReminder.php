@@ -12,7 +12,7 @@ use Laravel\Nova\Nova;
 use Symfony\Component\Mime\Email;
 
 /**
- * License expiry reminder, 60 / 30 / 7 days ahead (ТЗ, розділи 2 і 3.5).
+ * License expiry reminder, 60 / 30 / 7 days ahead (Spec §2, §3.5).
  * MailMessage renders both the HTML and the plain-text part.
  */
 class LicenseExpiryReminder extends Notification implements ShouldQueue
