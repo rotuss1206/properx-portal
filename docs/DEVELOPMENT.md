@@ -40,6 +40,31 @@ All passwords are `password`. Staff must enrol in 2FA on first login unless `NOV
 | `member06@` … `member30@properx.test` | Member | Random license and payment states |
 | `api-service@properx.test` | API Service | Machine account, cannot log in (random password) |
 
+## Health probes
+
+| Endpoint | Use | Checks |
+|---|---|---|
+| `GET /api/health/live` | Kubernetes liveness probe | None (the PHP process answers) |
+| `GET /api/health` | Kubernetes readiness probe | Database, cache, queue, documents disk; `503` when any fails |
+
+No authentication. The response only says `ok` or `fail` per check; the reason is written to the log.
+
+## API Service key
+
+Machine calls (the Stripe webhook processing, future automation) run as the API Service account,
+authenticated with an API key. The database stores only its SHA-256 hash; the plain key lives in
+`API_SERVICE_KEY` (Azure Key Vault in production).
+
+```bash
+php artisan app:api-key:rotate            # prints a new key once; put it into API_SERVICE_KEY
+php artisan config:clear
+curl -H "Authorization: Bearer $API_SERVICE_KEY" https://properx-portal.local/api/service/whoami
+```
+
+Rotate quarterly. The previous key keeps working for `API_KEY_ROTATION_OVERLAP_HOURS` (24) so Key Vault
+can be updated without downtime; every rotation is recorded in the audit log. After `migrate:fresh --seed`
+the seeder re-registers the key from `.env`, so local webhooks keep working.
+
 ## Stripe payment status webhooks (Spec 7)
 
 The portal never takes payments. It only receives the membership payment status from Stripe at

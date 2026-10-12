@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Models\StripeEvent;
 use App\Models\User;
+use App\Services\ApiKeys\ApiKeyManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -33,6 +34,10 @@ class StripeWebhookTest extends TestCase
         $this->seedRoles();
         config(['services.stripe.webhook_secret' => self::SECRET]);
         $this->service = $this->apiService();
+
+        // The app authenticates as the service account with API_SERVICE_KEY.
+        [, $plainKey] = app(ApiKeyManager::class)->issue($this->service);
+        config(['services.api_service.key' => $plainKey]);
     }
 
     /**
@@ -164,6 +169,19 @@ class StripeWebhookTest extends TestCase
         $this->service->removeRole('API Service');
 
         $this->send($this->event('invoice.paid', ['customer' => 'cus_123']))->assertStatus(503);
+        $this->assertSame(0, StripeEvent::count());
+    }
+
+    public function test_requires_a_valid_service_key(): void
+    {
+        $this->memberWithCustomer();
+
+        config(['services.api_service.key' => null]);
+        $this->send($this->event('invoice.paid', ['customer' => 'cus_123']))->assertStatus(503);
+
+        config(['services.api_service.key' => 'ppx_not-a-registered-key']);
+        $this->send($this->event('invoice.paid', ['customer' => 'cus_123']))->assertStatus(503);
+
         $this->assertSame(0, StripeEvent::count());
     }
 

@@ -93,7 +93,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Alerts the Executive Director on errors.
 - Mail: `MAIL_MAILER=postmark` with `POSTMARK_TOKEN` (`POSTMARK_API_TEST` = Postmark's test token, nothing is delivered) or `log`.
   - Reminder emails carry the Postmark tag `license-expiry-reminder` and `reminder_log_id` metadata.
-  - `POST /webhooks/postmark` (basic auth `POSTMARK_WEBHOOK_USERNAME/PASSWORD`, stateless routes in `routes/webhooks.php`) maps Delivery / Bounce / SpamComplaint to `reminder_logs.delivery_status`; never downgrades a worse status.
+  - `POST /webhooks/postmark` (basic auth `POSTMARK_WEBHOOK_USERNAME/PASSWORD`, stateless routes in `routes/machine.php`) maps Delivery / Bounce / SpamComplaint to `reminder_logs.delivery_status`; never downgrades a worse status.
 
 ## Stripe payment status (Spec 7)
 
@@ -103,6 +103,15 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - `MemberProfile::hasRestrictedMembership()` (canceled, or past due beyond grace) closes certificate, library and license documents for the member; profile, notification settings and tax documents stay open. Login is never blocked.
 - Banner: `App\Support\MembershipBanner` + `resources/js/nova/membership-banner.js` (Nova script, fixed to the bottom; no innerHTML, CSP-safe).
 - Local testing with the Stripe CLI and the test accounts: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+## Machine API (Spec 3.7, 8)
+
+- Health probes (`routes/health.php`, no auth, no session, no throttle): `GET /api/health/live` (liveness, no dependencies) and `GET /api/health` (readiness: database, cache, queue, documents disk; 503 on failure). Responses show only `ok`/`fail`; reasons go to the log.
+- API Service key: `api_keys` stores a SHA-256 hash only; the plain key comes from `API_SERVICE_KEY` (Key Vault). `App\Services\ApiKeys\ApiKeyManager`:
+  - `serviceAccount()`: the app acting as the service account (Stripe webhook); a missing, revoked or expired key stops processing (503).
+  - middleware `auth.api-key[:permission]` for automated callers (`Authorization: Bearer` or `X-Api-Key`), e.g. `GET /api/service/whoami`.
+  - `php artisan app:api-key:rotate [--overlap=24]`: quarterly rotation; prints the new key once, the old key expires after the overlap window; audited as `api_key_rotated`.
+- Other stateless endpoints (webhooks, service API) live in `routes/machine.php`, rate limited 120/min per IP.
 
 ## Local environment (Windows, OSPanel 6)
 

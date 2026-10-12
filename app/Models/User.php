@@ -119,6 +119,16 @@ class User extends Authenticatable
     }
 
     /**
+     * API keys (API Service account only).
+     *
+     * @return HasMany<ApiKey, $this>
+     */
+    public function apiKeys(): HasMany
+    {
+        return $this->hasMany(ApiKey::class);
+    }
+
+    /**
      * @return HasMany<AuditLog, $this>
      */
     public function auditLogs(): HasMany

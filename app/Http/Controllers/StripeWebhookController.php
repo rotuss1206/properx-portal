@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Role;
-use App\Models\User;
+use App\Services\ApiKeys\ApiKeyManager;
 use App\Services\Stripe\StripeWebhookHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +19,7 @@ use UnexpectedValueException;
  */
 class StripeWebhookController extends Controller
 {
-    public function __invoke(Request $request, StripeWebhookHandler $handler): JsonResponse
+    public function __invoke(Request $request, StripeWebhookHandler $handler, ApiKeyManager $keys): JsonResponse
     {
         $secret = (string) config('services.stripe.webhook_secret');
 
@@ -41,11 +40,13 @@ class StripeWebhookController extends Controller
             return response()->json(['error' => 'Invalid signature.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $serviceAccount = User::role(Role::ApiService->value)->oldest('id')->first();
+        // The app acts as the API Service account, authenticated with its own key
+        // (API_SERVICE_KEY from Key Vault); a revoked or expired key stops processing.
+        $serviceAccount = $keys->serviceAccount();
 
         if ($serviceAccount === null || ! $serviceAccount->checkPermissionTo('webhooks.stripe.handle')
             || ! $serviceAccount->checkPermissionTo('members.payment-status.update')) {
-            Log::critical('Stripe webhook cannot run: no API Service account with the required permissions.');
+            Log::critical('Stripe webhook cannot run: API_SERVICE_KEY is missing, invalid, expired or lacks permissions.');
 
             // Non-2xx makes Stripe retry once the account is fixed.
             return response()->json(['error' => 'Service account unavailable.'], Response::HTTP_SERVICE_UNAVAILABLE);

@@ -41,6 +41,7 @@ class AuditLog extends Model
         'role_changed',
         'payment_status_changed',
         'stripe_event_processed',
+        'api_key_rotated',
     ];
 
     /**

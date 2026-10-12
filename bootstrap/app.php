@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\DisableRememberMe;
 use App\Http\Middleware\EnforceAbsoluteSessionTimeout;
 use App\Http\Middleware\SecurityHeaders;
@@ -15,11 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            Route::middleware('throttle:120,1')->group(base_path('routes/webhooks.php'));
+            Route::group([], base_path('routes/health.php'));
+            Route::middleware('throttle:120,1')->group(base_path('routes/machine.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
+
+        $middleware->alias(['auth.api-key' => AuthenticateApiKey::class]);
 
         $middleware->web(append: [
             DisableRememberMe::class,

@@ -33,6 +33,14 @@ return [
         'webhook_tolerance' => 300,
     ],
 
+    // API Service account (Spec 3.7, 8): the plain key comes from the environment
+    // (Azure Key Vault in production); the database only stores its hash.
+    // Rotate quarterly with `php artisan app:api-key:rotate`.
+    'api_service' => [
+        'key' => env('API_SERVICE_KEY'),
+        'rotation_overlap_hours' => (int) env('API_KEY_ROTATION_OVERLAP_HOURS', 24),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

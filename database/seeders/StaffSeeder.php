@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Services\ApiKeys\ApiKeyManager;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -27,12 +28,18 @@ class StaffSeeder extends Seeder
         }
 
         // Machine account: random password nobody knows, it authenticates by API key only.
-        User::factory()
+        $service = User::factory()
             ->create([
                 'name' => 'API Service',
                 'email' => 'api-service@properx.test',
                 'password' => Str::random(64),
             ])
             ->assignRole(Role::ApiService->value);
+
+        // Register the key from .env so local webhooks keep working after a reseed.
+        // Without one, run `php artisan app:api-key:rotate` and put the key in .env.
+        if (filled(config('services.api_service.key'))) {
+            app(ApiKeyManager::class)->register($service, config('services.api_service.key'), 'from environment');
+        }
     }
 }
