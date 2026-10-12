@@ -53,7 +53,7 @@ return [
             'transport' => 'ses',
         ],
 
-        // Transactional mail (Spec §3.4). Token: services.postmark.token (POSTMARK_TOKEN).
+        // Transactional mail (Spec 3.4). Token: services.postmark.token (POSTMARK_TOKEN).
         'postmark' => [
             'transport' => 'postmark',
             'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID', 'outbound'),

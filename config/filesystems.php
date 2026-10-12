@@ -60,7 +60,7 @@ return [
             'report' => false,
         ],
 
-        // Azure Blob Storage (Spec §3.2): private container, no public URLs; downloads use
+        // Azure Blob Storage (Spec 3.2): private container, no public URLs; downloads use
         // short-lived SAS links or streaming. Locally this points at the Azurite emulator.
         'azure' => [
             'driver' => 'azure-storage-blob',

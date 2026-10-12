@@ -25,7 +25,7 @@ class InitDocumentStorage extends Command
             return self::FAILURE;
         }
 
-        // No public access options: the container stays private (Spec §3.2).
+        // No public access options: the container stays private (Spec 3.2).
         BlobServiceClient::fromConnectionString($config['connection_string'])
             ->getContainerClient($config['container'])
             ->createIfNotExists();

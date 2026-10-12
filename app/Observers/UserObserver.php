@@ -6,7 +6,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 
 /**
- * Audits password changes and two-factor enrolment (Spec §8), whatever the entry point
+ * Audits password changes and two-factor enrolment (Spec 8), whatever the entry point
  * (Nova user security page, password reset, staff editing an account).
  */
 class UserObserver

@@ -16,7 +16,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Stripe payment status webhook (Spec §7, §3.7).
+ * Stripe payment status webhook (Spec 7, 3.7).
  */
 class StripeWebhookTest extends TestCase
 {

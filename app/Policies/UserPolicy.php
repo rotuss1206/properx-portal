@@ -6,7 +6,7 @@ use App\Models\User;
 
 /**
  * User accounts: staff accounts are managed only by the Executive Director,
- * member accounts by roles with members.* permissions (Spec §3.7).
+ * member accounts by roles with members.* permissions (Spec 3.7).
  *
  * Class-level abilities (viewAny / create) are refined per Nova resource
  * via viewAnyStaff / createStaff / viewAnyMembers / createMembers.

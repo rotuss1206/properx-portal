@@ -64,7 +64,7 @@ class MemberProfile extends Model
     }
 
     /**
-     * End of the grace period for a past-due membership (Spec §7), null otherwise.
+     * End of the grace period for a past-due membership (Spec 7), null otherwise.
      */
     public function paymentGraceEndsAt(): ?CarbonInterface
     {

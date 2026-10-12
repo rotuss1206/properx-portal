@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Postmark delivery, bounce and spam complaint webhook (Spec §3.4): updates the
+ * Postmark delivery, bounce and spam complaint webhook (Spec 3.4): updates the
  * reminder log entry referenced by the "reminder_log_id" metadata and logs bounces
  * and complaints. Always answers 200 for authenticated calls so Postmark stops retrying.
  */

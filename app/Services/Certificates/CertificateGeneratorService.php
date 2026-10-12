@@ -15,7 +15,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Membership certificate PDF (Spec §2, §3.6).
+ * Membership certificate PDF (Spec 2, 3.6).
  *
  * PDFs are cached per member for 24 hours. The cache file name is a fingerprint
  * of everything printed on the certificate, so changed data never serves a stale
@@ -52,7 +52,7 @@ class CertificateGeneratorService
             throw CertificateUnavailableException::missingFields($missing);
         }
 
-        // Canceled, or past due beyond the grace period (Spec §7).
+        // Canceled, or past due beyond the grace period (Spec 7).
         if ($profile->hasRestrictedMembership()) {
             throw CertificateUnavailableException::membershipInactive();
         }

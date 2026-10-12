@@ -15,7 +15,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Postmark sending and the bounce / spam complaint webhook (Spec §3.4).
+ * Postmark sending and the bounce / spam complaint webhook (Spec 3.4).
  */
 class PostmarkTest extends TestCase
 {

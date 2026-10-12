@@ -16,7 +16,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Access for past-due and canceled memberships (Spec §7). Login is never blocked.
+ * Access for past-due and canceled memberships (Spec 7). Login is never blocked.
  */
 class MembershipRestrictionTest extends TestCase
 {

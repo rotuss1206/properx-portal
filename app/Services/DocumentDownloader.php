@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Serves a private document after the caller has authorised the request (Spec §3.2, §8):
+ * Serves a private document after the caller has authorised the request (Spec 3.2, 8):
  * encrypted documents are decrypted and streamed by the app; others get a short-lived
  * SAS link when the disk supports it, otherwise they are streamed. Every download is audited.
  */

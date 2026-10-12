@@ -58,7 +58,7 @@ class LicenseDocumentPolicy
     }
 
     /**
-     * Members with a canceled / lapsed membership lose access to license documents (Spec §7).
+     * Members with a canceled / lapsed membership lose access to license documents (Spec 7).
      */
     private function ownsAndManages(User $user, LicenseDocument $document): bool
     {

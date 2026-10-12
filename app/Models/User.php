@@ -51,7 +51,7 @@ class User extends Authenticatable
     }
 
     /**
-     * A member whose dues are canceled or past the grace period (Spec §7).
+     * A member whose dues are canceled or past the grace period (Spec 7).
      */
     public function hasRestrictedMembership(): bool
     {
@@ -64,7 +64,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Staff must have confirmed TOTP two-factor authentication (Spec §8).
+     * Staff must have confirmed TOTP two-factor authentication (Spec 8).
      * The requirement can be switched off only in the local environment.
      */
     public function requiresTwoFactor(): bool

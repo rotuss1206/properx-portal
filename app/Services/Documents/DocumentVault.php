@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * Writes and reads member documents on the documents disk (Spec §2, §3.2, §8).
+ * Writes and reads member documents on the documents disk (Spec 2, 3.2, 8).
  *
  * - File names are random UUIDs; the original name is kept only in the database.
  * - The extension comes from the MIME type detected from the file contents, not from the client.

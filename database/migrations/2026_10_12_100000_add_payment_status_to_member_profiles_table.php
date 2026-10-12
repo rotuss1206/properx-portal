@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Membership payment status received from Stripe (Spec §7). The portal never takes payments.
+ * Membership payment status received from Stripe (Spec 7). The portal never takes payments.
  */
 return new class extends Migration
 {

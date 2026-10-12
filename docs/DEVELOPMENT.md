@@ -40,7 +40,7 @@ All passwords are `password`. Staff must enrol in 2FA on first login unless `NOV
 | `member06@` … `member30@properx.test` | Member | Random license and payment states |
 | `api-service@properx.test` | API Service | Machine account, cannot log in (random password) |
 
-## Stripe payment status webhooks (Spec §7)
+## Stripe payment status webhooks (Spec 7)
 
 The portal never takes payments. It only receives the membership payment status from Stripe at
 `POST /api/webhooks/stripe` and verifies every request with `STRIPE_WEBHOOK_SECRET`.

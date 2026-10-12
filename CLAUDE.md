@@ -1,7 +1,7 @@
 # ProPerx Member Portal
 
 Member self-service portal for ProPerx Alliance (a professional association of licensed insurance agents).
-The requirements spec (Rev. 2, KEENEY) is kept outside the repository (local `docs/*.docx` is git-excluded); reference it as "Spec §N".
+The requirements spec (Rev. 2, KEENEY) is kept outside the repository (local `docs/*.docx` is git-excluded); reference it as "Spec N".
 Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in Azure Key Vault.
 
 **Language:** everything in the repository is English (code, comments, tests, UI texts, emails, docs, commit messages). The client is in the US.
@@ -16,7 +16,7 @@ Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in 
 - **Postmark**: transactional email (`MAIL_MAILER=log` locally).
 - **Azure Blob Storage** (`azure-oss/storage-blob-laravel`, disk `azure`): file storage for documents and the certificate cache. `PORTAL_DOCUMENTS_DISK` / `PORTAL_CERTIFICATES_DISK` switch between `local` and `azure`. Locally the Azurite emulator stands in for Azure. Always go through `Storage::disk(...)`.
 
-## Roles (Spec §3.7)
+## Roles (Spec 3.7)
 
 | Role | Key permissions |
 |---|---|
@@ -28,7 +28,7 @@ Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in 
 
 Auditor/Board Member and Treasurer roles are out of scope for the initial build.
 
-## Main features (Spec §2)
+## Main features (Spec 2)
 
 - Email and password login, password reset, optional TOTP MFA with recovery codes (mandatory for staff).
 - Member profile: contact details, business, NPN, license (number, state, type, expiry date).
@@ -48,7 +48,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - **Eloquent relationships** (`hasOne`, `hasMany`, `belongsTo`, ...) instead of manual joins and raw queries. Avoid N+1 with `with()`.
 - **No hard-coded secrets**: keys, passwords, tokens and service URLs come only from `.env` via `config/*.php`. Use `config()` in code, never `env()`. Add new variables to `.env.example` with an empty value.
 - Authorization through Policies and spatie permissions. File access is checked server-side on every request; there are no public URLs.
-- Sensitive fields are stored encrypted. MFA secret and recovery codes: Fortify's `two_factor_*` columns (Fortify encrypts recovery codes rather than hashing them as Spec §3.3 asks; known deviation).
+- Sensitive fields are stored encrypted. MFA secret and recovery codes: Fortify's `two_factor_*` columns (Fortify encrypts recovery codes rather than hashing them as Spec 3.3 asks; known deviation).
 
 ## Access and Nova
 
@@ -64,7 +64,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Uploads are limited to PDF/JPG/PNG up to 10 MB (`DocumentVault::uploadRules()`).
   - License and tax documents are AES-encrypted by the app (`.enc` suffix, key `DOCUMENTS_ENCRYPTION_KEY`, falling back to `APP_KEY`).
 - Downloads go only through Nova's download endpoint after a policy check (`App\Services\DocumentDownloader`): encrypted files are decrypted and streamed, others get a 5-minute SAS link (or a signed local URL). Every download is audited.
-- Security (Spec §3.3, §8):
+- Security (Spec 3.3, 8):
   - Login: max 5 failed attempts per 15 minutes per IP (`App\Auth\LoginRateLimiter` replaces Fortify's). The 2FA challenge allows 5 tries per minute.
   - Session: 30 minutes idle (`SESSION_LIFETIME`), 8 hours absolute (`EnforceAbsoluteSessionTimeout`); "remember me" is ignored (`DisableRememberMe`). Cookies are `Secure`, `HttpOnly`, `SameSite=Strict`.
   - `SecurityHeaders` sends HSTS (HTTPS or production), `nosniff`, `X-Frame-Options: DENY` and a CSP. Nova's inline scripts get the per-request nonce via `Nova::cspNonce()`; no `unsafe-eval`. `CSP_REPORT_ONLY=true` switches to report-only while debugging.
@@ -95,7 +95,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Reminder emails carry the Postmark tag `license-expiry-reminder` and `reminder_log_id` metadata.
   - `POST /webhooks/postmark` (basic auth `POSTMARK_WEBHOOK_USERNAME/PASSWORD`, stateless routes in `routes/webhooks.php`) maps Delivery / Bounce / SpamComplaint to `reminder_logs.delivery_status`; never downgrades a worse status.
 
-## Stripe payment status (Spec §7)
+## Stripe payment status (Spec 7)
 
 - The portal takes no payments. `POST /api/webhooks/stripe` (signature via `STRIPE_WEBHOOK_SECRET`, `stripe/stripe-php`) runs as the API Service account through `App\Services\Stripe\StripeWebhookHandler`.
 - Idempotency: `stripe_events` (event id primary key). Out-of-order events: ignored when older than `member_profiles.payment_event_at`.

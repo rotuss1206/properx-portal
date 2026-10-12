@@ -5,7 +5,7 @@ namespace App\Support;
 use App\Models\User;
 
 /**
- * Text of the Nova payment banner for a member (Spec §7), or null when none is due.
+ * Text of the Nova payment banner for a member (Spec 7), or null when none is due.
  */
 final class MembershipBanner
 {

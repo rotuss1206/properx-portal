@@ -8,7 +8,7 @@ use App\Models\User;
 class LibraryDocumentPolicy
 {
     /**
-     * Closed to members whose dues are canceled or past the grace period (Spec §7).
+     * Closed to members whose dues are canceled or past the grace period (Spec 7).
      */
     public function viewAny(User $user): bool
     {

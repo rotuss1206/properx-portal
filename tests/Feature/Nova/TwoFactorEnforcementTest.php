@@ -9,7 +9,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * MFA is mandatory for the three staff roles and optional for members (Spec §8).
+ * MFA is mandatory for the three staff roles and optional for members (Spec 8).
  */
 class TwoFactorEnforcementTest extends TestCase
 {

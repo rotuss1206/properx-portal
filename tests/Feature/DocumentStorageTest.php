@@ -14,7 +14,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Upload restrictions, UUID names and application-level encryption (Spec §2, §3.2, §8).
+ * Upload restrictions, UUID names and application-level encryption (Spec 2, 3.2, 8).
  */
 class DocumentStorageTest extends TestCase
 {

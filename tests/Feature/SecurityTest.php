@@ -8,7 +8,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Security requirements from Spec §3.3 and §8.
+ * Security requirements from Spec 3.3 and 8.
  */
 class SecurityTest extends TestCase
 {

@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 /**
- * Membership dues status mirrored from Stripe (Spec §7).
+ * Membership dues status mirrored from Stripe (Spec 7).
  */
 enum PaymentStatus: string
 {

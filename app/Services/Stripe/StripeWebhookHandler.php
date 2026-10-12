@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Stripe\Event;
 
 /**
- * Applies Stripe membership payment events to member profiles (Spec §7).
+ * Applies Stripe membership payment events to member profiles (Spec 7).
  *
  * Runs as the API Service account. Each event id is processed once; events older
  * than the profile's current status are ignored, as Stripe does not guarantee order.

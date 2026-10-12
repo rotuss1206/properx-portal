@@ -9,7 +9,7 @@ use Laravel\Nova\Nova;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Ends an authenticated session 8 hours after login, however active it is (Spec §3.3).
+ * Ends an authenticated session 8 hours after login, however active it is (Spec 3.3).
  * The 30-minute idle timeout is handled by SESSION_LIFETIME.
  */
 class EnforceAbsoluteSessionTimeout

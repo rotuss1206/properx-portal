@@ -42,7 +42,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         // Branding: replaces the default "Powered by Laravel Nova" footer.
         Nova::footer(fn (Request $request) => view('nova.footer')->render());
 
-        // Past-due / inactive membership banner for members (Spec §7).
+        // Past-due / inactive membership banner for members (Spec 7).
         Nova::serving(function (ServingNova $event) {
             Nova::provideToScript(['membershipBanner' => MembershipBanner::for($event->request->user())]);
             Nova::script('membership-banner', resource_path('js/nova/membership-banner.js'));

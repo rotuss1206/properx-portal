@@ -8,7 +8,7 @@ use Spatie\Permission\Events\RoleAttachedEvent;
 use Spatie\Permission\Events\RoleDetachedEvent;
 
 /**
- * Audits role assignments and removals (Spec §8). syncRoles() fires a detach and an
+ * Audits role assignments and removals (Spec 8). syncRoles() fires a detach and an
  * attach event for one change, so each user is recorded once per request.
  */
 class RecordRoleChange

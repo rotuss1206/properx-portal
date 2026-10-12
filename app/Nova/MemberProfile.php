@@ -139,7 +139,7 @@ class MemberProfile extends Resource
     }
 
     /**
-     * Read-only: the status comes from Stripe webhooks (Spec §7).
+     * Read-only: the status comes from Stripe webhooks (Spec 7).
      *
      * @return array<int, Field>
      */

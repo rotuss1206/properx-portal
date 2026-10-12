@@ -60,7 +60,7 @@ class MyLicense extends Table
     }
 
     /**
-     * Membership dues status from Stripe (Spec §7).
+     * Membership dues status from Stripe (Spec 7).
      */
     private function membershipRow(MemberProfile $profile): MetricTableRow
     {

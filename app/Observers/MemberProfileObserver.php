@@ -8,7 +8,7 @@ use App\Services\Certificates\CertificateGeneratorService;
 
 /**
  * Drops the cached certificate PDF when data printed on it changes and audits
- * profile edits (Spec §8).
+ * profile edits (Spec 8).
  */
 class MemberProfileObserver
 {

@@ -18,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // 5 failed logins per 15 minutes per IP (Spec §8).
+        // 5 failed logins per 15 minutes per IP (Spec 8).
         $this->app->bind(FortifyLoginRateLimiter::class, LoginRateLimiter::class);
     }
 

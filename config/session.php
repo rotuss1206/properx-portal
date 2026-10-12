@@ -32,7 +32,7 @@ return [
     |
     */
 
-    // Idle timeout: 30 minutes (Spec §3.3). The 8-hour absolute limit is enforced by
+    // Idle timeout: 30 minutes (Spec 3.3). The 8-hour absolute limit is enforced by
     // App\Http\Middleware\EnforceAbsoluteSessionTimeout.
     'lifetime' => (int) env('SESSION_LIFETIME', 30),
 

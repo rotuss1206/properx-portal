@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Security headers required by Spec §8: HSTS, X-Content-Type-Options,
+ * Security headers required by Spec 8: HSTS, X-Content-Type-Options,
  * X-Frame-Options and a Content-Security-Policy that Nova works with.
  *
  * Nova renders its inline <script> tags with the per-request nonce (see AppServiceProvider),

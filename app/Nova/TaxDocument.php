@@ -93,7 +93,7 @@ class TaxDocument extends Resource
                         DocumentVault::mimeTypeForPath($model->stored_filename),
                     );
 
-                    // Track when the member themselves retrieves the document (Spec §3.1).
+                    // Track when the member themselves retrieves the document (Spec 3.1).
                     if ($request->user()->is($model->user)) {
                         $model->forceFill(['downloaded_at' => now()])->save();
                     }

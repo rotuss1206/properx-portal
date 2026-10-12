@@ -13,7 +13,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Remaining audit events from Spec §8: password change, 2FA enrolment, profile edit,
+ * Remaining audit events from Spec 8: password change, 2FA enrolment, profile edit,
  * role change, document upload and deletion.
  */
 class AuditEventsTest extends TestCase

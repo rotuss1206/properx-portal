@@ -1,5 +1,5 @@
 /*
- * Membership payment banner for Nova (Spec §7). Data comes from
+ * Membership payment banner for Nova (Spec 7). Data comes from
  * Nova::provideToScript(['membershipBanner' => ...]); nothing is shown when it is null.
  * Built with DOM APIs only (no innerHTML), so it works under the strict CSP.
  */

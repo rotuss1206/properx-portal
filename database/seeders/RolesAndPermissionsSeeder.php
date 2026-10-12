@@ -9,7 +9,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * Roles and permissions from Spec §3.7. Safe to re-run.
+ * Roles and permissions from Spec 3.7. Safe to re-run.
  */
 class RolesAndPermissionsSeeder extends Seeder
 {

@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * "Remember me" would let a long-lived cookie silently re-create sessions and bypass
- * the 30-minute idle / 8-hour absolute limits (Spec §3.3), so the flag is ignored.
+ * the 30-minute idle / 8-hour absolute limits (Spec 3.3), so the flag is ignored.
  */
 class DisableRememberMe
 {

@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use UnexpectedValueException;
 
 /**
- * Stripe membership payment webhook (Spec §7, §3.7). Verifies the signature and
+ * Stripe membership payment webhook (Spec 7, 3.7). Verifies the signature and
  * processes the event as the API Service account.
  */
 class StripeWebhookController extends Controller
