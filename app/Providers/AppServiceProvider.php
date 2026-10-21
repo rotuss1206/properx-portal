@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Auth\LoginRateLimiter;
+use App\Mail\AcsTransportFactory;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Mail goes through Azure Communication Services only (KEENEY platform rule).
+        Mail::extend('azure', fn (array $config) => AcsTransportFactory::fromConnectionString($config['connection_string'] ?? null));
+
         RateLimiter::for('certificate-verification', function (Request $request) {
             return Limit::perMinute(config('portal.verification.requests_per_minute'))->by($request->ip());
         });

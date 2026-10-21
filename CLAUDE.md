@@ -13,7 +13,7 @@ Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in 
 - **Laravel Fortify** (bundled with Nova): login, password reset, TOTP 2FA with recovery codes.
 - **spatie/laravel-permission**: roles and permissions (`HasRoles` trait on `App\Models\User`).
 - **barryvdh/laravel-dompdf**: membership certificate PDF.
-- **Postmark**: transactional email (`MAIL_MAILER=log` locally).
+- **Azure Communication Services** (`symfony/azure-mailer`, `Mail::extend('azure')`): transactional email; the only mail provider allowed by the KEENEY platform (`MAIL_MAILER=log` locally).
 - **Azure Blob Storage** (`azure-oss/storage-blob-laravel`, disk `azure`): file storage for documents and the certificate cache. `PORTAL_DOCUMENTS_DISK` / `PORTAL_CERTIFICATES_DISK` switch between `local` and `azure`. Locally the Azurite emulator stands in for Azure. Always go through `Storage::disk(...)`.
 
 ## Roles (Spec 3.7)
@@ -91,9 +91,8 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Deduplicates via `reminder_logs` (`user_id + reminder_type + license_expires_at`).
   - Members who opted out get no email; a `skipped` entry is logged instead.
   - Alerts the Executive Director on errors.
-- Mail: `MAIL_MAILER=postmark` with `POSTMARK_TOKEN` (`POSTMARK_API_TEST` = Postmark's test token, nothing is delivered) or `log`.
-  - Reminder emails carry the Postmark tag `license-expiry-reminder` and `reminder_log_id` metadata.
-  - `POST /webhooks/postmark` (basic auth `POSTMARK_WEBHOOK_USERNAME/PASSWORD`, stateless routes in `routes/machine.php`) maps Delivery / Bounce / SpamComplaint to `reminder_logs.delivery_status`; never downgrades a worse status.
+- Mail: default mailer `azure` (`App\Mail\AcsTransportFactory` parses `KEENEY_ACS_CONNECTION_STRING`; sender `KEENEY_MAIL_FROM` / `KEENEY_MAIL_FROM_NAME`). Use `log` locally.
+  - Email bodies contain no PHI (no names, license numbers, dates): they only link back to the portal.
 
 ## Stripe payment status (Spec 7)
 

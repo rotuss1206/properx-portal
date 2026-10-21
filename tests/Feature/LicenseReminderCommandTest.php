@@ -84,12 +84,26 @@ class LicenseReminderCommandTest extends TestCase
         $html = (string) $mail->render();
         $text = (string) app(Markdown::class)->renderText($mail->markdown, $mail->data());
 
-        $this->assertSame('Your insurance license expires in 30 days', $mail->subject);
+        $this->assertSame('Action needed: your ProPerx Alliance license information', $mail->subject);
         $this->assertStringContainsString('<html', $html);
         $this->assertStringContainsString($preferencesUrl, $html);
         $this->assertStringNotContainsString('<html', $text);
         $this->assertStringContainsString($preferencesUrl, $text);
-        $this->assertStringContainsString($member->memberProfile->license_expires_at->toFormattedDateString(), $text);
+        $this->assertStringContainsString(LicenseExpiryReminder::profileUrl($member->memberProfile), $text);
+    }
+
+    public function test_reminder_contains_no_member_data(): void
+    {
+        $member = $this->memberExpiringIn(30);
+        $profile = $member->memberProfile;
+
+        $mail = (new LicenseExpiryReminder($profile, ReminderType::Days30))->toMail($member);
+        $content = $mail->subject.' '.app(Markdown::class)->renderText($mail->markdown, $mail->data());
+
+        foreach ([$profile->first_name, $profile->last_name, $profile->license_number, $profile->npn,
+            $profile->license_expires_at->toFormattedDateString(), $member->email] as $value) {
+            $this->assertStringNotContainsString((string) $value, $content);
+        }
     }
 
     public function test_opted_out_member_is_logged_as_skipped(): void
@@ -177,7 +191,8 @@ class LicenseReminderCommandTest extends TestCase
 
         Notification::assertSentTo($director, ScheduledTaskFailed::class, function (ScheduledTaskFailed $n) {
             return $n->task === 'app:check-license-expirations'
-                && str_contains($n->errors[0], 'Database is read-only');
+                && str_contains($n->errors[0], 'RuntimeException')
+                && ! str_contains($n->errors[0], 'Database is read-only'); // messages may hold member data
         });
     }
 

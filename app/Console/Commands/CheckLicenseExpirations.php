@@ -48,7 +48,7 @@ class CheckLicenseExpirations extends Command
                 });
         } catch (Throwable $e) {
             report($e);
-            $this->errors[] = 'Job aborted: '.$e->getMessage();
+            $this->errors[] = 'Job aborted: '.$e::class;
         }
 
         $this->info(sprintf(
@@ -79,7 +79,7 @@ class CheckLicenseExpirations extends Command
             $this->remind($profile, $type);
         } catch (Throwable $e) {
             report($e);
-            $this->errors[] = "Member profile #{$profile->getKey()}: {$e->getMessage()}";
+            $this->errors[] = "Member profile #{$profile->getKey()}: ".$e::class; // no message: it may contain member data
         }
     }
 
@@ -147,7 +147,7 @@ class CheckLicenseExpirations extends Command
         }
 
         try {
-            $user->notify(new LicenseExpiryReminder($profile, $type, $log->id));
+            $user->notify(new LicenseExpiryReminder($profile, $type));
             $this->stats['sent']++;
         } catch (Throwable $e) {
             $log->update(['delivery_status' => DeliveryStatus::Failed]);

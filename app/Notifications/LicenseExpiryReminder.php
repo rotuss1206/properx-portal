@@ -9,25 +9,26 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Laravel\Nova\Nova;
-use Symfony\Component\Mailer\Header\MetadataHeader;
-use Symfony\Component\Mailer\Header\TagHeader;
 use Symfony\Component\Mime\Email;
 
 /**
  * License expiry reminder, 60 / 30 / 7 days ahead (Spec 2, 3.5).
- * MailMessage renders both the HTML and the plain-text part.
+ *
+ * The body carries no member data (no name, license number, state or date): it only
+ * points to the portal, where the details are shown after sign-in (KEENEY PHI rule).
  */
 class LicenseExpiryReminder extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public const TAG = 'license-expiry-reminder';
+    /** Failed jobs get 3 tries on the platform; each must finish well within 120 s. */
+    public int $tries = 3;
+
+    public int $timeout = 60;
 
     public function __construct(
         public readonly MemberProfile $profile,
         public readonly ReminderType $type,
-        // Sent to Postmark as metadata and echoed back by its bounce/spam webhook.
-        public readonly ?int $reminderLogId = null,
     ) {}
 
     /**
@@ -40,27 +41,18 @@ class LicenseExpiryReminder extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $expires = $this->profile->license_expires_at->toFormattedDateString();
-        $profileUrl = self::profileUrl($this->profile);
         $preferencesUrl = self::preferencesUrl($this->profile);
 
         return (new MailMessage)
-            ->subject("Your insurance license expires in {$this->type->value} days")
-            ->greeting("Hello {$this->profile->first_name},")
-            ->line("Our records show that your license {$this->profile->license_number} ({$this->profile->license_state}) expires on **{$expires}**.")
-            ->line('Please renew it in time and upload the renewed license document to your member profile so your ProPerx Alliance membership stays in good standing.')
-            ->action('Open my member profile', $profileUrl)
-            ->line('If you have already renewed, you can ignore this message once the new document is uploaded.')
+            ->subject('Action needed: your ProPerx Alliance license information')
+            ->greeting('Hello,')
+            ->line('There is an update about your license on file that needs your attention.')
+            ->line('Please sign in to the member portal to review it and, if needed, upload your renewed license document.')
+            ->action('Sign in to the member portal', self::profileUrl($this->profile))
             ->salutation("Regards,\nProPerx Alliance Membership Team")
-            ->line("To stop license expiry emails, change your notification preferences: {$preferencesUrl}")
+            ->line("To stop these emails, change your notification preferences in the portal: {$preferencesUrl}")
             ->withSymfonyMessage(function (Email $message) use ($preferencesUrl) {
-                $headers = $message->getHeaders();
-                $headers->addTextHeader('List-Unsubscribe', "<{$preferencesUrl}>");
-                $headers->add(new TagHeader(self::TAG));
-
-                if ($this->reminderLogId !== null) {
-                    $headers->add(new MetadataHeader('reminder_log_id', (string) $this->reminderLogId));
-                }
+                $message->getHeaders()->addTextHeader('List-Unsubscribe', "<{$preferencesUrl}>");
             });
     }
 

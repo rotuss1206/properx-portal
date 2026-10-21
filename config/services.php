@@ -14,18 +14,6 @@ return [
     |
     */
 
-    // Transactional mail (Spec 3.4). "POSTMARK_API_TEST" is Postmark's test token:
-    // requests are validated but nothing is delivered.
-    'postmark' => [
-        'token' => env('POSTMARK_TOKEN'),
-
-        // Basic auth credentials configured on the Postmark bounce/spam webhook URL.
-        'webhook' => [
-            'username' => env('POSTMARK_WEBHOOK_USERNAME'),
-            'password' => env('POSTMARK_WEBHOOK_PASSWORD'),
-        ],
-    ],
-
     // Membership payment status webhooks (Spec 7). Only the signing secret is needed:
     // the portal never calls the Stripe API or takes payments.
     'stripe' => [

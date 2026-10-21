@@ -17,7 +17,7 @@ Run alongside the web server:
 | Queue worker | `php artisan queue:work` | Reminder emails are queued |
 | Scheduler | `php artisan schedule:work` | Nightly `app:check-license-expirations` |
 
-Mail: `MAIL_MAILER=postmark` with `POSTMARK_TOKEN=POSTMARK_API_TEST` (Postmark accepts the request but delivers nothing) or `MAIL_MAILER=log`.
+Mail: `MAIL_MAILER=log` locally (messages are written to the log). Production uses Azure Communication Services (`azure` mailer) with `KEENEY_ACS_CONNECTION_STRING`, `KEENEY_MAIL_FROM` and `KEENEY_MAIL_FROM_NAME` from the platform.
 
 Staff 2FA can be switched off locally with `NOVA_REQUIRE_STAFF_2FA=false` (ignored outside `APP_ENV=local`).
 
