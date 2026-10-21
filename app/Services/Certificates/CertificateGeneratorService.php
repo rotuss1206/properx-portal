@@ -27,7 +27,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 2;
+    private const TEMPLATE_VERSION = 3;
 
     /**
      * @var array<string, string> attribute => human-readable name
@@ -85,9 +85,9 @@ class CertificateGeneratorService
             'issuedAt' => now(),
             'qrCode' => $this->qrCode($data['verificationUrl']),
             'signatureImage' => $this->signatureImage(),
+            'fontPath' => fn (string $file) => self::chrootPath('fonts/'.$file),
         ])
-            ->setPaper('letter', 'landscape')
-            ->setOption('isFontSubsettingEnabled', true);
+            ->setPaper('letter', 'landscape');
 
         $disk->put($path, $pdf->output());
 
@@ -167,7 +167,15 @@ class CertificateGeneratorService
             return null;
         }
 
-        return 'data:'.(mime_content_type($path) ?: 'image/png').';base64,'.base64_encode((string) file_get_contents($path));
+        return str_replace('\\', '/', $path);
+    }
+
+    /**
+     * Absolute path of a file inside the dompdf chroot (resources/views/pdf); dompdf refuses anything outside it.
+     */
+    private static function chrootPath(string $relative): string
+    {
+        return str_replace('\\', '/', config('dompdf.options.chroot').'/'.$relative);
     }
 
     private function signatureImagePath(): ?string

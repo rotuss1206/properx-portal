@@ -6,7 +6,10 @@
     {{-- US Letter landscape: 792 × 612 pt. Fixed pt coordinates keep dompdf output on one page. --}}
     <style>
         @page { margin: 0; }
-        body { margin: 0; font-family: DejaVu Sans, sans-serif; color: #1f2937; }
+        {{-- Fonts load from inside the dompdf chroot (resources/views/pdf). --}}
+        @font-face { font-family: 'Certificate Sans'; font-weight: normal; src: url('{{ $fontPath('DejaVuSans.ttf') }}') format('truetype'); }
+        @font-face { font-family: 'Certificate Sans'; font-weight: bold; src: url('{{ $fontPath('DejaVuSans-Bold.ttf') }}') format('truetype'); }
+        body { margin: 0; font-family: 'Certificate Sans', sans-serif; color: #1f2937; }
         .frame { position: absolute; top: 22pt; left: 22pt; width: 736pt; height: 556pt; border: 5pt double #1e3a5f; }
         .inner { position: absolute; top: 6pt; left: 6pt; width: 722pt; height: 542pt; border: 0.75pt solid #c8a24a; text-align: center; }
         .org { margin-top: 34pt; font-size: 11pt; letter-spacing: 4pt; text-transform: uppercase; color: #1e3a5f; }

@@ -78,8 +78,9 @@ return [
         'directory' => 'certificates',
         'cache_hours' => 24,
 
-        // Placeholder until the client provides the Executive Director's real signature.
-        'signature_image' => env('CERTIFICATE_SIGNATURE_IMAGE', resource_path('images/signature-placeholder.png')),
+        // Placeholder until the client provides the Executive Director's real signature. Must stay
+        // inside the dompdf chroot (resources/views/pdf), or dompdf refuses to load it.
+        'signature_image' => resource_path('views/pdf/images/signature-placeholder.png'),
     ],
 
     /*

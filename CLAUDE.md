@@ -87,6 +87,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - `MemberProfileObserver` clears the cache when that data changes.
   - Throws `CertificateUnavailableException` (with a user-safe message) for expired licenses or incomplete profiles.
   - Bump `TEMPLATE_VERSION` after changing the template.
+  - `config/dompdf.php` is hardened: `enable_remote`, `enable_php`, `enable_javascript` off, only `data://` and `file://`, chroot `resources/views/pdf`. Fonts (`pdf/fonts`) and the signature image (`pdf/images/signature-placeholder.png`, replace with the real one) must live inside the chroot; QR codes are data URIs; the font cache is `storage/fonts`.
 - Certificates are downloaded only through the `certificates.download` route (policy `downloadCertificate`). Public check: `/verify-certificate/{code}`, limited to 10 requests per minute per IP; shows name and dates only.
 - "Valid from" = member account creation date, "Valid through" = `license_expires_at` (the data model has no separate membership dates).
 - `app:check-license-expirations` runs hourly 02:00–05:00 in `PORTAL_SCHEDULE_TIMEZONE`, `onOneServer()->withoutOverlapping(5)`.
