@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureNovaDashboardIsAvailable;
-use App\Http\Middleware\RequireTwoFactorForStaff;
+use App\Http\Middleware\RequireTwoFactor;
 use Illuminate\Http\Middleware\CheckResponseForModifications;
 use Laravel\Nova\Actions\ActionResource;
 use Laravel\Nova\Http\Middleware\Authenticate;
@@ -111,7 +111,7 @@ return [
         // \Laravel\Nova\Http\Middleware\AuthenticateSession::class,
         // \Laravel\Nova\Http\Middleware\EnsureEmailIsVerified::class,
         Authorize::class,
-        RequireTwoFactorForStaff::class,
+        RequireTwoFactor::class,
         EnsureNovaDashboardIsAvailable::class,
     ],
 

@@ -64,13 +64,14 @@ class User extends Authenticatable
     }
 
     /**
-     * Staff must have confirmed TOTP two-factor authentication (Spec 8).
-     * The requirement can be switched off only in the local environment.
+     * Every Nova user (staff and members) must have confirmed TOTP two-factor
+     * authentication (KEENEY platform rule, Spec 8). The requirement can be switched
+     * off only in the local environment.
      */
     public function requiresTwoFactor(): bool
     {
-        return $this->isStaff()
-            && (config('portal.require_staff_two_factor') || ! app()->isLocal());
+        return ($this->isStaff() || $this->isMember())
+            && (config('portal.require_two_factor') || ! app()->isLocal());
     }
 
     public function hasConfirmedTwoFactor(): bool

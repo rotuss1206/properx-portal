@@ -10,7 +10,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * MFA is mandatory for the three staff roles and optional for members (Spec 8).
+ * MFA is mandatory for every Nova user, staff and members (KEENEY platform rule, Spec 8).
  */
 class TwoFactorEnforcementTest extends TestCase
 {
@@ -55,7 +55,7 @@ class TwoFactorEnforcementTest extends TestCase
 
     public function test_requirement_can_be_disabled_in_local_environment(): void
     {
-        config(['portal.require_staff_two_factor' => false]);
+        config(['portal.require_two_factor' => false]);
         $this->app->detectEnvironment(fn () => 'local');
 
         $this->actingAs($this->staff(Role::ExecutiveDirector, withTwoFactor: false))
@@ -65,7 +65,7 @@ class TwoFactorEnforcementTest extends TestCase
 
     public function test_requirement_cannot_be_disabled_outside_local(): void
     {
-        config(['portal.require_staff_two_factor' => false]);
+        config(['portal.require_two_factor' => false]);
         $this->app->detectEnvironment(fn () => 'production');
 
         $this->actingAs($this->staff(Role::ExecutiveDirector, withTwoFactor: false))
@@ -73,17 +73,32 @@ class TwoFactorEnforcementTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_two_factor_is_optional_for_members(): void
+    public function test_members_without_two_factor_are_sent_to_user_security(): void
     {
-        $member = $this->member();
+        $member = $this->member(withTwoFactor: false);
 
-        $this->assertNull($member->two_factor_confirmed_at);
+        $this->actingAs($member);
 
-        $this->actingAs($member)
+        $this->get('/nova/dashboards/my-membership')->assertRedirect(route('nova.pages.user-security'));
+        $this->getJson('/nova-api/member-profiles')->assertForbidden();
+        $this->get(CertificateGeneratorService::downloadUrl($member->memberProfile))
+            ->assertRedirect(route('nova.pages.user-security'));
+        $this->get('/nova/user-security')->assertOk();
+    }
+
+    public function test_members_with_two_factor_get_in(): void
+    {
+        $this->actingAs($this->member())
             ->get('/nova/dashboards/my-membership')
             ->assertOk();
 
         $this->getJson('/nova-api/member-profiles')->assertOk();
+    }
+
+    public function test_api_service_account_is_not_asked_for_two_factor(): void
+    {
+        // It never reaches Nova (viewNova gate); the rule targets people who use the portal.
+        $this->assertFalse($this->apiService()->requiresTwoFactor());
     }
 
     public function test_staff_without_two_factor_cannot_download_certificates(): void

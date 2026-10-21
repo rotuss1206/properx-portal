@@ -32,7 +32,7 @@ class AuditLogTest extends TestCase
 
     public function test_login_updates_last_login_and_is_audited(): void
     {
-        $member = $this->member();
+        $member = $this->member(withTwoFactor: false);
         $this->assertNull($member->last_login_at);
 
         $this->postJson('/nova/login', ['email' => $member->email, 'password' => 'password'], ['User-Agent' => 'PHPUnit'])

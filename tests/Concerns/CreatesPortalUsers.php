@@ -28,9 +28,13 @@ trait CreatesPortalUsers
         return $factory->create()->assignRole($role->value);
     }
 
-    protected function member(string $licenseState = 'active'): User
+    /**
+     * Member with confirmed 2FA (mandatory for every Nova user) unless $withTwoFactor is false.
+     */
+    protected function member(string $licenseState = 'active', bool $withTwoFactor = true): User
     {
-        $user = User::factory()->create()->assignRole(Role::Member->value);
+        $factory = $withTwoFactor ? User::factory()->withTwoFactor() : User::factory();
+        $user = $factory->create()->assignRole(Role::Member->value);
 
         MemberProfile::factory()->{$licenseState}()->for($user)->create();
 

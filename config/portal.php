@@ -42,15 +42,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Staff two-factor authentication
+    | Two-factor authentication
     |--------------------------------------------------------------------------
     |
-    | Mandatory for staff (Spec 8). Setting NOVA_REQUIRE_STAFF_2FA=false
+    | Mandatory for every Nova user, members included (KEENEY platform rule,
+    | Spec 8). Setting NOVA_REQUIRE_2FA=false
     | only takes effect when APP_ENV=local, for development convenience.
     |
     */
 
-    'require_staff_two_factor' => env('NOVA_REQUIRE_STAFF_2FA', true),
+    'require_two_factor' => env('NOVA_REQUIRE_2FA', true),
 
     /*
     |--------------------------------------------------------------------------

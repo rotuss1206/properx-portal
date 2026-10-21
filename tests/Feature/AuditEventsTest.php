@@ -51,7 +51,7 @@ class AuditEventsTest extends TestCase
 
     public function test_two_factor_enrolment_and_removal_are_audited(): void
     {
-        $member = $this->member();
+        $member = $this->member(withTwoFactor: false);
         $this->actingAs($member);
 
         $member->forceFill(['two_factor_secret' => encrypt('SECRET')])->save();

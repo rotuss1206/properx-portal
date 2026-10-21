@@ -30,7 +30,7 @@ Auditor/Board Member and Treasurer roles are out of scope for the initial build.
 
 ## Main features (Spec 2)
 
-- Email and password login, password reset, optional TOTP MFA with recovery codes (mandatory for staff).
+- Email and password login, password reset, TOTP MFA with recovery codes (mandatory for every Nova user on the KEENEY platform).
 - Member profile: contact details, business, NPN, license (number, state, type, expiry date).
 - License documents: PDF/JPG/PNG up to 10 MB, private encrypted storage, served only through a server endpoint that checks role and ownership.
 - Daily job for license statuses (active / expiring / expired) and reminders 60, 30 and 7 days ahead, honouring notification preferences. Every sent or skipped email is written to the reminder log.
@@ -58,7 +58,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - The Nova menu is built automatically from the policies' `viewAny`; no per-role menu is needed.
 - Members see only their own records: `indexQuery` via `Resource::ownRecordsUnless()` plus `view` in the policy.
 - The `Staff` and `Member` resources both use the `User` model; their `viewAny` and `create` checks are split in the `AuthorizesUserResource` trait.
-- [RequireTwoFactorForStaff](app/Http/Middleware/RequireTwoFactorForStaff.php) middleware: staff without confirmed 2FA can only reach `/nova/user-security`. 2FA is optional for members. `NOVA_REQUIRE_STAFF_2FA=false` disables the requirement, but only when `APP_ENV=local`.
+- [RequireTwoFactor](app/Http/Middleware/RequireTwoFactor.php) middleware: 2FA is mandatory for every Nova user, members included (KEENEY rule); without confirmed 2FA only `/nova/user-security` is reachable. `NOVA_REQUIRE_2FA=false` disables the requirement, but only when `APP_ENV=local`.
 - Files live on the private disk `config('portal.documents_disk')`. All writes go through [DocumentVault](app/Services/Documents/DocumentVault.php):
   - UUID file names; the extension comes from the MIME type sniffed with `finfo`, never from the client.
   - Uploads are limited to PDF/JPG/PNG up to 10 MB (`DocumentVault::uploadRules()`).

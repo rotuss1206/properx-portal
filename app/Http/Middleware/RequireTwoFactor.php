@@ -8,10 +8,11 @@ use Laravel\Nova\Nova;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Staff must enrol in TOTP two-factor authentication before using Nova (Spec 8).
+ * Every Nova user (staff and members) must enrol in TOTP two-factor authentication
+ * before using the portal (KEENEY platform rule, Spec 8).
  * Until then only the User Security page (and what it needs) is reachable.
  */
-class RequireTwoFactorForStaff
+class RequireTwoFactor
 {
     /**
      * Paths (relative to the Nova path) that stay reachable during enrolment.

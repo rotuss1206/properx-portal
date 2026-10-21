@@ -83,8 +83,10 @@ class MembershipRestrictionTest extends TestCase
     {
         $member = $this->memberWithPayment(PaymentStatus::Canceled);
 
-        $this->postJson('/nova/login', ['email' => $member->email, 'password' => 'password'])->assertOk();
-        $this->assertAuthenticatedAs($member);
+        // Credentials are accepted and the member moves on to the (mandatory) 2FA challenge.
+        $this->postJson('/nova/login', ['email' => $member->email, 'password' => 'password'])
+            ->assertOk()
+            ->assertJson(['two_factor' => true]);
     }
 
     public function test_certificate_refusal_explains_why(): void

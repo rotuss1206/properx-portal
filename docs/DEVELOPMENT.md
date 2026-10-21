@@ -19,13 +19,13 @@ Run alongside the web server:
 
 Mail: `MAIL_MAILER=log` locally (messages are written to the log). Production uses Azure Communication Services (`azure` mailer) with `KEENEY_ACS_CONNECTION_STRING`, `KEENEY_MAIL_FROM` and `KEENEY_MAIL_FROM_NAME` from the platform.
 
-Staff 2FA can be switched off locally with `NOVA_REQUIRE_STAFF_2FA=false` (ignored outside `APP_ENV=local`).
+2FA is mandatory for every Nova user (staff and members). It can be switched off locally with `NOVA_REQUIRE_2FA=false` (ignored outside `APP_ENV=local`).
 
 Tests: `php vendor/bin/phpunit` (SQLite in memory, faked Blob disk; `AzuriteIntegrationTest` runs only when Azurite is up).
 
 ## Test accounts (seeded)
 
-All passwords are `password`. Staff must enrol in 2FA on first login unless `NOVA_REQUIRE_STAFF_2FA=false` locally.
+All passwords are `password`. Every account must enrol in 2FA on first login unless `NOVA_REQUIRE_2FA=false` locally.
 
 | Account | Role | Notes |
 |---|---|---|

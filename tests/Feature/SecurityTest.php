@@ -109,7 +109,7 @@ class SecurityTest extends TestCase
 
     public function test_remember_me_is_ignored(): void
     {
-        $member = $this->member();
+        $member = $this->member(withTwoFactor: false);
         $tokenBefore = $member->remember_token;
 
         $response = $this->postJson('/nova/login', ['email' => $member->email, 'password' => 'password', 'remember' => true])
