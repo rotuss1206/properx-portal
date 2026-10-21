@@ -50,6 +50,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Authorization through Policies and spatie permissions. File access is checked server-side on every request; there are no public URLs.
 - **Encrypted casts** (KEENEY rule): `member_profiles.member_number` (Member ID), `npn`, `certificate_code`; license document `original_filename`, `mime_type`, `admin_notes`; tax document `document_type`, `tax_year`, `original_filename`. Encrypted columns cannot be sorted, filtered or LIKE-searched in SQL.
   - Lookups use **blind indexes** (`*_index` columns, HMAC-SHA256 keyed by `BLIND_INDEX_KEY`, separate from `APP_KEY`): trait `HasBlindIndexes` + `Model::query()->whereBlindIndex('npn', $value)` (exact match, case/space-insensitive). The Nova member search uses them for NPN, Member ID and certificate number.
+- Logs and email bodies carry no PHI: IDs only, never emails, names or NPNs. Exception messages may hold member data, so log `$e::class`; `QueryException` is reported without bindings (`bootstrap/app.php`).
 - Sensitive fields are stored encrypted. MFA secret and recovery codes: Fortify's `two_factor_*` columns (Fortify encrypts recovery codes rather than hashing them as Spec 3.3 asks; known deviation).
 
 ## Access and Nova

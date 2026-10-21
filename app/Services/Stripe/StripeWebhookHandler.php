@@ -66,11 +66,11 @@ class StripeWebhookHandler
         $profile = $this->findProfile($customerId, $email);
 
         if ($profile === null) {
+            // IDs only: no email or other member data in logs.
             Log::warning('Stripe event could not be matched to a member', [
                 'event' => $event->id,
                 'type' => $event->type,
                 'customer' => $customerId,
-                'email' => $email,
             ]);
 
             return ['unmatched', null];

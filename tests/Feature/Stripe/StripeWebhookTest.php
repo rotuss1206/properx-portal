@@ -239,7 +239,8 @@ class StripeWebhookTest extends TestCase
             ->assertOk()
             ->assertJson(['outcome' => 'unmatched']);
 
-        Log::shouldHaveReceived('warning')->withArgs(fn ($message) => str_contains($message, 'could not be matched'))->once();
+        Log::shouldHaveReceived('warning')->withArgs(fn ($message, $context) => str_contains($message, 'could not be matched')
+            && ! str_contains(json_encode($context), 'nobody@example.com'))->once(); // IDs only, no email
         $this->assertDatabaseHas('stripe_events', ['outcome' => 'unmatched']);
     }
 
