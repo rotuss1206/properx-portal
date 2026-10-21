@@ -88,7 +88,8 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Bump `TEMPLATE_VERSION` after changing the template.
 - Certificates are downloaded only through the `certificates.download` route (policy `downloadCertificate`). Public check: `/verify-certificate/{code}`, limited to 10 requests per minute per IP; shows name and dates only.
 - "Valid from" = member account creation date, "Valid through" = `license_expires_at` (the data model has no separate membership dates).
-- `app:check-license-expirations` runs daily at 02:00 in `PORTAL_SCHEDULE_TIMEZONE`.
+- `app:check-license-expirations` runs hourly 02:00–05:00 in `PORTAL_SCHEDULE_TIMEZONE`, `onOneServer()->withoutOverlapping(5)`.
+  - Platform limit: scheduled tasks finish within 120 s. The command stops at `portal.scheduled_task_budget_seconds` (100) and the next run continues; every run must stay idempotent.
   - Refreshes license statuses and sends 60/30/7-day reminders.
   - Deduplicates via `reminder_logs` (`user_id + reminder_type + license_expires_at`).
   - Members who opted out get no email; a `skipped` entry is logged instead.

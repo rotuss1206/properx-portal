@@ -37,18 +37,31 @@ class CheckLicenseExpirations extends Command
     public function handle(): int
     {
         $today = today();
+        $deadline = microtime(true) + config('portal.scheduled_task_budget_seconds');
+        $outOfTime = false;
 
         try {
             MemberProfile::query()
                 ->with(['user.notificationSettings'])
-                ->chunkById(200, function ($profiles) use ($today) {
+                ->chunkById(200, function ($profiles) use ($today, $deadline, &$outOfTime) {
                     foreach ($profiles as $profile) {
+                        if (microtime(true) >= $deadline) {
+                            $outOfTime = true;
+
+                            return false;
+                        }
+
                         $this->processProfile($profile, $today);
                     }
                 });
         } catch (Throwable $e) {
             report($e);
             $this->errors[] = 'Job aborted: '.$e::class;
+        }
+
+        if ($outOfTime) {
+            // Not an error: processing is idempotent, so the next scheduled run finishes the rest.
+            $this->warn('Time budget reached; the next run continues.');
         }
 
         $this->info(sprintf(

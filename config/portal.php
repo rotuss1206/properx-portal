@@ -103,6 +103,10 @@ return [
 
     'schedule_timezone' => env('PORTAL_SCHEDULE_TIMEZONE', 'America/New_York'),
 
+    // Scheduled tasks must finish within 120 seconds (KEENEY platform rule). Jobs stop
+    // cleanly once this budget is used and the next run continues where they left off.
+    'scheduled_task_budget_seconds' => 100,
+
     /*
     |--------------------------------------------------------------------------
     | Membership payments (Spec 7)

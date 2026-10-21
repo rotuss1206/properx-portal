@@ -196,13 +196,33 @@ class LicenseReminderCommandTest extends TestCase
         });
     }
 
-    public function test_is_scheduled_nightly(): void
+    public function test_stops_at_the_time_budget_and_the_next_run_continues(): void
+    {
+        $member = $this->memberExpiringIn(30);
+        config(['portal.scheduled_task_budget_seconds' => 0]);
+
+        $this->artisan('app:check-license-expirations')
+            ->expectsOutputToContain('Time budget reached')
+            ->assertSuccessful();
+        Notification::assertNothingSent();
+
+        config(['portal.scheduled_task_budget_seconds' => 100]);
+        $this->artisan('app:check-license-expirations')->assertSuccessful();
+        $this->artisan('app:check-license-expirations')->assertSuccessful();
+
+        Notification::assertSentToTimes($member, LicenseExpiryReminder::class, 1);
+    }
+
+    public function test_is_scheduled_nightly_on_one_server_without_overlapping(): void
     {
         $event = collect(app(Schedule::class)->events())
             ->first(fn ($event) => str_contains($event->command, 'app:check-license-expirations'));
 
         $this->assertNotNull($event);
-        $this->assertSame('0 2 * * *', $event->expression);
+        $this->assertSame('0 2-5 * * *', $event->expression);
         $this->assertSame(config('portal.schedule_timezone'), $event->timezone);
+        $this->assertTrue($event->withoutOverlapping);
+        $this->assertTrue($event->onOneServer);
+        $this->assertSame(5, $event->expiresAt);
     }
 }
