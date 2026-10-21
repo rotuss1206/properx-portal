@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Middleware\EnforceAbsoluteSessionTimeout;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
@@ -68,43 +67,16 @@ class SecurityTest extends TestCase
         $this->assertContains('throttle:two-factor', $route->gatherMiddleware());
     }
 
-    public function test_session_cookie_settings(): void
+    public function test_session_settings_are_left_to_the_platform(): void
     {
-        $this->assertSame(30, config('session.lifetime'));
-        $this->assertSame(480, config('portal.security.session_absolute_minutes'));
-        $this->assertTrue(config('session.secure'));
-        $this->assertTrue(config('session.http_only'));
-        $this->assertSame('strict', config('session.same_site'));
-    }
+        // The KEENEY platform sets SESSION_* (15 minutes, database, encrypted, secure);
+        // config/session.php must keep Laravel's stock env-driven defaults.
+        $config = file_get_contents(config_path('session.php'));
 
-    public function test_session_ends_8_hours_after_login_despite_activity(): void
-    {
-        $member = $this->member();
-        $startedAt = now()->subHours(8)->subMinute()->getTimestamp();
-
-        $this->actingAs($member)
-            ->withSession([EnforceAbsoluteSessionTimeout::SESSION_KEY => $startedAt])
-            ->get('/nova/dashboards/my-membership')
-            ->assertRedirect('/nova/login');
-
-        $this->assertGuest();
-        $this->assertDatabaseHas('audit_logs', ['action' => 'logout', 'user_id' => $member->id]);
-    }
-
-    public function test_api_calls_get_401_after_the_absolute_timeout(): void
-    {
-        $this->actingAs($this->member())
-            ->withSession([EnforceAbsoluteSessionTimeout::SESSION_KEY => now()->subHours(9)->getTimestamp()])
-            ->getJson('/nova-api/member-profiles')
-            ->assertUnauthorized();
-    }
-
-    public function test_session_within_8_hours_stays_valid(): void
-    {
-        $this->actingAs($this->member())
-            ->withSession([EnforceAbsoluteSessionTimeout::SESSION_KEY => now()->subHours(7)->getTimestamp()])
-            ->get('/nova/dashboards/my-membership')
-            ->assertOk();
+        $this->assertStringContainsString("'lifetime' => (int) env('SESSION_LIFETIME', 120)", $config);
+        $this->assertStringContainsString("'secure' => env('SESSION_SECURE_COOKIE')", $config);
+        $this->assertStringContainsString("'same_site' => env('SESSION_SAME_SITE', 'lax')", $config);
+        $this->assertStringContainsString("Str::slug((string) env('APP_NAME', 'laravel')).'-session'", $config);
     }
 
     public function test_remember_me_is_ignored(): void

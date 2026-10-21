@@ -68,7 +68,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Downloads (`App\Services\DocumentDownloader`): never a public or SAS URL. After Nova's policy check the download endpoint redirects to a 5-minute `URL::temporarySignedRoute` (`documents.download`, `certificates.download`); that route requires the session, re-checks the policy and streams the blob (decrypting `.enc` files). Every download is audited.
 - Security (Spec 3.3, 8):
   - Login: max 5 failed attempts per 15 minutes per IP (`App\Auth\LoginRateLimiter` replaces Fortify's). The 2FA challenge allows 5 tries per minute.
-  - Session: 30 minutes idle (`SESSION_LIFETIME`), 8 hours absolute (`EnforceAbsoluteSessionTimeout`); "remember me" is ignored (`DisableRememberMe`). Cookies are `Secure`, `HttpOnly`, `SameSite=Strict`.
+  - Session: owned by the KEENEY platform (`SESSION_*`: 15 minutes, database, encrypted, secure, `lax`); `config/session.php` stays stock, do not add custom timeouts or cookie names. "Remember me" is ignored (`DisableRememberMe`).
   - `SecurityHeaders` sends HSTS (HTTPS or production), `nosniff`, `X-Frame-Options: DENY` and a CSP. Nova's inline scripts get the per-request nonce via `Nova::cspNonce()`; no `unsafe-eval`. `CSP_REPORT_ONLY=true` switches to report-only while debugging.
 - Audit log: `AuditLog::record($action, $resource)` (actor = current user). Sources:
   - listeners in `app/Listeners`: login/logout (also updates `last_login_at`), role changes via spatie events (`permission.events_enabled`);

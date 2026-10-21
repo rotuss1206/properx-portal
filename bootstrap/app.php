@@ -2,7 +2,6 @@
 
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\DisableRememberMe;
-use App\Http\Middleware\EnforceAbsoluteSessionTimeout;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -27,7 +26,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             DisableRememberMe::class,
-            EnforceAbsoluteSessionTimeout::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

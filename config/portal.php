@@ -125,14 +125,12 @@ return [
     | Security (Spec 3.3, 8)
     |--------------------------------------------------------------------------
     |
-    | Idle timeout is SESSION_LIFETIME (30 minutes); the absolute lifetime below
-    | ends a session 8 hours after login regardless of activity.
+    | Session settings (timeout, cookie, driver) are owned by the KEENEY platform
+    | (15 minutes, database, encrypted, secure); they are not overridden here.
     |
     */
 
     'security' => [
-        'session_absolute_minutes' => (int) env('SESSION_ABSOLUTE_LIFETIME', 480),
-
         'login_max_attempts' => 5,
         'login_decay_minutes' => 15,
 
