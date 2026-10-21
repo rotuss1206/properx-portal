@@ -55,6 +55,11 @@ class PlatformRulesTest extends TestCase
         $this->assertStringContainsString("health: '/up'", file_get_contents(self::root('bootstrap/app.php')));
     }
 
+    public function test_line_endings_are_normalised_to_lf(): void
+    {
+        $this->assertStringContainsString('* text=auto eol=lf', file_get_contents(self::root('.gitattributes')));
+    }
+
     /** @return iterable<string, array{string}> */
     public static function codeDirectories(): iterable
     {
