@@ -141,7 +141,7 @@ class CertificateGeneratorService
 
     public static function formatMemberId(MemberProfile $profile): string
     {
-        return 'PPX-M'.str_pad((string) $profile->user_id, 6, '0', STR_PAD_LEFT);
+        return $profile->member_number ?? MemberProfile::formatMemberNumber($profile->user_id);
     }
 
     /**

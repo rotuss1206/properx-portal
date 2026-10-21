@@ -32,7 +32,22 @@ class MemberProfile extends Resource
 {
     public static $model = \App\Models\MemberProfile::class;
 
-    public static $search = ['first_name', 'last_name', 'npn', 'license_number'];
+    public static $search = ['first_name', 'last_name', 'license_number'];
+
+    /**
+     * Names and license number match partially; the encrypted NPN, Member ID and
+     * certificate number match exactly through their blind indexes.
+     */
+    protected static function applySearch(Builder $query, string $search): Builder
+    {
+        return $query->where(function (Builder $query) use ($search) {
+            static::initializeSearch($query, $search, static::$search);
+
+            foreach (['npn', 'member_number', 'certificate_code'] as $attribute) {
+                $query->orWhere(fn (Builder $query) => $query->whereBlindIndex($attribute, $search));
+            }
+        });
+    }
 
     public static $group = 'Members';
 
@@ -99,7 +114,10 @@ class MemberProfile extends Resource
     private function licenseFields(): array
     {
         return [
-            Text::make('NPN', 'npn')->rules('nullable', 'max:20')->sortable(),
+            // Encrypted at rest: searchable by exact value, not sortable.
+            Text::make('Member ID', 'member_number')->exceptOnForms(),
+
+            Text::make('NPN', 'npn')->rules('nullable', 'max:20'),
 
             Text::make('License Number')->rules('nullable', 'max:50')->sortable(),
 

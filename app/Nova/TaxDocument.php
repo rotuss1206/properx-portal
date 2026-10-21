@@ -27,7 +27,8 @@ class TaxDocument extends Resource
 
     public static $title = 'original_filename';
 
-    public static $search = ['original_filename', 'document_type'];
+    // Type, year and file name are encrypted at rest: no SQL search, sorting or filtering on them.
+    public static $search = ['id'];
 
     public static $group = 'Documents';
 
@@ -63,16 +64,12 @@ class TaxDocument extends Resource
 
             Select::make('Document Type')
                 ->options(array_combine(\App\Models\TaxDocument::DOCUMENT_TYPES, \App\Models\TaxDocument::DOCUMENT_TYPES))
-                ->rules('required')
-                ->sortable()
-                ->filterable(),
+                ->rules('required'),
 
             Number::make('Tax Year')
                 ->min(2000)
                 ->max(now()->year)
-                ->rules('required', 'integer', 'min:2000', 'max:'.now()->year)
-                ->sortable()
-                ->filterable(),
+                ->rules('required', 'integer', 'min:2000', 'max:'.now()->year),
 
             File::make('File', 'stored_filename', DocumentVault::diskName())
                 ->acceptedTypes(DocumentVault::acceptedExtensions())

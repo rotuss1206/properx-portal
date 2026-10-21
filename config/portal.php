@@ -28,6 +28,19 @@ return [
 
     'documents_encryption_key' => env('DOCUMENTS_ENCRYPTION_KEY'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Blind index key
+    |--------------------------------------------------------------------------
+    |
+    | HMAC key for blind indexes of encrypted, searchable fields (NPN, Member ID,
+    | certificate number). Separate from APP_KEY; supplied by KEENEY via Key Vault.
+    | Rotating it requires recomputing every index.
+    |
+    */
+
+    'blind_index_key' => env('BLIND_INDEX_KEY'),
+
     'uploads' => [
         'max_kilobytes' => 10240,
         'mime_types' => [

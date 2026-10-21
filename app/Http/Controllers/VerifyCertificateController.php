@@ -15,7 +15,7 @@ class VerifyCertificateController extends Controller
     public function __invoke(string $code): View
     {
         $profile = MemberProfile::with('user:id,created_at')
-            ->where('certificate_code', strtoupper($code))
+            ->whereBlindIndex('certificate_code', $code) // the column itself is encrypted
             ->first();
 
         $status = match (true) {

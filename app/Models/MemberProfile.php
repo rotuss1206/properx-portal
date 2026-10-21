@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\LicenseStatus;
 use App\Enums\PaymentStatus;
+use App\Models\Concerns\HasBlindIndexes;
 use App\Observers\MemberProfileObserver;
 use Carbon\CarbonInterface;
 use Database\Factories\MemberProfileFactory;
@@ -22,7 +23,16 @@ use Illuminate\Support\Str;
 class MemberProfile extends Model
 {
     /** @use HasFactory<MemberProfileFactory> */
-    use HasFactory;
+    use HasBlindIndexes, HasFactory;
+
+    /**
+     * Encrypted identifiers that can still be looked up by exact value (KEENEY rule).
+     */
+    protected const BLIND_INDEXES = [
+        'member_number' => 'member_number_index',
+        'npn' => 'npn_index',
+        'certificate_code' => 'certificate_code_index',
+    ];
 
     public const LICENSE_TYPES = [
         'Life & Health',
@@ -34,8 +44,12 @@ class MemberProfile extends Model
 
     protected static function booted(): void
     {
-        static::creating(function (self $profile) {
-            $profile->certificate_code ??= static::generateCertificateCode();
+        // "saving", not "creating": blind indexes are computed on "creating" (see HasBlindIndexes).
+        static::saving(function (self $profile) {
+            if (! $profile->exists) {
+                $profile->certificate_code ??= static::generateCertificateCode();
+                $profile->member_number ??= static::formatMemberNumber($profile->user_id);
+            }
         });
 
         static::saving(function (self $profile) {
@@ -57,6 +71,10 @@ class MemberProfile extends Model
         return [
             'license_expires_at' => 'date',
             'license_status' => LicenseStatus::class,
+            // Designated fields, encrypted at rest; looked up through their blind indexes.
+            'member_number' => 'encrypted',
+            'npn' => 'encrypted',
+            'certificate_code' => 'encrypted',
             'payment_status' => PaymentStatus::class,
             'payment_status_updated_at' => 'datetime',
             'payment_event_at' => 'datetime',
@@ -110,8 +128,16 @@ class MemberProfile extends Model
     {
         do {
             $code = 'PPX-'.strtoupper(Str::random(10));
-        } while (static::where('certificate_code', $code)->exists());
+        } while (static::query()->whereBlindIndex('certificate_code', $code)->exists());
 
         return $code;
+    }
+
+    /**
+     * Member ID printed on the certificate, e.g. "PPX-M000014".
+     */
+    public static function formatMemberNumber(?int $userId): ?string
+    {
+        return $userId === null ? null : sprintf('PPX-M%06d', $userId);
     }
 }

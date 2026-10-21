@@ -30,7 +30,8 @@ class LicenseDocument extends Resource
 
     public static $title = 'original_filename';
 
-    public static $search = ['original_filename'];
+    // File name, type and notes are encrypted at rest: no SQL search or sorting on them.
+    public static $search = ['id'];
 
     public static $group = 'Documents';
 
@@ -94,8 +95,7 @@ class LicenseDocument extends Resource
                 ->hideWhenUpdating(),
 
             Text::make('File Name', 'original_filename')
-                ->exceptOnForms()
-                ->sortable(),
+                ->exceptOnForms(),
 
             Text::make('Type', 'mime_type')->onlyOnDetail(),
 

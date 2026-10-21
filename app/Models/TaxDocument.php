@@ -33,7 +33,10 @@ class TaxDocument extends Model implements DownloadableDocument
     protected function casts(): array
     {
         return [
-            'tax_year' => 'integer',
+            // Tax document metadata is encrypted at rest (KEENEY rule), so it cannot be sorted or filtered in SQL.
+            'document_type' => 'encrypted',
+            'tax_year' => 'encrypted',
+            'original_filename' => 'encrypted',
             'uploaded_at' => 'datetime',
             'downloaded_at' => 'datetime',
         ];

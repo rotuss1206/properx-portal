@@ -33,6 +33,10 @@ class LicenseDocument extends Model implements DownloadableDocument
         return [
             'size' => 'integer',
             'uploaded_at' => 'datetime',
+            // License document metadata is encrypted at rest (KEENEY rule); the file itself too.
+            'original_filename' => 'encrypted',
+            'mime_type' => 'encrypted',
+            'admin_notes' => 'encrypted',
             'verification_status' => VerificationStatus::class,
         ];
     }
