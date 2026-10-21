@@ -31,7 +31,7 @@ class MemberProfileFactory extends Factory
             'license_number' => strtoupper(fake()->unique()->bothify('??-#######')),
             'license_state' => fake()->stateAbbr(),
             'license_type' => fake()->randomElement(MemberProfile::LICENSE_TYPES),
-            'license_expires_at' => fake()->dateTimeBetween('+61 days', '+2 years'),
+            'license_expires_at' => fake()->dateTimeBetween(today()->addDays(61), today()->addYears(2)),
             // Resolved after states are applied, so it always matches license_expires_at.
             'license_status' => fn (array $attributes) => LicenseStatus::fromExpiryDate(
                 Carbon::parse($attributes['license_expires_at'])
@@ -43,7 +43,7 @@ class MemberProfileFactory extends Factory
     public function active(): static
     {
         return $this->state(fn () => [
-            'license_expires_at' => fake()->dateTimeBetween('+61 days', '+2 years'),
+            'license_expires_at' => fake()->dateTimeBetween(today()->addDays(61), today()->addYears(2)),
         ]);
     }
 
@@ -53,14 +53,14 @@ class MemberProfileFactory extends Factory
     public function expiring(): static
     {
         return $this->state(fn () => [
-            'license_expires_at' => fake()->dateTimeBetween('today', '+60 days'),
+            'license_expires_at' => fake()->dateTimeBetween(today(), today()->addDays(60)),
         ]);
     }
 
     public function expired(): static
     {
         return $this->state(fn () => [
-            'license_expires_at' => fake()->dateTimeBetween('-1 year', '-1 day'),
+            'license_expires_at' => fake()->dateTimeBetween(today()->subYear(), today()->subDay()),
         ]);
     }
 }

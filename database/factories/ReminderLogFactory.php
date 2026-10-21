@@ -23,7 +23,7 @@ class ReminderLogFactory extends Factory
         return [
             'user_id' => User::factory(),
             'reminder_type' => fake()->randomElement(ReminderType::cases()),
-            'license_expires_at' => fake()->dateTimeBetween('today', '+60 days'),
+            'license_expires_at' => fake()->dateTimeBetween(today(), today()->addDays(60)),
             'sent_at' => fake()->dateTimeBetween('-60 days'),
             'delivery_status' => fake()->randomElement([
                 DeliveryStatus::Delivered,
