@@ -3,6 +3,7 @@
 namespace Tests\Feature\Nova;
 
 use App\Enums\Role;
+use App\Services\Certificates\CertificateGeneratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesPortalUsers;
@@ -90,7 +91,7 @@ class TwoFactorEnforcementTest extends TestCase
         $profile = $this->member()->memberProfile;
 
         $this->actingAs($this->staff(Role::ExecutiveDirector, withTwoFactor: false))
-            ->get(route('certificates.download', $profile))
+            ->get(CertificateGeneratorService::downloadUrl($profile))
             ->assertRedirect(route('nova.pages.user-security'));
     }
 

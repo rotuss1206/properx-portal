@@ -28,16 +28,18 @@ class AzuriteIntegrationTest extends TestCase
 
         fclose($socket);
 
-        config([
-            'filesystems.disks.azure.connection_string' => self::AZURITE,
-            'filesystems.disks.azure.container' => 'portal-tests',
-            'portal.documents_disk' => 'azure',
-        ]);
+        config(['filesystems.disks.azure' => [
+            'driver' => 'azure-storage-blob',
+            'connection_string' => self::AZURITE,
+            'container' => 'portal-tests',
+            'throw' => true,
+        ]]);
+        Storage::forgetDisk('azure'); // drop the fake from Tests\TestCase
 
         $this->artisan('app:storage:init')->assertSuccessful();
     }
 
-    public function test_encrypted_round_trip_private_container_and_sas_link(): void
+    public function test_encrypted_round_trip_private_container_and_streaming(): void
     {
         $vault = app(DocumentVault::class);
         $disk = Storage::disk('azure');
@@ -52,8 +54,8 @@ class AzuriteIntegrationTest extends TestCase
             $blobUrl = 'http://127.0.0.1:10000/devstoreaccount1/portal-tests/'.$public;
             $this->assertSame(403, Http::get($blobUrl)->status(), 'Container must not allow anonymous reads.');
 
-            $sas = $disk->temporaryUrl($public, now()->addMinutes(5));
-            $this->assertSame('%PDF-1.4 library', Http::get($sas)->body());
+            // Files are streamed by the app (no SAS links).
+            $this->assertSame('%PDF-1.4 library', stream_get_contents($disk->readStream($public)));
         } finally {
             $disk->delete([$secret, $public]);
         }

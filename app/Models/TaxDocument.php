@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Contracts\DownloadableDocument;
 use App\Observers\DocumentObserver;
+use App\Services\Documents\DocumentVault;
 use Database\Factories\TaxDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -14,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['document_type', 'tax_year', 'original_filename', 'uploaded_at'])]
 #[Hidden(['stored_filename'])]
 #[ObservedBy(DocumentObserver::class)]
-class TaxDocument extends Model
+class TaxDocument extends Model implements DownloadableDocument
 {
     /** @use HasFactory<TaxDocumentFactory> */
     use HasFactory;
@@ -43,5 +45,25 @@ class TaxDocument extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public static function downloadType(): string
+    {
+        return 'tax';
+    }
+
+    public function storagePath(): string
+    {
+        return $this->stored_filename;
+    }
+
+    public function downloadName(): string
+    {
+        return $this->original_filename;
+    }
+
+    public function downloadMimeType(): string
+    {
+        return DocumentVault::mimeTypeForPath($this->stored_filename);
     }
 }

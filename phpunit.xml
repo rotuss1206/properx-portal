@@ -32,8 +32,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
-        <env name="PORTAL_DOCUMENTS_DISK" value="local"/>
-        <env name="PORTAL_CERTIFICATES_DISK" value="local"/>
         <env name="NOVA_REQUIRE_STAFF_2FA" value="true"/>
+        <env name="AZURITE_CONNECTION_STRING" value=""/>
     </php>
 </phpunit>

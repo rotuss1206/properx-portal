@@ -87,19 +87,8 @@ class TaxDocument extends Resource
                         'original_filename' => $document->originalName,
                     ];
                 })
-                ->download(function ($request, $model, $disk) {
-                    $response = app(DocumentDownloader::class)->download(
-                        $model, $disk, $model->stored_filename, $model->original_filename,
-                        DocumentVault::mimeTypeForPath($model->stored_filename),
-                    );
-
-                    // Track when the member themselves retrieves the document (Spec 3.1).
-                    if ($request->user()->is($model->user)) {
-                        $model->forceFill(['downloaded_at' => now()])->save();
-                    }
-
-                    return $response;
-                })
+                // downloaded_at is recorded when the signed route actually streams the file.
+                ->download(fn ($request, $model) => app(DocumentDownloader::class)->link($model))
                 ->prunable()
                 ->hideFromIndex(),
 

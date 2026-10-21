@@ -13,7 +13,7 @@ Run alongside the web server:
 
 | Process | Command | Why |
 |---|---|---|
-| Azurite (Azure Blob emulator) | `npm run azurite`, then once `php artisan app:storage:init` | Documents and certificates when `PORTAL_DOCUMENTS_DISK=azure` |
+| Azurite (Azure Blob emulator) | `npm run azurite`, then once `php artisan app:storage:init` | Documents and the certificate cache (Blob only) |
 | Queue worker | `php artisan queue:work` | Reminder emails are queued |
 | Scheduler | `php artisan schedule:work` | Nightly `app:check-license-expirations` |
 
@@ -21,7 +21,7 @@ Mail: `MAIL_MAILER=log` locally (messages are written to the log). Production us
 
 Staff 2FA can be switched off locally with `NOVA_REQUIRE_STAFF_2FA=false` (ignored outside `APP_ENV=local`).
 
-Tests: `php vendor/bin/phpunit` (SQLite in memory, local disk; `AzuriteIntegrationTest` runs only when Azurite is up).
+Tests: `php vendor/bin/phpunit` (SQLite in memory, faked Blob disk; `AzuriteIntegrationTest` runs only when Azurite is up).
 
 ## Test accounts (seeded)
 

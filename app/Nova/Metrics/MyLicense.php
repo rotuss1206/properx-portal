@@ -51,7 +51,7 @@ class MyLicense extends Table
                 ->actions(fn () => array_values(array_filter([
                     MenuItem::link('Open my profile', "/resources/member-profiles/{$profile->getKey()}"),
                     $this->canIssueCertificate($profile)
-                        ? MenuItem::externalLink('Download my certificate', route('certificates.download', $profile))
+                        ? MenuItem::externalLink('Download my certificate', CertificateGeneratorService::downloadUrl($profile))
                         : null,
                 ]))),
 

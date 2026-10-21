@@ -117,17 +117,70 @@ class DocumentStorageTest extends TestCase
         $this->assertSame(0, LicenseDocument::count());
     }
 
-    public function test_azure_disk_is_configured_for_sas_links(): void
+    public function test_documents_and_certificates_use_the_private_blob_disk_only(): void
     {
-        config([
-            'filesystems.disks.azure.connection_string' => self::AZURITE,
-            'filesystems.disks.azure.container' => 'portal-documents',
-        ]);
+        $this->assertSame('azure', config('portal.documents_disk'));
+        $this->assertSame('azure', config('portal.certificates.disk'));
+    }
 
-        $disk = Storage::disk('azure');
+    public function test_azure_disk_uses_managed_identity_in_azure(): void
+    {
+        $disk = $this->filesystemsConfigWith([
+            'AZURITE_CONNECTION_STRING' => '',
+            'KEENEY_DOCUMENTS_ACCOUNT' => 'shnportaldocs',
+            'KEENEY_DOCUMENTS_ENDPOINT' => 'https://shnportaldocs.blob.core.windows.net',
+            'KEENEY_DOCUMENTS_CONTAINER' => 'member-documents',
+        ])['disks']['azure'];
 
-        $this->assertInstanceOf(AzureStorageBlobAdapter::class, $disk);
-        $this->assertTrue($disk->providesTemporaryUrls());
-        $this->assertStringContainsString('sig=', $disk->temporaryUrl('library/x.pdf', now()->addMinutes(5)));
+        $this->assertSame('managed_identity', $disk['credential']);
+        $this->assertSame('shnportaldocs', $disk['account_name']);
+        $this->assertSame('https://shnportaldocs.blob.core.windows.net', $disk['endpoint']);
+        $this->assertSame('member-documents', $disk['container']);
+        $this->assertFalse($disk['is_public_container']);
+        $this->assertArrayNotHasKey('connection_string', $disk);
+        $this->assertArrayNotHasKey('account_key', $disk);
+    }
+
+    public function test_azure_disk_uses_azurite_locally(): void
+    {
+        $disk = $this->filesystemsConfigWith(['AZURITE_CONNECTION_STRING' => self::AZURITE])['disks']['azure'];
+
+        $this->assertSame(self::AZURITE, $disk['connection_string']);
+        $this->assertArrayNotHasKey('credential', $disk);
+
+        config(['filesystems.disks.azure' => $disk]);
+        Storage::forgetDisk('azure'); // drop the fake from Tests\TestCase
+        $this->assertInstanceOf(AzureStorageBlobAdapter::class, Storage::disk('azure'));
+    }
+
+    /**
+     * Evaluate config/filesystems.php with the given environment values.
+     *
+     * @param  array<string, string>  $env
+     * @return array<string, mixed>
+     */
+    private function filesystemsConfigWith(array $env): array
+    {
+        $previous = [];
+
+        foreach ($env as $key => $value) {
+            $previous[$key] = [$_ENV[$key] ?? null, $_SERVER[$key] ?? null];
+            $_ENV[$key] = $_SERVER[$key] = $value;
+        }
+
+        try {
+            return require config_path('filesystems.php');
+        } finally {
+            foreach ($previous as $key => [$env, $server]) {
+                $env === null ? $_ENV[$key] = null : $_ENV[$key] = $env;
+                $server === null ? $_SERVER[$key] = null : $_SERVER[$key] = $server;
+                if ($env === null) {
+                    unset($_ENV[$key]);
+                }
+                if ($server === null) {
+                    unset($_SERVER[$key]);
+                }
+            }
+        }
     }
 }

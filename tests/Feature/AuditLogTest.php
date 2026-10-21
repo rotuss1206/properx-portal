@@ -7,9 +7,11 @@ use App\Models\AuditLog;
 use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
 use App\Models\TaxDocument;
+use App\Services\DocumentDownloader;
 use App\Services\Documents\DocumentVault;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
@@ -100,19 +102,54 @@ class AuditLogTest extends TestCase
 
         $this->actingAs($member);
 
-        // Encrypted documents are decrypted and streamed by the app.
-        $response = $this->get("/nova-api/license-documents/{$license->id}/download/stored_filename")
+        // Nova redirects to a short-lived signed route, which streams the (decrypted) blob.
+        $response = $this->followNovaDownload("/nova-api/license-documents/{$license->id}/download/stored_filename")
             ->assertOk()
             ->assertDownload($license->original_filename);
         $this->assertSame('%PDF-1.4 license', $response->streamedContent());
 
-        $this->assertSame('%PDF-1.4 tax', $this->get("/nova-api/tax-documents/{$tax->id}/download/stored_filename")->streamedContent());
-
-        // Unencrypted library files are handed out as short-lived signed links.
-        $this->get("/nova-api/library-documents/{$library->id}/download/file_path")->assertRedirect();
+        $this->assertSame('%PDF-1.4 tax', $this->followNovaDownload("/nova-api/tax-documents/{$tax->id}/download/stored_filename")->streamedContent());
+        $this->assertSame('%PDF-1.4 library', $this->followNovaDownload("/nova-api/library-documents/{$library->id}/download/file_path")->streamedContent());
 
         $this->assertSame(3, AuditLog::where('action', 'document_downloaded')->where('user_id', $member->id)->count());
         $this->assertNotNull($tax->fresh()->downloaded_at);
+    }
+
+    public function test_signed_download_links_need_a_valid_signature_and_the_owner(): void
+    {
+        $member = $this->member();
+        $document = LicenseDocument::factory()->for($member)->create([
+            'mime_type' => 'application/pdf',
+            'stored_filename' => app(DocumentVault::class)->put(LicenseDocument::DIRECTORY, 'pdf', '%PDF-1.4', encrypt: true),
+        ]);
+        $signed = DocumentDownloader::signedUrl($document);
+
+        // No session: back to the login page, nothing streamed.
+        $this->get($signed)->assertRedirect();
+
+        $this->actingAs($member);
+        $this->get(route('documents.download', ['type' => 'license', 'document' => $document->id]))->assertForbidden();
+        $this->get($signed.'x')->assertForbidden();
+
+        $this->travel(6)->minutes();
+        $this->get($signed)->assertForbidden();
+        $this->travelBack();
+
+        // A valid link is still useless to someone else.
+        $this->actingAs($this->member())->get(DocumentDownloader::signedUrl($document))->assertForbidden();
+
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'document_downloaded']);
+    }
+
+    private function followNovaDownload(string $uri): TestResponse
+    {
+        $redirect = $this->get($uri)->assertRedirect();
+        $target = $redirect->headers->get('Location');
+
+        $this->assertStringContainsString('/documents/', $target);
+        $this->assertStringContainsString('signature=', $target);
+
+        return $this->get($target);
     }
 
     public function test_other_members_documents_cannot_be_downloaded(): void

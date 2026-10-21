@@ -60,18 +60,28 @@ return [
             'report' => false,
         ],
 
-        // Azure Blob Storage (Spec 3.2): private container, no public URLs; downloads use
-        // short-lived SAS links or streaming. Locally this points at the Azurite emulator.
-        'azure' => [
+        // Member documents and the certificate PDF cache (Spec 3.2, KEENEY platform):
+        // private container, no public URLs; files are streamed by the app through
+        // short-lived signed routes after an authorisation check.
+        //  - Azure: managed identity (the storage account has no key) with KEENEY_DOCUMENTS_*.
+        //  - Local development only: the Azurite emulator via AZURITE_CONNECTION_STRING.
+        'azure' => array_filter([
             'driver' => 'azure-storage-blob',
-            'connection_string' => env('AZURE_STORAGE_CONNECTION_STRING'),
-            'container' => env('AZURE_STORAGE_CONTAINER', 'portal-documents'),
+            'container' => env('KEENEY_DOCUMENTS_CONTAINER', 'portal-documents'),
             'is_public_container' => false,
             'timeout' => 30,
             'connect_timeout' => 5,
             'throw' => true,
             'report' => false,
-        ],
+        ] + (filled(env('AZURITE_CONNECTION_STRING')) ? [
+            'connection_string' => env('AZURITE_CONNECTION_STRING'),
+        ] : [
+            'credential' => 'managed_identity',
+            'account_name' => env('KEENEY_DOCUMENTS_ACCOUNT'),
+            'endpoint' => env('KEENEY_DOCUMENTS_ENDPOINT'),
+            // Only for a user-assigned identity; the platform may leave it empty.
+            'client_id' => env('AZURE_CLIENT_ID'),
+        ]), fn ($value) => $value !== null && $value !== ''),
 
     ],
 

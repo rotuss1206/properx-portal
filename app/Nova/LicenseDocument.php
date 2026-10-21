@@ -88,8 +88,7 @@ class LicenseDocument extends Resource
                         'size' => $document->size,
                     ];
                 })
-                ->download(fn ($request, $model, $disk) => app(DocumentDownloader::class)
-                    ->download($model, $disk, $model->stored_filename, $model->original_filename, $model->mime_type))
+                ->download(fn ($request, $model) => app(DocumentDownloader::class)->link($model))
                 ->prunable()
                 ->hideFromIndex()
                 ->hideWhenUpdating(),

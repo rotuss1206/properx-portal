@@ -2,49 +2,61 @@
 
 namespace App\Services;
 
+use App\Contracts\DownloadableDocument;
 use App\Models\AuditLog;
 use App\Services\Documents\DocumentVault;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\HeaderUtils;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\URL;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Serves a private document after the caller has authorised the request (Spec 3.2, 8):
- * encrypted documents are decrypted and streamed by the app; others get a short-lived
- * SAS link when the disk supports it, otherwise they are streamed. Every download is audited.
+ * Document delivery (Spec 3.2, 8; KEENEY platform): never a public or SAS URL.
+ *
+ * 1. After Nova's policy check, link() redirects to a short-lived URL::temporarySignedRoute.
+ * 2. That route re-checks the session and the policy, then stream() sends the blob through
+ *    the app (decrypting it when it was stored encrypted). Every download is audited.
  */
 class DocumentDownloader
 {
     public function __construct(private DocumentVault $vault) {}
 
-    public function download(Model $document, string $disk, string $path, string $filename, ?string $mimeType = null): Response
+    public function link(DownloadableDocument&Model $document): RedirectResponse
     {
-        /** @var FilesystemAdapter $storage */
-        $storage = Storage::disk($disk);
+        return redirect()->to(self::signedUrl($document));
+    }
 
-        abort_unless($storage->exists($path), 404, 'The file is no longer available.');
+    public static function signedUrl(DownloadableDocument&Model $document): string
+    {
+        return URL::temporarySignedRoute(
+            'documents.download',
+            now()->addMinutes(config('portal.temporary_url_minutes')),
+            ['type' => $document::downloadType(), 'document' => $document->getKey()],
+        );
+    }
+
+    public function stream(DownloadableDocument&Model $document): StreamedResponse
+    {
+        $disk = Storage::disk(DocumentVault::diskName());
+        $path = $document->storagePath();
+
+        abort_unless($disk->exists($path), 404, 'The file is no longer available.');
 
         AuditLog::record('document_downloaded', $document);
+
+        $headers = ['Content-Type' => $document->downloadMimeType(), 'Cache-Control' => 'private, no-store'];
 
         if (DocumentVault::isEncrypted($path)) {
             $contents = $this->vault->read($path);
 
-            return response()->streamDownload(fn () => print ($contents), $filename, [
-                'Content-Type' => $mimeType ?? 'application/octet-stream',
-                'Cache-Control' => 'private, no-store',
-            ]);
+            return response()->streamDownload(fn () => print ($contents), $document->downloadName(), $headers);
         }
 
-        if ($storage->providesTemporaryUrls()) {
-            return redirect()->away($storage->temporaryUrl(
-                $path,
-                now()->addMinutes(config('portal.temporary_url_minutes')),
-                ['httpHeaders' => ['contentDisposition' => HeaderUtils::makeDisposition('attachment', $filename, 'document')]],
-            ));
-        }
-
-        return $storage->download($path, $filename, ['Cache-Control' => 'private, no-store']);
+        return response()->streamDownload(function () use ($disk, $path) {
+            $stream = $disk->readStream($path);
+            fpassthru($stream);
+            fclose($stream);
+        }, $document->downloadName(), $headers);
     }
 }

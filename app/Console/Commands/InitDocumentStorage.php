@@ -8,8 +8,8 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Creates the private Azure container used by the "azure" disk (needed once per
- * environment, e.g. after starting a fresh Azurite emulator).
+ * Local development only: creates the private container in the Azurite emulator.
+ * In Azure the platform provisions the container (managed identity, no account key).
  */
 #[Signature('app:storage:init')]
 #[Description('Create the private Azure Blob container for documents if it does not exist')]
@@ -20,7 +20,7 @@ class InitDocumentStorage extends Command
         $config = config('filesystems.disks.azure');
 
         if (blank($config['connection_string'] ?? null)) {
-            $this->error('AZURE_STORAGE_CONNECTION_STRING is not set.');
+            $this->error('AZURITE_CONNECTION_STRING is not set. In Azure the platform creates the container.');
 
             return self::FAILURE;
         }

@@ -8,6 +8,7 @@ use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
 use App\Models\TaxDocument;
 use App\Models\User;
+use App\Services\Certificates\CertificateGeneratorService;
 use App\Support\MembershipBanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -75,7 +76,7 @@ class MembershipRestrictionTest extends TestCase
         // Closed while restricted.
         $this->getJson('/nova-api/library-documents')->assertStatus($closed);
         $this->getJson('/nova-api/license-documents')->assertStatus($closed);
-        $this->get(route('certificates.download', $member->memberProfile))->assertStatus($restricted ? 422 : 200);
+        $this->get(CertificateGeneratorService::downloadUrl($member->memberProfile))->assertStatus($restricted ? 422 : 200);
     }
 
     public function test_restricted_member_can_still_log_in(): void
@@ -91,7 +92,7 @@ class MembershipRestrictionTest extends TestCase
         $member = $this->memberWithPayment(PaymentStatus::Canceled);
 
         $this->actingAs($member)
-            ->get(route('certificates.download', $member->memberProfile))
+            ->get(CertificateGeneratorService::downloadUrl($member->memberProfile))
             ->assertUnprocessable()
             ->assertSee('membership is inactive');
     }

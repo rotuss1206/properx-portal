@@ -3,6 +3,7 @@
 namespace Tests\Feature\Certificates;
 
 use App\Enums\Role;
+use App\Services\Certificates\CertificateGeneratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -26,7 +27,7 @@ class CertificateDownloadTest extends TestCase
         $member = $this->member();
 
         $this->actingAs($member)
-            ->get(route('certificates.download', $member->memberProfile))
+            ->get(CertificateGeneratorService::downloadUrl($member->memberProfile))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
             ->assertDownload("ProPerx-membership-certificate-{$member->memberProfile->certificate_code}.pdf");
@@ -43,7 +44,7 @@ class CertificateDownloadTest extends TestCase
         $other = $this->member();
 
         $this->actingAs($this->member())
-            ->get(route('certificates.download', $other->memberProfile))
+            ->get(CertificateGeneratorService::downloadUrl($other->memberProfile))
             ->assertForbidden();
 
         $this->assertDatabaseMissing('audit_logs', ['action' => 'certificate_downloaded']);
@@ -67,7 +68,7 @@ class CertificateDownloadTest extends TestCase
         $profile = $this->member()->memberProfile;
 
         $this->actingAs($this->staff($role))
-            ->get(route('certificates.download', $profile))
+            ->get(CertificateGeneratorService::downloadUrl($profile))
             ->assertStatus($status);
     }
 
@@ -75,10 +76,10 @@ class CertificateDownloadTest extends TestCase
     {
         $profile = $this->member()->memberProfile;
 
-        $this->get(route('certificates.download', $profile))->assertRedirect();
+        $this->get(CertificateGeneratorService::downloadUrl($profile))->assertRedirect();
 
         $this->actingAs($this->apiService())
-            ->get(route('certificates.download', $profile))
+            ->get(CertificateGeneratorService::downloadUrl($profile))
             ->assertForbidden();
     }
 
@@ -87,7 +88,7 @@ class CertificateDownloadTest extends TestCase
         $member = $this->member('expired');
 
         $this->actingAs($member)
-            ->get(route('certificates.download', $member->memberProfile))
+            ->get(CertificateGeneratorService::downloadUrl($member->memberProfile))
             ->assertUnprocessable()
             ->assertSee('the license expired on');
     }
@@ -102,7 +103,7 @@ class CertificateDownloadTest extends TestCase
                 'resources' => (string) $member->memberProfile->id,
             ])
             ->assertOk()
-            ->assertJsonPath('download.url', route('certificates.download', $member->memberProfile));
+            ->assertJsonPath('download.url', fn (string $url) => str_starts_with($url, route('certificates.download', $member->memberProfile)) && str_contains($url, 'signature='));
 
         $this->postJson('/nova-api/member-profiles/action?action=download-my-certificate', [
             'resources' => (string) $other->memberProfile->id,

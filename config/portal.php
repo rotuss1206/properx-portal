@@ -7,12 +7,12 @@ return [
     | Document storage
     |--------------------------------------------------------------------------
     |
-    | Private disk for member documents (license, tax, library). Local for now,
-    | Azure Blob Storage later: only this value changes.
+    | Member documents (license, tax, library) live only in the private Azure Blob
+    | container (KEENEY platform rule; Azurite locally). No local-disk option.
     |
     */
 
-    'documents_disk' => env('PORTAL_DOCUMENTS_DISK', 'local'),
+    'documents_disk' => 'azure',
 
     /*
     |--------------------------------------------------------------------------
@@ -37,7 +37,7 @@ return [
         ],
     ],
 
-    // Lifetime of SAS download links for unencrypted documents.
+    // Lifetime of the signed download routes (URL::temporarySignedRoute) for documents and certificates.
     'temporary_url_minutes' => 5,
 
     /*
@@ -59,7 +59,8 @@ return [
     */
 
     'certificates' => [
-        'disk' => env('PORTAL_CERTIFICATES_DISK', env('PORTAL_DOCUMENTS_DISK', 'local')),
+        // The PDF contains PHI: cached only in the private Blob container, never on local disk.
+        'disk' => 'azure',
         'directory' => 'certificates',
         'cache_hours' => 24,
 

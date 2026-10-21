@@ -7,7 +7,6 @@ use App\Services\Documents\DocumentVault;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\File;
@@ -87,11 +86,7 @@ class LibraryDocument extends Resource
                         ->store($request->file($requestAttribute), \App\Models\LibraryDocument::DIRECTORY, encrypt: false)
                         ->path,
                 ])
-                ->download(fn ($request, $model, $disk) => app(DocumentDownloader::class)->download(
-                    $model, $disk, $model->file_path,
-                    Str::slug($model->title).'.'.pathinfo($model->file_path, PATHINFO_EXTENSION),
-                    DocumentVault::mimeTypeForPath($model->file_path),
-                ))
+                ->download(fn ($request, $model) => app(DocumentDownloader::class)->link($model))
                 ->prunable()
                 ->hideFromIndex(),
 

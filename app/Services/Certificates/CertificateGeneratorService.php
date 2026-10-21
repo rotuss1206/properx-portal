@@ -13,6 +13,7 @@ use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Membership certificate PDF (Spec 2, 3.6).
@@ -93,6 +94,19 @@ class CertificateGeneratorService
         AuditLog::record('certificate_generated', $profile);
 
         return new GeneratedCertificate($this->diskName(), $path, $this->filename($profile), fromCache: false);
+    }
+
+    /**
+     * Short-lived signed link to the download route; the route also re-checks the session
+     * and MemberProfilePolicy::downloadCertificate before streaming the cached blob.
+     */
+    public static function downloadUrl(MemberProfile $profile): string
+    {
+        return URL::temporarySignedRoute(
+            'certificates.download',
+            now()->addMinutes(config('portal.temporary_url_minutes')),
+            ['memberProfile' => $profile->getKey()],
+        );
     }
 
     /**
