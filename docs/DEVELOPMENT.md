@@ -9,6 +9,9 @@ cp .env.example .env && php artisan key:generate
 php artisan migrate:fresh --seed
 ```
 
+These steps are manual and local only. On the KEENEY platform `APP_KEY` comes from Key Vault and
+migrations run in the platform's deploy step, so no Composer script generates keys or migrates.
+
 Run alongside the web server:
 
 | Process | Command | Why |
