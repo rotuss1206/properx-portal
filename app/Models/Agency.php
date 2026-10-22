@@ -64,6 +64,14 @@ class Agency extends Model
         'mailing_same_as_legal' => true,
     ];
 
+    /**
+     * NPN and FEIN are numbers: "12-3456789" and "123456789" are the same FEIN.
+     */
+    protected static function normalizeForBlindIndex(string $attribute, string $value): string
+    {
+        return (string) preg_replace('/\D/', '', $value);
+    }
+
     protected static function booted(): void
     {
         static::saving(function (self $agency) {

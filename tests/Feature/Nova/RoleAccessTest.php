@@ -19,6 +19,7 @@ class RoleAccessTest extends TestCase
     private const RESOURCES = [
         'staff', 'members', 'member-profiles', 'license-documents',
         'tax-documents', 'library-documents', 'reminder-logs', 'audit-logs',
+        'agencies', 'partner-codes',
     ];
 
     protected function setUp(): void
@@ -37,6 +38,7 @@ class RoleAccessTest extends TestCase
             'Executive Director' => [Role::ExecutiveDirector, self::RESOURCES],
             'Membership Coordinator' => [Role::MembershipCoordinator, [
                 'members', 'member-profiles', 'license-documents', 'reminder-logs',
+                'agencies', 'partner-codes',
             ]],
             'Compliance Specialist' => [Role::ComplianceSpecialist, [
                 'members', 'member-profiles', 'tax-documents', 'library-documents',

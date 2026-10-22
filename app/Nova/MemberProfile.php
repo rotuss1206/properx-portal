@@ -3,8 +3,11 @@
 namespace App\Nova;
 
 use App\Enums\LicenseStatus;
+use App\Enums\MemberStatus;
+use App\Enums\MemberType;
 use App\Enums\NotificationCategory;
 use App\Enums\PaymentStatus;
+use App\Enums\PersonType;
 use App\Models\NotificationSetting;
 use App\Nova\Actions\DownloadMyCertificate;
 use App\Nova\Actions\GenerateCertificate;
@@ -13,6 +16,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Laravel\Nova\Fields\Badge;
 use Laravel\Nova\Fields\BelongsTo;
 use Laravel\Nova\Fields\Boolean;
@@ -100,6 +104,8 @@ class MemberProfile extends Resource
             Text::make('Address')->rules('nullable', 'max:255')->hideFromIndex(),
             Text::make('Firm Name')->rules('nullable', 'max:255')->sortable(),
 
+            new Panel('Agency Membership', $this->agencyFields()),
+
             new Panel('License', $this->licenseFields()),
 
             new Panel('Membership Payment', $this->paymentFields()),
@@ -154,6 +160,68 @@ class MemberProfile extends Resource
                 ->exceptOnForms()
                 ->copyable(),
         ];
+    }
+
+    /**
+     * Staff move people between agencies here; the principal is reassigned on the agency.
+     * Members see their own agency fields read-only.
+     *
+     * @return array<int, Field>
+     */
+    private function agencyFields(): array
+    {
+        $readonlyForMembers = fn (NovaRequest $request) => ! static::viewerIsStaff($request);
+
+        return [
+            Badge::make('Member Type')
+                ->map([MemberType::Individual->value => 'info', MemberType::AgencyMember->value => 'success'])
+                ->labels(self::enumOptions(MemberType::cases()))
+                ->filterable(),
+
+            BelongsTo::make('Agency', 'agency', Agency::class)
+                ->nullable()
+                ->searchable()
+                ->canSee(fn (Request $request) => (bool) $request->user()?->checkPermissionTo('agencies.view'))
+                ->readonly(fn () => $this->resource->isAgencyPrincipal())
+                ->help('To move the principal, reassign the principal on the agency first.')
+                ->hideFromIndex()
+                ->filterable(),
+
+            Text::make('Agency Role', fn () => $this->resource->agency_role?->label())
+                ->exceptOnForms()
+                ->hideFromIndex(),
+
+            Select::make('Person Type')
+                ->options(self::enumOptions(PersonType::cases()))
+                ->displayUsingLabels()
+                ->nullable()
+                ->rules('nullable', Rule::enum(PersonType::class))
+                ->help('Agency employees have no NPN and can join only through an agency.')
+                ->readonly($readonlyForMembers)
+                ->hideFromIndex(),
+
+            Text::make('Invite Status', fn () => $this->resource->invite_status?->label())
+                ->exceptOnForms()
+                ->hideFromIndex(),
+
+            Select::make('Membership Status', 'status')
+                ->options(self::enumOptions(MemberStatus::cases()))
+                ->displayUsingLabels()
+                ->rules('required', Rule::enum(MemberStatus::class))
+                ->default(MemberStatus::Active->value)
+                ->readonly($readonlyForMembers)
+                ->hideFromIndex()
+                ->filterable(),
+        ];
+    }
+
+    /**
+     * @param  list<MemberType|PersonType|MemberStatus>  $cases
+     * @return array<string, string>
+     */
+    private static function enumOptions(array $cases): array
+    {
+        return collect($cases)->mapWithKeys(fn ($case) => [$case->value => $case->label()])->all();
     }
 
     /**

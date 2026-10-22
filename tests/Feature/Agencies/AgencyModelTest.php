@@ -58,6 +58,7 @@ class AgencyModelTest extends TestCase
 
         $this->assertTrue($agency->is(Agency::query()->whereBlindIndex('agency_npn', '1234567890')->first()));
         $this->assertTrue($agency->is(Agency::query()->whereBlindIndex('fein', ' 12-3456789 ')->first()));
+        $this->assertTrue($agency->is(Agency::query()->whereBlindIndex('fein', '123456789')->first()));
 
         $this->expectException(QueryException::class);
         Agency::factory()->create(['fein' => '12-3456789']);

@@ -32,7 +32,9 @@ class PartnerCodePolicy
      */
     public function delete(User $user, PartnerCode $partnerCode): bool
     {
-        return $user->checkPermissionTo('partner-codes.manage') && ! $partnerCode->agencies()->exists();
+        $used = $partnerCode->agencies_count ?? $partnerCode->agencies()->count();
+
+        return $user->checkPermissionTo('partner-codes.manage') && $used === 0;
     }
 
     public function restore(User $user, PartnerCode $partnerCode): bool
