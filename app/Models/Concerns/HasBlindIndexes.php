@@ -16,21 +16,22 @@ use InvalidArgumentException;
 trait HasBlindIndexes
 {
     /**
-     * "creating" / "updating" fire after every "saving" listener, so values the model
-     * generates while saving (e.g. a certificate code) are indexed too.
+     * The index is computed when the value is assigned rather than in a model event,
+     * so it is also kept when events are muted (e.g. while seeding).
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @return mixed
      */
-    protected static function bootHasBlindIndexes(): void
+    public function setAttribute($key, $value)
     {
-        $sync = function (self $model) {
-            foreach (static::BLIND_INDEXES as $attribute => $column) {
-                if ($model->isDirty($attribute) || ($model->getAttribute($column) === null && $model->getAttribute($attribute) !== null)) {
-                    $model->setAttribute($column, BlindIndex::for($attribute, $model->getAttribute($attribute)));
-                }
-            }
-        };
+        parent::setAttribute($key, $value);
 
-        static::creating($sync);
-        static::updating($sync);
+        if (array_key_exists($key, static::BLIND_INDEXES)) {
+            $this->attributes[static::BLIND_INDEXES[$key]] = BlindIndex::for($key, $value === null ? null : (string) $value);
+        }
+
+        return $this;
     }
 
     /**

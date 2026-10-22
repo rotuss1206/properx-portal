@@ -44,7 +44,7 @@ class MemberProfile extends Model
 
     protected static function booted(): void
     {
-        // "saving", not "creating": blind indexes are computed on "creating" (see HasBlindIndexes).
+        // Model events are muted while seeding: factories set these values themselves.
         static::saving(function (self $profile) {
             if (! $profile->exists) {
                 $profile->certificate_code ??= static::generateCertificateCode();

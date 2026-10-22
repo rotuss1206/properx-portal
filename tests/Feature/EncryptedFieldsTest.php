@@ -7,6 +7,7 @@ use App\Models\LicenseDocument;
 use App\Models\MemberProfile;
 use App\Models\TaxDocument;
 use App\Support\BlindIndex;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -79,6 +80,25 @@ class EncryptedFieldsTest extends TestCase
 
         $this->assertTrue($profile->is(MemberProfile::query()->whereBlindIndex('npn', '99887766')->first()));
         $this->assertSame(BlindIndex::for('npn', '99887766'), DB::table('member_profiles')->where('id', $profile->id)->value('npn_index'));
+    }
+
+    public function test_seeded_records_are_indexed_although_model_events_are_muted(): void
+    {
+        // DatabaseSeeder runs with WithoutModelEvents.
+        $profile = Model::withoutEvents(fn () => MemberProfile::factory()->create());
+
+        $this->assertSame(MemberProfile::formatMemberNumber($profile->user_id), $profile->fresh()->member_number);
+        $this->assertTrue($profile->is(MemberProfile::query()->whereBlindIndex('npn', $profile->npn)->first()));
+        $this->assertTrue($profile->is(MemberProfile::query()->whereBlindIndex('certificate_code', $profile->certificate_code)->first()));
+        $this->assertTrue($profile->is(MemberProfile::query()->whereBlindIndex('member_number', $profile->member_number)->first()));
+    }
+
+    public function test_clearing_a_value_clears_its_index(): void
+    {
+        $profile = $this->member()->memberProfile;
+        $profile->update(['npn' => null]);
+
+        $this->assertNull(DB::table('member_profiles')->where('id', $profile->id)->value('npn_index'));
     }
 
     public function test_indexes_are_separated_per_field(): void

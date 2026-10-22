@@ -36,7 +36,9 @@ class MemberProfileFactory extends Factory
             'license_status' => fn (array $attributes) => LicenseStatus::fromExpiryDate(
                 Carbon::parse($attributes['license_expires_at'])
             ),
+            // Set here too (not only in the model's "saving" hook): seeders run with model events muted.
             'certificate_code' => fn () => MemberProfile::generateCertificateCode(),
+            'member_number' => fn (array $attributes) => MemberProfile::formatMemberNumber($attributes['user_id']),
         ];
     }
 
