@@ -27,6 +27,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'license-documents.verify',
             'members.message',
             'reminder-logs.view',
+            'agencies.view',
+            'agencies.create',
+            'agencies.update',
+            'partner-codes.view',
+            'partner-codes.manage',
         ],
         RoleName::ComplianceSpecialist->value => [
             'members.view',
@@ -46,6 +51,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'own-notification-settings.manage',
             'library.view',
         ],
+        // Layered on Member: only the agency the user leads (checked in AgencyPolicy).
+        RoleName::AgencyPrincipal->value => [
+            'own-agency.view',
+            'own-agency.manage',
+        ],
         RoleName::ApiService->value => [
             'webhooks.stripe.handle',
             'members.payment-status.update',
@@ -61,6 +71,7 @@ class RolesAndPermissionsSeeder extends Seeder
         'members.delete',
         'certificates.sign',
         'audit-logs.view',
+        'agencies.delete',
     ];
 
     public function run(): void

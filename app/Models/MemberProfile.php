@@ -2,8 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\AgencyRole;
+use App\Enums\InviteStatus;
 use App\Enums\LicenseStatus;
+use App\Enums\MemberStatus;
+use App\Enums\MemberType;
 use App\Enums\PaymentStatus;
+use App\Enums\PersonType;
 use App\Models\Concerns\HasBlindIndexes;
 use App\Observers\MemberProfileObserver;
 use Carbon\CarbonInterface;
@@ -14,10 +19,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use LogicException;
 
 #[Fillable([
     'first_name', 'last_name', 'phone', 'address', 'firm_name', 'npn',
     'license_number', 'license_state', 'license_type', 'license_expires_at',
+    'agency_id', 'agency_role', 'person_type', 'invite_status', 'status',
 ])]
 #[ObservedBy(MemberProfileObserver::class)]
 class MemberProfile extends Model
@@ -53,6 +60,24 @@ class MemberProfile extends Model
         });
 
         static::saving(function (self $profile) {
+            $profile->syncMembershipType();
+        });
+
+        // Headcount follows the roster (seeders call Agency::syncHeadcount() themselves).
+        static::saved(function (self $profile) {
+            if ($profile->wasRecentlyCreated || $profile->wasChanged('agency_id')) {
+                Agency::query()
+                    ->whereKey(array_filter([$profile->agency_id, $profile->wasRecentlyCreated ? null : $profile->getOriginal('agency_id')]))
+                    ->get()
+                    ->each->syncHeadcount();
+            }
+        });
+
+        static::deleted(function (self $profile) {
+            $profile->agency?->syncHeadcount();
+        });
+
+        static::saving(function (self $profile) {
             if ($profile->isDirty('license_expires_at') || $profile->license_status === null) {
                 $profile->license_status = LicenseStatus::fromExpiryDate($profile->license_expires_at);
             }
@@ -64,6 +89,8 @@ class MemberProfile extends Model
      */
     protected $attributes = [
         'payment_status' => 'unknown',
+        'member_type' => 'individual',
+        'status' => 'active',
     ];
 
     protected function casts(): array
@@ -78,6 +105,14 @@ class MemberProfile extends Model
             'payment_status' => PaymentStatus::class,
             'payment_status_updated_at' => 'datetime',
             'payment_event_at' => 'datetime',
+            // Contact details of members and agency principals.
+            'phone' => 'encrypted',
+            'address' => 'encrypted',
+            'member_type' => MemberType::class,
+            'agency_role' => AgencyRole::class,
+            'person_type' => PersonType::class,
+            'invite_status' => InviteStatus::class,
+            'status' => MemberStatus::class,
         ];
     }
 
@@ -117,6 +152,41 @@ class MemberProfile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return BelongsTo<Agency, $this>
+     */
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
+    }
+
+    public function isAgencyPrincipal(): bool
+    {
+        return $this->agency_id !== null && $this->agency_role === AgencyRole::Principal;
+    }
+
+    /**
+     * Member type follows the agency link; agency members default to member / licensed producer.
+     * A principal cannot leave their agency until staff reassign the principal role.
+     */
+    private function syncMembershipType(): void
+    {
+        if ($this->exists && $this->isDirty('agency_id') && $this->getOriginal('agency_role') === AgencyRole::Principal) {
+            throw new LogicException('Reassign the agency principal before moving this person out of the agency.');
+        }
+
+        if ($this->agency_id === null) {
+            $this->member_type = MemberType::Individual;
+            $this->agency_role = null;
+
+            return;
+        }
+
+        $this->member_type = MemberType::AgencyMember;
+        $this->agency_role ??= AgencyRole::Member;
+        $this->person_type ??= PersonType::LicensedProducer;
     }
 
     public function fullName(): string

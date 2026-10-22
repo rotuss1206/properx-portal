@@ -3,6 +3,7 @@
 namespace Tests\Concerns;
 
 use App\Enums\Role;
+use App\Models\Agency;
 use App\Models\MemberProfile;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -39,6 +40,23 @@ trait CreatesPortalUsers
         MemberProfile::factory()->{$licenseState}()->for($user)->create();
 
         return $user->load('memberProfile');
+    }
+
+    /**
+     * Agency of $people members; the first one is the principal.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function agency(int $people = 2, array $attributes = []): Agency
+    {
+        $agency = Agency::factory()->create($attributes);
+        $agency->update(['principal_user_id' => $this->member()->id]);
+
+        for ($person = 2; $person <= $people; $person++) {
+            $this->member()->memberProfile->update(['agency_id' => $agency->id]);
+        }
+
+        return $agency->refresh();
     }
 
     protected function apiService(): User

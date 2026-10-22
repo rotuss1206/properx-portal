@@ -24,6 +24,7 @@ Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in 
 | Membership Coordinator | Member CRUD, license document review, member communications. No library, tax documents or staff management. |
 | Compliance Specialist | Library CRUD, tax document uploads linked to members, read-only access to members. |
 | Member | Own profile, documents, certificate and settings only; read-only library. |
+| Agency Principal | Layered on Member: sees and manages only the agency they lead (`own-agency.*`, checked in `AgencyPolicy`). Assigned automatically from `agencies.principal_user_id`; reassigned by staff only. |
 | API service account | Not a person, no web login. Authenticates with an API key (rotated quarterly); least privilege per task (Stripe webhooks, scheduled jobs). |
 
 Auditor/Board Member and Treasurer roles are out of scope for the initial build.
@@ -48,7 +49,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - **Eloquent relationships** (`hasOne`, `hasMany`, `belongsTo`, ...) instead of manual joins and raw queries. Avoid N+1 with `with()`.
 - **No hard-coded secrets**: keys, passwords, tokens and service URLs come only from `.env` via `config/*.php`. Use `config()` in code, never `env()`. Add new variables to `.env.example` with an empty value.
 - Authorization through Policies and spatie permissions. File access is checked server-side on every request; there are no public URLs.
-- **Encrypted casts** (KEENEY rule): `member_profiles.member_number` (Member ID), `npn`, `certificate_code`; license document `original_filename`, `mime_type`, `admin_notes`; tax document `document_type`, `tax_year`, `original_filename`. Encrypted columns cannot be sorted, filtered or LIKE-searched in SQL.
+- **Encrypted casts** (KEENEY rule): `member_profiles.member_number` (Member ID), `npn`, `certificate_code`, `phone`, `address`; agency `agency_npn`, `fein`, `legal_address`, `mailing_address`, `phone`, `billing_email`; license document `original_filename`, `mime_type`, `admin_notes`; tax document `document_type`, `tax_year`, `original_filename`. Encrypted columns cannot be sorted, filtered or LIKE-searched in SQL.
   - Lookups use **blind indexes** (`*_index` columns, HMAC-SHA256 keyed by `BLIND_INDEX_KEY`, separate from `APP_KEY`): trait `HasBlindIndexes` + `Model::query()->whereBlindIndex('npn', $value)` (exact match, case/space-insensitive). The Nova member search uses them for NPN, Member ID and certificate number.
 - Logs and email bodies carry no PHI: IDs only, never emails, names or NPNs. Exception messages may hold member data, so log `$e::class`; `QueryException` is reported without bindings (`bootstrap/app.php`).
 - Sensitive fields are stored encrypted. MFA secret and recovery codes: Fortify's `two_factor_*` columns (Fortify encrypts recovery codes rather than hashing them as Spec 3.3 asks; known deviation).
@@ -98,6 +99,15 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Alerts the Executive Director on errors.
 - Mail: default mailer `azure` (`App\Mail\AcsTransportFactory` parses `KEENEY_ACS_CONNECTION_STRING`; sender `KEENEY_MAIL_FROM` / `KEENEY_MAIL_FROM_NAME`). Use `log` locally.
   - Email bodies contain no PHI (no names, license numbers, dates): they only link back to the portal.
+
+## Agency membership (spec "ProPerx Agency Membership", Option B)
+
+- Agencies enroll 2+ people on one annual invoice. `agencies` (identifiers and contact details encrypted; `agency_npn`, `fein` with blind indexes), `partner_codes` (MGA/FMO; `PartnerCode::findValid()`).
+- Every person is a user (Member role) with a `member_profiles` row: `agency_id`, `agency_role` (principal/member), `person_type` (licensed producer/agency employee, employees have no NPN), `invite_status`, `status`. `member_type` follows `agency_id` (set in `MemberProfile::syncMembershipType()`).
+- `headcount` follows the roster automatically (`Agency::syncHeadcount()`, saved quietly). The tier is not changed automatically: dropping below a tier changes the rate only at renewal.
+- The principal: `agencies.principal_user_id` (unique). `AgencyObserver` calls `Agency::syncPrincipal()`, which puts the principal on the roster and moves the Agency Principal role; a principal cannot be moved out of the agency before reassignment (`LogicException`).
+- Seeders run with model events muted: `AgencySeeder` calls `syncPrincipal()` / `syncHeadcount()` itself. Accounts: `principal01@` … `principal03@properx.test` (5, 12 and 55 people), people `agency01.person02@properx.test` etc.
+- Audited: `agency_created/updated/deleted`, `agency_principal_changed`, `agency_member_added/removed`, `partner_code_created/updated/deleted`.
 
 ## Stripe payment status (Spec 7)
 

@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             StaffSeeder::class,
             MemberSeeder::class,
+            AgencySeeder::class,
         ]);
 
         LibraryDocument::factory()->count(12)->published()->create();

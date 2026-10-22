@@ -58,6 +58,11 @@ class User extends Authenticatable
         return $this->isMember() && (bool) $this->memberProfile?->hasRestrictedMembership();
     }
 
+    public function isAgencyPrincipal(): bool
+    {
+        return $this->hasRole(Role::AgencyPrincipal->value);
+    }
+
     public function isExecutiveDirector(): bool
     {
         return $this->hasRole(Role::ExecutiveDirector->value);
@@ -85,6 +90,16 @@ class User extends Authenticatable
     public function memberProfile(): HasOne
     {
         return $this->hasOne(MemberProfile::class);
+    }
+
+    /**
+     * The agency this user leads as principal (at most one).
+     *
+     * @return HasOne<Agency, $this>
+     */
+    public function ledAgency(): HasOne
+    {
+        return $this->hasOne(Agency::class, 'principal_user_id');
     }
 
     /**
