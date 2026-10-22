@@ -26,14 +26,14 @@ class AgencySeeder extends Seeder
         $codes = $this->partnerCodes();
 
         $agencies = [
-            // [headcount, tier, partner code, status]
-            [5, AgencyTier::Agency, $codes['SUNBELT-MGA'], AgencyStatus::Active],
-            [12, AgencyTier::AgencyPlus, null, AgencyStatus::PastDue],
-            [55, AgencyTier::AgencyEnterprise, $codes['HERITAGE-FMO'], AgencyStatus::Pending],
+            // [headcount, partner code, status]
+            [5, $codes['SUNBELT-MGA'], AgencyStatus::Active],
+            [12, null, AgencyStatus::PastDue],
+            [55, $codes['HERITAGE-FMO'], AgencyStatus::Pending],
         ];
 
-        foreach ($agencies as $index => [$headcount, $tier, $partnerCode, $status]) {
-            $this->createAgency($index + 1, $headcount, $tier, $partnerCode, $status);
+        foreach ($agencies as $index => [$headcount, $partnerCode, $status]) {
+            $this->createAgency($index + 1, $headcount, $partnerCode, $status);
         }
     }
 
@@ -57,12 +57,12 @@ class AgencySeeder extends Seeder
         ]))->all();
     }
 
-    private function createAgency(int $number, int $headcount, AgencyTier $tier, ?PartnerCode $partnerCode, AgencyStatus $status): void
+    private function createAgency(int $number, int $headcount, ?PartnerCode $partnerCode, AgencyStatus $status): void
     {
         $billed = $status !== AgencyStatus::Pending;
 
         $agency = Agency::factory()->create([
-            'tier' => $tier,
+            'tier' => AgencyTier::forHeadcount($headcount),
             'rate_type' => RateType::Founding,
             'partner_code_id' => $partnerCode?->getKey(),
             'status' => $status,
