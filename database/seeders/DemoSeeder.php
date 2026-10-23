@@ -13,7 +13,8 @@ use RuntimeException;
  *     DEMO_SEED_ALLOWED=true php artisan migrate:fresh --seeder=DemoSeeder
  *
  * Refuses to run unless DEMO_SEED_ALLOWED=true, which is never set on the platform.
- * All accounts use the password "password" (see the seeders it calls).
+ * The @properx.test accounts use the password "password"; with DEMO_LOGIN_EMAIL set,
+ * DemoLoginSeeder adds one account per role on its plus addresses, with random passwords.
  */
 class DemoSeeder extends Seeder
 {
@@ -34,6 +35,9 @@ class DemoSeeder extends Seeder
 
         LibraryDocument::factory()->count(12)->published()->create();
         LibraryDocument::factory()->count(3)->draft()->create();
+
+        // Accounts on plus addresses of DEMO_LOGIN_EMAIL, with random passwords (skipped when unset).
+        $this->call(DemoLoginSeeder::class);
 
         $this->call(DemoFilesSeeder::class);
     }

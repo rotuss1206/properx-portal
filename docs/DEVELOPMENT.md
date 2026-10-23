@@ -41,6 +41,11 @@ Tests: `php vendor/bin/phpunit` (SQLite in memory, faked Blob disk; `AzuriteInte
 
 All passwords are `password`. Every account must enrol in 2FA on first login unless `NOVA_REQUIRE_2FA=false` locally.
 
+With `DEMO_LOGIN_EMAIL=you@example.com` in `.env`, `DemoSeeder` (through `DemoLoginSeeder`) also creates
+`you+director@`, `you+coordinator@`, `you+compliance@`, `you+member@` and `you+agency@example.com`
+(principal of "Demo Login Agency LLC") with random passwords, printed once in the seeder output and reset
+on every run. Useful for demos where invitation and reset emails must reach a real inbox.
+
 | Account | Role | Notes |
 |---|---|---|
 | `director@properx.test` | Executive Director | Everything, including staff and the audit log |

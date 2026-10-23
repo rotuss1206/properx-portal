@@ -54,6 +54,11 @@ Demo accounts (password `password`; two-factor setup is asked on first login):
 `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`,
 agency principals `principal01@` … `principal03@properx.test`.
 
+Logins on a real inbox: set `DEMO_LOGIN_EMAIL=you@example.com` before seeding, and the seeder
+adds one account per role on its plus addresses: `you+director@`, `you+coordinator@`,
+`you+compliance@`, `you+member@` and `you+agency@` (principal of a small demo agency). Their
+passwords are random, new on every run and printed once in the seeder output.
+
 Background work, which the platform runs in production:
 
 ```bash

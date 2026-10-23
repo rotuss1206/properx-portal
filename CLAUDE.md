@@ -78,7 +78,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - `MemberProfileObserver`: profile edits (not the nightly status refresh);
   - `DocumentObserver`: uploads and deletions of license, tax and library documents;
   - explicit calls: document review actions, document and certificate downloads, certificate generation.
-- `DatabaseSeeder` seeds roles and permissions only. Fictional data comes from `DemoSeeder` (`php artisan migrate:fresh --seeder=DemoSeeder`), which refuses to run unless `DEMO_SEED_ALLOWED=true` (local only). Demo accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`, agency principals and people (below). Placeholder files for documents: `DemoFilesSeeder`.
+- `DatabaseSeeder` seeds roles and permissions only. Fictional data comes from `DemoSeeder` (`php artisan migrate:fresh --seeder=DemoSeeder`), which refuses to run unless `DEMO_SEED_ALLOWED=true` (local only). Demo accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`, agency principals and people (below). Placeholder files for documents: `DemoFilesSeeder`. With `DEMO_LOGIN_EMAIL` set, `DemoLoginSeeder` adds one login per role (director, coordinator, compliance, member, agency principal) on its plus addresses with random passwords printed once; it is guarded by `DEMO_SEED_ALLOWED` too.
 - Database TLS: `config/database.php` adds `Pdo\Mysql::ATTR_SSL_CA` + `ATTR_SSL_VERIFY_SERVER_CERT` only when `MYSQL_ATTR_SSL_CA` is set (the platform's CA); locally no TLS.
 - Tests: the base `Tests\TestCase` calls `Nova::flushState()` because Nova caches request data in static properties.
 
