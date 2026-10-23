@@ -139,6 +139,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Git (bundled with GitHub Desktop; the path changes on updates): `C:\Users\PC\AppData\Local\GitHubDesktop\app-*\resources\app\git\cmd\git.exe`
 - Site: `https://properx-portal.local` (Apache + PHP-8.4, document root `public`).
 - Repository: `https://github.com/rotuss1206/properx-portal`, branch `main`.
+- KEENEY repository (Azure DevOps `keeneycs-shn-portal`, clone `D:\WORK\Avedsoft\Kevin\Portal\keeneycs-shn-portal`, branch `feature/portal-app`): filled only by `scripts/sync-to-keeney.ps1` (mirror of the application paths plus `docs/PORTAL.md`; never commits). Keep `docs/PORTAL.md` as the portal description there; the clone's README.md belongs to the platform.
 - Tests: `<php> vendor\bin\phpunit`.
 - Azure emulator: `npm install -g azurite` once (not a project dependency), then `npm run azurite` (data in `storage/azurite`) and `<php> artisan app:storage:init` to create the container. Azurite must be running for document and certificate downloads. Tests fake the `azure` disk (`Tests\TestCase`); `AzuriteIntegrationTest` runs only when Azurite is up.
 - Nova assets (`public/vendor/nova`) are not committed; Composer publishes them (`nova:publish`) after install/update.

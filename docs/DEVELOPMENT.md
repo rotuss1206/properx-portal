@@ -126,3 +126,26 @@ HTTP `400` means an invalid or expired signature; `503` means `STRIPE_WEBHOOK_SE
 
 - `past_due`: full access plus a banner with the payment link (`PAYMENT_PORTAL_URL`) for `PAYMENT_GRACE_DAYS` (14) days.
 - `canceled`, or past due after the grace period: login still works, but only the profile, notification settings and tax documents are available. Certificate, library and license documents are closed with an explanation, and the public verification page shows the membership as not active.
+
+## Syncing to the KEENEY repository
+
+The platform repository (`keeneycs-shn-portal` in Azure DevOps) receives the application from
+this repository. With the clone at `D:\WORK\Avedsoft\Kevin\Portal\keeneycs-shn-portal`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\sync-to-keeney.ps1 -DryRun   # what would change
+powershell -ExecutionPolicy Bypass -File scripts\sync-to-keeney.ps1           # sync and check
+```
+
+- Commit here first: the script copies what git sees (tracked files and untracked files that are
+  not ignored) from `app/`, `bootstrap/`, `config/`, `database/`, `lang/`, `public/` (without
+  `public/vendor/nova`), `resources/`, `routes/`, `tests/`, the `storage/` skeleton,
+  `docs/PORTAL.md` and the root project files.
+- The clone mirrors those paths: files deleted here are deleted there. Platform files (README.md,
+  Dockerfile, pipelines, `site.json`, `.gitignore`, `.gitattributes`, ...) are never touched;
+  editor and assistant files, `docs/` (except PORTAL.md), `scripts/`, `.env` and `auth.json` are
+  never copied.
+- Afterwards it fails on forbidden terms, CRLF line endings, `.env` or `auth.json` in the clone,
+  then prints the clone's `git status` and a suggested commit message. It never commits or
+  pushes: review, commit and open the pull request in the clone yourself.
+- Options: `-Target <path>` for another clone location, `-Git <path to git.exe>`.
