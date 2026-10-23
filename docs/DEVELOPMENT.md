@@ -9,6 +9,17 @@ cp .env.example .env && php artisan key:generate
 php artisan migrate:fresh --seeder=DemoSeeder   # fictional data; needs DEMO_SEED_ALLOWED=true in .env
 ```
 
+Changing npm dependencies: regenerate `package-lock.json` with Node 22 / npm 10, the toolchain of
+the KEENEY image (`node:22.20.0-trixie-slim`), because the build runs `npm ci` and refuses a lock
+that is out of sync:
+
+```bash
+docker run --rm -v "${PWD}:/app" -w /app node:22.20.0-trixie-slim npm install --package-lock-only
+docker run --rm -v "${PWD}:/app" -w /app node:22.20.0-trixie-slim npm ci --no-audit --no-fund
+```
+
+Without Docker, run the same two npm commands with a portable Node 22.20.0 (nodejs.org zip) first on PATH.
+
 `DatabaseSeeder` adds roles and permissions only. These steps are manual and local only. On the KEENEY platform `APP_KEY` comes from Key Vault and
 migrations run in the platform's deploy step, so no Composer script generates keys or migrates.
 
