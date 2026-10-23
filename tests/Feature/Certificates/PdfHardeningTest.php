@@ -18,7 +18,7 @@ class PdfHardeningTest extends TestCase
         $this->assertFalse($options->getIsPhpEnabled());
         $this->assertFalse($options->getIsJavascriptEnabled());
         $this->assertSame([realpath(resource_path('views/pdf'))], array_map('realpath', $options->getChroot()));
-        $this->assertSame(storage_path('fonts'), $options->getFontCache());
+        $this->assertSame(storage_path('framework/cache/dompdf-fonts'), $options->getFontCache());
         $this->assertSame(['data://', 'file://'], array_keys($options->getAllowedProtocols()));
     }
 

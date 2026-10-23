@@ -36,13 +36,16 @@ class PlatformRulesTest extends TestCase
         $this->assertStringNotContainsString('key:generate', $commands);
     }
 
-    public function test_debug_tools_are_dev_only(): void
+    public function test_development_tools_are_dev_only(): void
     {
         $packages = array_keys(self::composer()['require']);
 
-        foreach (['laravel/telescope', 'barryvdh/laravel-debugbar', 'fruitcake/laravel-debugbar', 'laravel/boost'] as $package) {
-            $this->assertNotContains($package, $packages);
-        }
+        // First-party Laravel packages allowed at runtime; any other laravel/* package
+        // (Telescope, Pail, Pint and other tooling) belongs in require-dev.
+        $runtimeLaravel = ['laravel/framework', 'laravel/nova', 'laravel/tinker'];
+
+        $this->assertSame([], array_values(array_diff(preg_grep('#^laravel/#', $packages), $runtimeLaravel)));
+        $this->assertSame([], array_values(preg_grep('#debugbar#', $packages)));
     }
 
     public function test_proxies_are_not_trusted_wholesale(): void

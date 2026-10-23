@@ -6,17 +6,17 @@
 composer install            # also publishes Nova assets (nova:publish)
 npm install
 cp .env.example .env && php artisan key:generate
-php artisan migrate:fresh --seed
+php artisan migrate:fresh --seeder=DemoSeeder   # fictional data; needs DEMO_SEED_ALLOWED=true in .env
 ```
 
-These steps are manual and local only. On the KEENEY platform `APP_KEY` comes from Key Vault and
+`DatabaseSeeder` adds roles and permissions only. These steps are manual and local only. On the KEENEY platform `APP_KEY` comes from Key Vault and
 migrations run in the platform's deploy step, so no Composer script generates keys or migrates.
 
 Run alongside the web server:
 
 | Process | Command | Why |
 |---|---|---|
-| Azurite (Azure Blob emulator) | `npm run azurite`, then once `php artisan app:storage:init` | Documents and the certificate cache (Blob only) |
+| Azurite (Azure Blob emulator; install once: `npm install -g azurite`) | `npm run azurite`, then once `php artisan app:storage:init` | Documents and the certificate cache (Blob only) |
 | Queue worker | `php artisan queue:work` | Reminder emails are queued |
 | Scheduler | `php artisan schedule:work` | Nightly `app:check-license-expirations` |
 
@@ -65,7 +65,7 @@ curl -H "Authorization: Bearer $API_SERVICE_KEY" https://properx-portal.local/ap
 ```
 
 Rotate quarterly. The previous key keeps working for `API_KEY_ROTATION_OVERLAP_HOURS` (24) so Key Vault
-can be updated without downtime; every rotation is recorded in the audit log. After `migrate:fresh --seed`
+can be updated without downtime; every rotation is recorded in the audit log. After `migrate:fresh --seeder=DemoSeeder`
 the seeder re-registers the key from `.env`, so local webhooks keep working.
 
 ## Stripe payment status webhooks (Spec 7)

@@ -2,29 +2,19 @@
 
 namespace Database\Seeders;
 
-use App\Models\LibraryDocument;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * Reference data every environment needs: roles and permissions. Safe to re-run.
+ * Fictional people, agencies and documents come from DemoSeeder, never from here.
+ */
 class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        $this->call([
-            RolesAndPermissionsSeeder::class,
-            StaffSeeder::class,
-            MemberSeeder::class,
-            AgencySeeder::class,
-        ]);
-
-        LibraryDocument::factory()->count(12)->published()->create();
-        LibraryDocument::factory()->count(3)->draft()->create();
-
-        $this->call(DemoFilesSeeder::class);
+        $this->call(RolesAndPermissionsSeeder::class);
     }
 }

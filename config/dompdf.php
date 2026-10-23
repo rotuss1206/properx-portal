@@ -8,7 +8,8 @@
 | Hardened for the KEENEY platform: no remote fetches, no PHP or JavaScript in
 | templates, and file access confined (chroot) to resources/views/pdf, where the
 | certificate template, its fonts and the signature image live. Generated QR codes
-| are passed in as data: URIs. The font metrics cache lives in storage/fonts.
+| are passed in as data: URIs. The font metrics cache lives in storage/framework/cache
+| (writable in the container; created before rendering, see CertificateGeneratorService).
 |
 */
 
@@ -21,8 +22,8 @@ return [
     'convert_entities' => true,
 
     'options' => [
-        'font_dir' => storage_path('fonts'),
-        'font_cache' => storage_path('fonts'),
+        'font_dir' => storage_path('framework/cache/dompdf-fonts'),
+        'font_cache' => storage_path('framework/cache/dompdf-fonts'),
         'temp_dir' => sys_get_temp_dir(),
 
         'chroot' => resource_path('views/pdf'),

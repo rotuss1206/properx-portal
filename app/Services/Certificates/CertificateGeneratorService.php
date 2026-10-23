@@ -12,6 +12,7 @@ use BaconQrCode\Renderer\GDLibRenderer;
 use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
@@ -80,6 +81,7 @@ class CertificateGeneratorService
         }
 
         $this->forget($profile);
+        $this->ensureFontCacheDirectory();
 
         $pdf = Pdf::loadView('pdf.certificate', $data + [
             'issuedAt' => now(),
@@ -157,6 +159,15 @@ class CertificateGeneratorService
         $png = (new Writer(new GDLibRenderer(360, margin: 1)))->writeString($url);
 
         return 'data:image/png;base64,'.base64_encode($png);
+    }
+
+    /**
+     * The container's code is read-only and its storage is reset on every deploy, so the dompdf
+     * font cache lives under the writable storage/framework/cache and is created on demand.
+     */
+    private function ensureFontCacheDirectory(): void
+    {
+        File::ensureDirectoryExists(config('dompdf.options.font_cache'));
     }
 
     private function signatureImage(): ?string

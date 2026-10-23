@@ -23,7 +23,7 @@ class AgencySeederTest extends TestCase
     {
         $this->seedRoles();
 
-        // DatabaseSeeder runs with model events muted.
+        // DemoSeeder runs with model events muted.
         Model::withoutEvents(fn () => $this->seed(AgencySeeder::class));
 
         $agencies = Agency::query()->with(['principal', 'members'])->orderBy('id')->get();

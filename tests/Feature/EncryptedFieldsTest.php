@@ -84,7 +84,7 @@ class EncryptedFieldsTest extends TestCase
 
     public function test_seeded_records_are_indexed_although_model_events_are_muted(): void
     {
-        // DatabaseSeeder runs with WithoutModelEvents.
+        // DemoSeeder runs with WithoutModelEvents.
         $profile = Model::withoutEvents(fn () => MemberProfile::factory()->create());
 
         $this->assertSame(MemberProfile::formatMemberNumber($profile->user_id), $profile->fresh()->member_number);

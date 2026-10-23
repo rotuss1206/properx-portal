@@ -6,6 +6,7 @@ use App\Exceptions\CertificateUnavailableException;
 use App\Models\AuditLog;
 use App\Services\Certificates\CertificateGeneratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
@@ -37,6 +38,19 @@ class CertificateGenerationTest extends TestCase
         $this->assertSame($first->path, $second->path);
         $this->assertStringStartsWith('%PDF-', Storage::disk($first->disk)->get($first->path));
         $this->assertSame(1, AuditLog::where('action', 'certificate_generated')->count());
+    }
+
+    public function test_creates_the_font_cache_directory_when_missing(): void
+    {
+        // Container storage starts empty after every deploy.
+        $fontCache = storage_path('framework/cache/dompdf-fonts-test');
+        File::deleteDirectory($fontCache);
+        config(['dompdf.options.font_cache' => $fontCache, 'dompdf.options.font_dir' => $fontCache]);
+
+        $this->service->generate($this->member()->memberProfile);
+
+        $this->assertDirectoryExists($fontCache);
+        File::deleteDirectory($fontCache);
     }
 
     public function test_cache_expires_after_24_hours(): void

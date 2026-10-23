@@ -59,9 +59,12 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
+            // TLS with a verified server certificate when the platform provides the CA
+            // (MYSQL_ATTR_SSL_CA, set from Key Vault); a local database without it uses no TLS.
+            'options' => extension_loaded('pdo_mysql') && filled(env('MYSQL_ATTR_SSL_CA')) ? [
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => true,
+            ] : [],
         ],
 
         'mariadb' => [

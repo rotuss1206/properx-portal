@@ -104,6 +104,10 @@ return [
 
     'schedule_timezone' => env('PORTAL_SCHEDULE_TIMEZONE', 'America/New_York'),
 
+    // Database\Seeders\DemoSeeder (fictional people and documents) runs only when this is true.
+    // Local development only; never set on the platform.
+    'demo_seed_allowed' => (bool) env('DEMO_SEED_ALLOWED', false),
+
     // Scheduled tasks must finish within 120 seconds (KEENEY platform rule). Jobs stop
     // cleanly once this budget is used and the next run continues where they left off.
     'scheduled_task_budget_seconds' => 100,
