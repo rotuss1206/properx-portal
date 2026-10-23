@@ -146,6 +146,8 @@ powershell -ExecutionPolicy Bypass -File scripts\sync-to-keeney.ps1           # 
   editor and assistant files, `docs/` (except PORTAL.md), `scripts/`, `.env` and `auth.json` are
   never copied.
 - Afterwards it fails on forbidden terms, CRLF line endings, `.env` or `auth.json` in the clone,
-  then prints the clone's `git status` and a suggested commit message. It never commits or
-  pushes: review, commit and open the pull request in the clone yourself.
+  then prints the clone's `git status` and a suggested commit message named after the changed
+  areas (e.g. "Update agency membership and certificates"; "Update portal application" when the
+  areas are unclear). It never commits or pushes: review, commit and open the pull request in
+  the clone yourself.
 - Options: `-Target <path>` for another clone location, `-Git <path to git.exe>`.
