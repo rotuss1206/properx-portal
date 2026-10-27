@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
 /**
  * Fixed fictional people for the demo seeders: no Faker and no factories (both are dev-only
  * Composer packages, missing from the platform image), deterministic values by index, and
- * idempotent creation. Passwords are random and unknown; demo logins come from DEMO_LOGIN_EMAIL.
+ * idempotent creation. The @properx.test accounts get "password" locally (APP_ENV=local) and a
+ * random unknown password elsewhere; real demo logins come from DEMO_LOGIN_EMAIL.
  * Phone numbers use the fictional 555-01xx range, web addresses the reserved .example domain.
  */
 final class DemoPeople
@@ -43,12 +44,21 @@ final class DemoPeople
     public const STREETS = ['Oak Street', 'Maple Avenue', 'Cedar Lane', 'Elm Drive', 'Pine Road', 'Willow Way', 'Birch Court', 'Main Street'];
 
     /**
-     * The user with this email, created when missing (random password nobody knows) and given
-     * the roles it lacks. Returns whether it was created, so callers seed its history once.
+     * Password of the fictional @properx.test accounts: "password" with APP_ENV=local (local
+     * development, as before), a random one nobody knows anywhere else.
+     */
+    public static function testPassword(): string
+    {
+        return app()->isLocal() ? 'password' : Str::random(40);
+    }
+
+    /**
+     * The user with this email, created when missing (with $password, by default testPassword())
+     * and given the roles it lacks. Returns whether it was created, so callers seed its history once.
      *
      * @return array{0: User, 1: bool}
      */
-    public static function user(string $email, string $name, Role ...$roles): array
+    public static function user(string $email, string $name, Role $role, ?string $password = null): array
     {
         $user = User::query()->firstOrNew(['email' => $email]);
         $created = ! $user->exists;
@@ -56,15 +66,13 @@ final class DemoPeople
         if ($created) {
             $user->forceFill([
                 'name' => $name,
-                'password' => Str::random(40),
+                'password' => $password ?? self::testPassword(),
                 'email_verified_at' => now(),
             ])->save();
         }
 
-        foreach ($roles as $role) {
-            if (! $user->hasRole($role->value)) {
-                $user->assignRole($role->value);
-            }
+        if (! $user->hasRole($role->value)) {
+            $user->assignRole($role->value);
         }
 
         return [$user, $created];

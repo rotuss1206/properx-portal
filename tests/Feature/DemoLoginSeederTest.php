@@ -11,6 +11,7 @@ use Database\Seeders\DemoSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
 use RuntimeException;
@@ -57,37 +58,47 @@ class DemoLoginSeederTest extends TestCase
     }
 
     /**
-     * Runs like DemoSeeder does (model events muted) and returns the credentials it created.
+     * Runs like DemoSeeder does (model events muted) and returns the emails it reported.
      *
-     * @return array<string, string> email => password
+     * @return list<string>
      */
     private function runSeeder(): array
     {
         $seeder = app(DemoLoginSeeder::class);
         Model::withoutEvents(fn () => $seeder->run());
 
-        return collect($seeder->credentials)->mapWithKeys(fn (array $row) => [$row[1] => $row[2]])->all();
+        return array_column($seeder->accounts, 1);
     }
 
-    public function test_creates_one_login_per_role_on_plus_addresses_with_random_passwords(): void
+    public function test_creates_one_login_per_role_on_plus_addresses_with_unknown_passwords(): void
     {
         config(['portal.demo_login_email' => 'kevin@example.com']);
 
-        $credentials = $this->runSeeder();
+        $this->assertSame(array_keys(self::ACCOUNTS), $this->runSeeder());
 
-        $this->assertSame(array_keys(self::ACCOUNTS), array_keys($credentials));
-        $this->assertCount(5, array_unique($credentials));
-
+        $hashes = [];
         foreach (self::ACCOUNTS as $email => $role) {
             $user = User::query()->where('email', $email)->sole();
 
             $this->assertTrue($user->hasRole($role->value), "{$email} has {$role->value}");
-            $this->assertTrue(Hash::check($credentials[$email], $user->password), "{$email} signs in with the printed password");
             $this->assertFalse(Hash::check('password', $user->password));
-            $this->assertGreaterThanOrEqual(20, strlen($credentials[$email]));
+            $hashes[] = $user->password;
         }
 
+        $this->assertCount(5, array_unique($hashes));
         $this->assertNotNull(User::query()->firstWhere('email', 'kevin+member@example.com')->memberProfile);
+    }
+
+    public function test_real_inbox_accounts_never_get_the_local_test_password(): void
+    {
+        $this->app['env'] = 'local';
+        config(['portal.demo_login_email' => 'kevin@example.com']);
+
+        $this->runSeeder();
+
+        foreach (array_keys(self::ACCOUNTS) as $email) {
+            $this->assertFalse(Hash::check('password', User::query()->where('email', $email)->sole()->password), $email);
+        }
     }
 
     public function test_agency_login_leads_a_small_agency(): void
@@ -105,15 +116,16 @@ class DemoLoginSeederTest extends TestCase
         $this->assertSame(2, $agency->fresh()->headcount);
     }
 
-    public function test_running_again_resets_passwords_without_duplicates(): void
+    public function test_running_again_keeps_passwords_and_creates_no_duplicates(): void
     {
         config(['portal.demo_login_email' => 'kevin@example.com']);
 
-        $first = $this->runSeeder();
-        $second = $this->runSeeder();
+        $this->runSeeder();
+        $password = User::query()->where('email', 'kevin+director@example.com')->value('password');
+        $this->runSeeder();
 
         $this->assertSame(5, User::query()->where('email', 'like', 'kevin+%@example.com')->count());
-        $this->assertNotEquals($first['kevin+director@example.com'], $second['kevin+director@example.com']);
+        $this->assertSame($password, User::query()->where('email', 'kevin+director@example.com')->value('password'));
 
         $principal = User::query()->where('email', 'kevin+agency@example.com')->sole();
         $this->assertTrue($principal->hasRole(Role::AgencyPrincipal->value));
@@ -142,13 +154,20 @@ class DemoLoginSeederTest extends TestCase
         $this->runSeeder();
     }
 
-    public function test_demo_seeder_prints_the_credentials_once(): void
+    public function test_demo_seeder_lists_the_emails_and_how_to_set_a_password_but_no_passwords(): void
     {
         config(['portal.demo_seed_allowed' => true, 'portal.demo_login_email' => 'kevin@example.com']);
 
-        $this->artisan('db:seed', ['--class' => DemoSeeder::class])
-            ->expectsOutputToContain('kevin+director@example.com')
-            ->expectsOutputToContain('kevin+agency@example.com')
-            ->assertSuccessful();
+        Artisan::call('db:seed', ['--class' => DemoSeeder::class]);
+        $output = Artisan::output();
+
+        $this->assertStringContainsString('kevin+director@example.com', $output);
+        $this->assertStringContainsString('kevin+agency@example.com', $output);
+        $this->assertStringContainsString('Forgot your password?', $output);
+        $this->assertStringContainsString('app:password-link', $output);
+        $this->assertStringNotContainsStringIgnoringCase('| password', $output);
+
+        // The accounts get Str::random(40) passwords: nothing of that shape may be printed.
+        $this->assertDoesNotMatchRegularExpression('/\b[A-Za-z0-9]{40}\b/', $output);
     }
 }

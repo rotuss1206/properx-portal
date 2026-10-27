@@ -12,9 +12,11 @@ use App\Models\PartnerCode;
 use App\Models\ReminderLog;
 use App\Models\TaxDocument;
 use App\Models\User;
+use App\Services\ReferenceData;
 use Database\Seeders\DemoSeeder;
 use Faker\Generator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -98,6 +100,32 @@ class DemoSeederTest extends TestCase
 
         $this->assertSame($first, $this->counts());
         $this->assertSame(30 + 5 + 12 + 55 + 3 + 5 + 1 + 1, $first['users']); // + staff, demo logins, colleague, service account
+    }
+
+    public function test_test_accounts_use_password_only_in_the_local_environment(): void
+    {
+        $this->app['env'] = 'local';
+        $this->artisan('db:seed', ['--class' => DemoSeeder::class])->assertSuccessful();
+
+        foreach (['director@properx.test', 'member01@properx.test', 'principal01@properx.test', 'agency01.person02@properx.test'] as $email) {
+            $this->assertTrue(Hash::check('password', User::query()->where('email', $email)->sole()->password), $email);
+        }
+
+        // Real inboxes (DEMO_LOGIN_EMAIL) and the service account never get it.
+        $this->assertFalse(Hash::check('password', User::query()->where('email', 'kevin+director@example.com')->sole()->password));
+        $this->assertFalse(Hash::check('password', User::query()->where('email', ReferenceData::SERVICE_ACCOUNT_EMAIL)->sole()->password));
+    }
+
+    public function test_test_accounts_get_random_passwords_outside_the_local_environment(): void
+    {
+        $this->assertFalse($this->app->isLocal());
+        $this->artisan('db:seed', ['--class' => DemoSeeder::class])->assertSuccessful();
+
+        $hashes = User::query()->where('email', 'like', '%@properx.test')->pluck('password', 'email');
+
+        foreach (['director@properx.test', 'member01@properx.test', 'principal01@properx.test'] as $email) {
+            $this->assertFalse(Hash::check('password', $hashes[$email]), $email);
+        }
     }
 
     public function test_seeded_identifiers_are_unique_and_indexed(): void

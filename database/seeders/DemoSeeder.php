@@ -13,8 +13,9 @@ use RuntimeException;
  *
  * Refuses to run unless DEMO_SEED_ALLOWED=true, which is never set on the platform. Fixed data
  * without Faker or factories (dev-only packages, missing from the platform image); idempotent,
- * so running it again adds nothing. The @properx.test accounts get random passwords: sign in
- * with the DEMO_LOGIN_EMAIL accounts (DemoLoginSeeder), whose passwords are printed.
+ * so running it again adds nothing. The @properx.test accounts get "password" with APP_ENV=local
+ * and random passwords elsewhere. DEMO_LOGIN_EMAIL accounts (DemoLoginSeeder) get random passwords
+ * that are never printed; their owners use "Forgot your password?" or app:password-link.
  */
 class DemoSeeder extends Seeder
 {

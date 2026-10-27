@@ -9,9 +9,8 @@ use Database\Seeders\Support\DemoPeople;
 use Illuminate\Database\Seeder;
 
 /**
- * One fictional account per staff role (random passwords; sign in through the
- * DEMO_LOGIN_EMAIL accounts instead), plus the local API key of the API Service account.
- * Idempotent.
+ * One fictional account per staff role ("password" with APP_ENV=local, random elsewhere), plus
+ * the local API key of the API Service account. Idempotent.
  */
 class StaffSeeder extends Seeder
 {

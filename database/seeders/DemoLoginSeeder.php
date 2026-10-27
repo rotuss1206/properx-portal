@@ -24,9 +24,10 @@ use RuntimeException;
  * DEMO_LOGIN_EMAIL=kevin@example.com gives kevin+director@example.com, kevin+coordinator@…,
  * kevin+compliance@…, kevin+member@… and kevin+agency@… (principal of a small demo agency).
  *
- * Passwords are random, reset on every run and shown once in the seeder output; they are never
- * logged or stored in plain text. Two-factor authentication is set up at the first login.
- * Fixed data, no Faker; re-running creates no duplicates. Called by DemoSeeder.
+ * Passwords are random and never shown (seeder output can end up in platform logs): the owner of
+ * the inbox sets one with "Forgot your password?" on the login page, or staff print a one-time
+ * link with `php artisan app:password-link <email>`. Two-factor authentication is set up at the
+ * first login. Fixed data, no Faker; re-running creates no duplicates. Called by DemoSeeder.
  */
 class DemoLoginSeeder extends Seeder
 {
@@ -39,11 +40,11 @@ class DemoLoginSeeder extends Seeder
     private const AGENCY_NAME = 'Demo Login Agency LLC';
 
     /**
-     * Credentials set by the last run: [role label, email, password].
+     * Accounts of the last run: [role label, email]. No passwords.
      *
-     * @var list<array{string, string, string}>
+     * @var list<array{string, string}>
      */
-    public array $credentials = [];
+    public array $accounts = [];
 
     public function run(): void
     {
@@ -115,13 +116,11 @@ class DemoLoginSeeder extends Seeder
     private function account(string $base, string $tag, string $name, Role $role): array
     {
         $email = self::plusAddress($base, $tag);
-        [$user, $created] = DemoPeople::user($email, $name, $role);
 
-        // A new password on every run, shown once below.
-        $password = Str::random(24);
-        $user->forceFill(['password' => $password])->save();
+        // A real inbox: always a random password nobody knows, also locally; set on creation only.
+        [$user, $created] = DemoPeople::user($email, $name, $role, Str::random(40));
 
-        $this->credentials[] = [Str::headline($tag), $email, $password];
+        $this->accounts[] = [Str::headline($tag), $email];
 
         return [$user, $created];
     }
@@ -190,7 +189,9 @@ class DemoLoginSeeder extends Seeder
         }
 
         $this->command->newLine();
-        $this->command->warn('Demo login accounts (passwords are shown only now; two-factor setup at first login):');
-        $this->command->table(['Role', 'Email', 'Password'], $this->credentials);
+        $this->command->info('Demo login accounts (no passwords are shown):');
+        $this->command->table(['Role', 'Email'], $this->accounts);
+        $this->command->line('Set a password with "Forgot your password?" on the login page, or print a one-time link');
+        $this->command->line('with `php artisan app:password-link <email>` if email is not delivered. Two-factor setup follows at first login.');
     }
 }

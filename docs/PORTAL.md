@@ -53,10 +53,14 @@ Set in `.env` at least: `DB_*`, `AZURITE_CONNECTION_STRING` (the value in `.env.
 Demo data is fixed fictional data (no Faker, so it also seeds where dev dependencies are absent)
 and the seeder is idempotent. Its `@properx.test` people (`director@`, `coordinator@`,
 `compliance@`, `member01@` … `member30@`, agency principals `principal01@` … `principal03@`) have
-random passwords nobody knows. To sign in, set `DEMO_LOGIN_EMAIL=you@example.com` before seeding:
-the seeder adds one account per role on its plus addresses (`you+director@`, `you+coordinator@`,
-`you+compliance@`, `you+member@`, `you+agency@`, the last one leading a small demo agency) and
-prints their random passwords once; they change on every run. Two-factor setup is asked on first login.
+the password `password` with `APP_ENV=local` only, and random unknown passwords anywhere else.
+
+For a real inbox, set `DEMO_LOGIN_EMAIL=you@example.com` before seeding: the seeder adds one account
+per role on its plus addresses (`you+director@`, `you+coordinator@`, `you+compliance@`,
+`you+member@`, `you+agency@`, the last one leading a small demo agency) and lists only their email
+addresses. No password is ever printed: set one with "Forgot your password?" on the login page, or,
+if email is not delivered, print a one-time link with `php artisan app:password-link <email>`
+(single use, 60 minutes, audited, never logged). Two-factor setup is asked on first login.
 
 Background work, which the platform runs in production:
 

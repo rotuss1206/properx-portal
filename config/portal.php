@@ -110,7 +110,7 @@ return [
 
     // Optional: a real inbox for demo logins. DemoSeeder then creates one account per role on its
     // plus addresses (name+director@, +coordinator@, +compliance@, +member@, +agency@) with random
-    // passwords shown once in the seeder output.
+    // passwords that are never shown: sign in via "Forgot your password?" or app:password-link.
     'demo_login_email' => env('DEMO_LOGIN_EMAIL'),
 
     // Scheduled tasks must finish within 120 seconds (KEENEY platform rule). Jobs stop

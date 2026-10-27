@@ -56,11 +56,23 @@ nothing is ever removed, and running it again changes nothing.
 the platform image), and is idempotent: running it again adds nothing. It refuses to run unless
 `DEMO_SEED_ALLOWED=true`.
 
-The `@properx.test` accounts below have random passwords nobody knows. To sign in, set
-`DEMO_LOGIN_EMAIL=you@example.com` before seeding: `DemoLoginSeeder` then creates
-`you+director@`, `you+coordinator@`, `you+compliance@`, `you+member@` and `you+agency@example.com`
-(principal of "Demo Login Agency LLC") and prints their random passwords once; they are reset on every
-run. Every account must enrol in 2FA on first login unless `NOVA_REQUIRE_2FA=false` locally.
+The `@properx.test` accounts below have the password `password` with `APP_ENV=local` only; in any other
+environment they get random passwords nobody knows.
+
+Accounts for a real inbox: set `DEMO_LOGIN_EMAIL=you@example.com` before seeding. `DemoLoginSeeder` then
+creates `you+director@`, `you+coordinator@`, `you+compliance@`, `you+member@` and `you+agency@example.com`
+(principal of "Demo Login Agency LLC") with random passwords that are never shown (seeder output can end up
+in platform logs); the seeder lists the email addresses only. To sign in, use "Forgot your password?" on
+the login page. If the email does not arrive (e.g. Azure Communication Services is not set up), print the
+same one-time link on the server:
+
+```bash
+php artisan app:password-link you+director@example.com
+```
+
+The link is single use, expires after 60 minutes (`auth.passwords.users.expire`), replaces any earlier
+link for that account, is recorded in the audit log (`password_link_created`) and is never written to the
+application log. Every account must enrol in 2FA on first login unless `NOVA_REQUIRE_2FA=false` locally.
 
 | Account | Role | Notes |
 |---|---|---|

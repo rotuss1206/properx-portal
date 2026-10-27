@@ -42,6 +42,7 @@ class AuditLog extends Model
         'payment_status_changed',
         'stripe_event_processed',
         'api_key_rotated',
+        'password_link_created',
         'agency_created',
         'agency_updated',
         'agency_deleted',
