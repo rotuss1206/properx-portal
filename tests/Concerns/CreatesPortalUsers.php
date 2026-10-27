@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\MemberProfile;
 use App\Models\User;
+use App\Services\ReferenceData;
 use Database\Seeders\RolesAndPermissionsSeeder;
 
 trait CreatesPortalUsers
@@ -59,8 +60,11 @@ trait CreatesPortalUsers
         return $agency->refresh();
     }
 
+    /**
+     * The API Service system account, created by the seed_reference_data migration.
+     */
     protected function apiService(): User
     {
-        return User::factory()->create()->assignRole(Role::ApiService->value);
+        return app(ReferenceData::class)->ensureServiceAccount();
     }
 }

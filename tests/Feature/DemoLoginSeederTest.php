@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\AgencyRole;
 use App\Enums\Role;
 use App\Models\User;
+use App\Services\ReferenceData;
 use Database\Seeders\DemoLoginSeeder;
 use Database\Seeders\DemoSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -35,6 +36,14 @@ class DemoLoginSeederTest extends TestCase
         config(['portal.demo_seed_allowed' => true]);
     }
 
+    /**
+     * Users other than the API Service account from the seed_reference_data migration.
+     */
+    private function fictionalUsers(): int
+    {
+        return User::query()->where('email', '!=', ReferenceData::SERVICE_ACCOUNT_EMAIL)->count();
+    }
+
     public function test_refuses_to_run_on_its_own_unless_demo_data_is_allowed(): void
     {
         config(['portal.demo_seed_allowed' => false, 'portal.demo_login_email' => 'kevin@example.com']);
@@ -43,7 +52,7 @@ class DemoLoginSeederTest extends TestCase
             $this->runSeeder();
             $this->fail('The seeder ran without DEMO_SEED_ALLOWED.');
         } catch (RuntimeException) {
-            $this->assertSame(0, User::query()->count());
+            $this->assertSame(0, $this->fictionalUsers());
         }
     }
 
@@ -121,7 +130,7 @@ class DemoLoginSeederTest extends TestCase
         config(['portal.demo_login_email' => null]);
 
         $this->assertSame([], $this->runSeeder());
-        $this->assertSame(0, User::query()->count());
+        $this->assertSame(0, $this->fictionalUsers());
     }
 
     public function test_rejects_an_invalid_address(): void

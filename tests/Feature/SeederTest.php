@@ -49,7 +49,8 @@ class SeederTest extends TestCase
         try {
             $this->seed(DemoSeeder::class);
         } finally {
-            $this->assertSame(0, User::query()->count());
+            // Only the API Service account from the seed_reference_data migration.
+            $this->assertSame(1, User::query()->count());
         }
     }
 

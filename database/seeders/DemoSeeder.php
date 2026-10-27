@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\LibraryDocument;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -12,9 +11,10 @@ use RuntimeException;
  *
  *     DEMO_SEED_ALLOWED=true php artisan migrate:fresh --seeder=DemoSeeder
  *
- * Refuses to run unless DEMO_SEED_ALLOWED=true, which is never set on the platform.
- * The @properx.test accounts use the password "password"; with DEMO_LOGIN_EMAIL set,
- * DemoLoginSeeder adds one account per role on its plus addresses, with random passwords.
+ * Refuses to run unless DEMO_SEED_ALLOWED=true, which is never set on the platform. Fixed data
+ * without Faker or factories (dev-only packages, missing from the platform image); idempotent,
+ * so running it again adds nothing. The @properx.test accounts get random passwords: sign in
+ * with the DEMO_LOGIN_EMAIL accounts (DemoLoginSeeder), whose passwords are printed.
  */
 class DemoSeeder extends Seeder
 {
@@ -27,19 +27,16 @@ class DemoSeeder extends Seeder
         }
 
         $this->call([
+            // Reference data normally comes from the seed_reference_data migration; harmless here.
             RolesAndPermissionsSeeder::class,
             ServiceAccountSeeder::class,
             StaffSeeder::class,
             MemberSeeder::class,
             AgencySeeder::class,
+            LibrarySeeder::class,
+            // Accounts on plus addresses of DEMO_LOGIN_EMAIL, with random passwords (skipped when unset).
+            DemoLoginSeeder::class,
+            DemoFilesSeeder::class,
         ]);
-
-        LibraryDocument::factory()->count(12)->published()->create();
-        LibraryDocument::factory()->count(3)->draft()->create();
-
-        // Accounts on plus addresses of DEMO_LOGIN_EMAIL, with random passwords (skipped when unset).
-        $this->call(DemoLoginSeeder::class);
-
-        $this->call(DemoFilesSeeder::class);
     }
 }

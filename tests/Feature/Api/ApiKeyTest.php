@@ -126,6 +126,9 @@ class ApiKeyTest extends TestCase
 
     public function test_rotation_fails_without_an_api_service_account(): void
     {
+        // The seed_reference_data migration creates the account; remove it for this case.
+        $this->apiService()->delete();
+
         $this->artisan('app:api-key:rotate')->assertFailed();
     }
 }

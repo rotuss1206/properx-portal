@@ -48,16 +48,15 @@ npm run build
 
 Set in `.env` at least: `DB_*`, `AZURITE_CONNECTION_STRING` (the value in `.env.example`),
 `BLIND_INDEX_KEY` (`php -r "echo 'base64:'.base64_encode(random_bytes(32));"`),
-`MAIL_MAILER=log` and `DEMO_SEED_ALLOWED=true`.
+`MAIL_MAILER=log`, `DEMO_SEED_ALLOWED=true` and `DEMO_LOGIN_EMAIL` (below).
 
-Demo accounts (password `password`; two-factor setup is asked on first login):
-`director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`,
-agency principals `principal01@` … `principal03@properx.test`.
-
-Logins on a real inbox: set `DEMO_LOGIN_EMAIL=you@example.com` before seeding, and the seeder
-adds one account per role on its plus addresses: `you+director@`, `you+coordinator@`,
-`you+compliance@`, `you+member@` and `you+agency@` (principal of a small demo agency). Their
-passwords are random, new on every run and printed once in the seeder output.
+Demo data is fixed fictional data (no Faker, so it also seeds where dev dependencies are absent)
+and the seeder is idempotent. Its `@properx.test` people (`director@`, `coordinator@`,
+`compliance@`, `member01@` … `member30@`, agency principals `principal01@` … `principal03@`) have
+random passwords nobody knows. To sign in, set `DEMO_LOGIN_EMAIL=you@example.com` before seeding:
+the seeder adds one account per role on its plus addresses (`you+director@`, `you+coordinator@`,
+`you+compliance@`, `you+member@`, `you+agency@`, the last one leading a small demo agency) and
+prints their random passwords once; they change on every run. Two-factor setup is asked on first login.
 
 Background work, which the platform runs in production:
 
@@ -66,8 +65,11 @@ php artisan queue:work
 php artisan schedule:work
 ```
 
-`DatabaseSeeder` adds reference data only (roles and permissions, the API Service system account) and is safe everywhere. `DemoSeeder`
-refuses to run unless `DEMO_SEED_ALLOWED=true`, which is never set on the platform.
+Reference data (roles, permissions, the API Service system account) ships as migrations
+(`seed_reference_data`, from `App\Services\ReferenceData`), because the pipeline runs only
+`migrate --force`; new roles or permissions come with a new migration. `DatabaseSeeder` applies the
+same data and is safe everywhere. `DemoSeeder` refuses to run unless `DEMO_SEED_ALLOWED=true`, which
+is never set on the platform.
 
 ## Tests
 

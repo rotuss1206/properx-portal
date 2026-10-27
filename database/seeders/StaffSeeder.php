@@ -3,14 +3,15 @@
 namespace Database\Seeders;
 
 use App\Enums\Role;
-use App\Models\User;
 use App\Services\ApiKeys\ApiKeyManager;
 use App\Services\ServiceAccount;
+use Database\Seeders\Support\DemoPeople;
 use Illuminate\Database\Seeder;
 
 /**
- * One test account per staff role (password: "password"), plus the local API key of the
- * API Service account (created by ServiceAccountSeeder).
+ * One fictional account per staff role (random passwords; sign in through the
+ * DEMO_LOGIN_EMAIL accounts instead), plus the local API key of the API Service account.
+ * Idempotent.
  */
 class StaffSeeder extends Seeder
 {
@@ -23,14 +24,12 @@ class StaffSeeder extends Seeder
     public function run(): void
     {
         foreach (self::STAFF as $email => [$name, $role]) {
-            User::factory()
-                ->create(['name' => $name, 'email' => $email])
-                ->assignRole($role->value);
+            DemoPeople::user($email, $name, $role);
         }
 
-        // The service account itself comes from ServiceAccountSeeder. Register the key from .env
-        // so local calls to /api/service/* keep working after a reseed (the Stripe webhook needs
-        // no key). Without one, run `php artisan app:api-key:rotate` and put the key in .env.
+        // The service account itself is reference data (seed_reference_data migration). Register
+        // the key from .env so local calls to /api/service/* keep working after a reseed (the
+        // Stripe webhook needs no key). Without one, run `php artisan app:api-key:rotate`.
         $service = app(ServiceAccount::class)->user();
 
         if ($service !== null && filled(config('services.api_service.key'))) {

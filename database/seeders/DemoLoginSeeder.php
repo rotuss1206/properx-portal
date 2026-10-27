@@ -4,14 +4,16 @@ namespace Database\Seeders;
 
 use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
+use App\Enums\AgencyType;
 use App\Enums\InviteStatus;
-use App\Enums\NotificationCategory;
+use App\Enums\PersonType;
 use App\Enums\RateType;
 use App\Enums\Role;
+use App\Enums\VerificationStatus;
 use App\Models\Agency;
 use App\Models\LicenseDocument;
-use App\Models\MemberProfile;
 use App\Models\User;
+use Database\Seeders\Support\DemoPeople;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -24,7 +26,7 @@ use RuntimeException;
  *
  * Passwords are random, reset on every run and shown once in the seeder output; they are never
  * logged or stored in plain text. Two-factor authentication is set up at the first login.
- * Called by DemoSeeder, so it runs only when DEMO_SEED_ALLOWED=true.
+ * Fixed data, no Faker; re-running creates no duplicates. Called by DemoSeeder.
  */
 class DemoLoginSeeder extends Seeder
 {
@@ -34,8 +36,10 @@ class DemoLoginSeeder extends Seeder
         'compliance' => ['Demo Compliance Specialist', Role::ComplianceSpecialist],
     ];
 
+    private const AGENCY_NAME = 'Demo Login Agency LLC';
+
     /**
-     * Credentials created by the last run: [role label, email, password].
+     * Credentials set by the last run: [role label, email, password].
      *
      * @var list<array{string, string, string}>
      */
@@ -58,11 +62,34 @@ class DemoLoginSeeder extends Seeder
             $this->account($base, $tag, $name, $role);
         }
 
-        $member = $this->account($base, 'member', 'Demo Member', Role::Member);
-        $this->profile($member, 'Demo', 'Member');
-        LicenseDocument::factory()->for($member)->create();
+        [$member, $created] = $this->account($base, 'member', 'Demo Member', Role::Member);
+        DemoPeople::profile($member, [
+            'first_name' => 'Demo',
+            'last_name' => 'Member',
+            'phone' => DemoPeople::phone(90),
+            'address' => DemoPeople::address(90),
+            'firm_name' => 'Demo Insurance Services',
+            'npn' => '39000090',
+            'license_number' => 'TX-9000090',
+            'license_state' => 'TX',
+            'license_type' => 'Life & Health',
+            'license_expires_at' => today()->addYear(),
+        ]);
+        DemoPeople::notificationSettings($member);
 
-        $principal = $this->account($base, 'agency', 'Demo Agency Principal', Role::Member);
+        if ($created) {
+            (new LicenseDocument)->forceFill([
+                'user_id' => $member->getKey(),
+                'stored_filename' => DemoPeople::pendingFile(LicenseDocument::DIRECTORY),
+                'original_filename' => 'license-demo-member.pdf',
+                'mime_type' => 'application/pdf',
+                'size' => 284_160,
+                'uploaded_at' => now()->subWeek(),
+                'verification_status' => VerificationStatus::Approved,
+            ])->save();
+        }
+
+        [$principal] = $this->account($base, 'agency', 'Demo Agency Principal', Role::Member);
         $this->agency($principal);
 
         $this->report();
@@ -82,36 +109,21 @@ class DemoLoginSeeder extends Seeder
         return Str::before($local, '+').'+'.$tag.'@'.$domain;
     }
 
-    private function account(string $base, string $tag, string $name, Role $role): User
+    /**
+     * @return array{0: User, 1: bool}
+     */
+    private function account(string $base, string $tag, string $name, Role $role): array
     {
         $email = self::plusAddress($base, $tag);
-        $password = Str::password(20);
+        [$user, $created] = DemoPeople::user($email, $name, $role);
 
-        $user = User::query()->firstOrNew(['email' => $email]);
-        $user->forceFill([
-            'name' => $name,
-            'password' => $password,
-            'email_verified_at' => now(),
-        ])->save();
-        $user->syncRoles([$role->value]);
+        // A new password on every run, shown once below.
+        $password = Str::random(24);
+        $user->forceFill(['password' => $password])->save();
 
         $this->credentials[] = [Str::headline($tag), $email, $password];
 
-        return $user;
-    }
-
-    private function profile(User $user, string $firstName, string $lastName, ?Agency $agency = null): MemberProfile
-    {
-        $profile = $user->memberProfile ?? MemberProfile::factory()
-            ->when($agency !== null, fn ($factory) => $factory->inAgency($agency, InviteStatus::AccountActive))
-            ->for($user)
-            ->create(['first_name' => $firstName, 'last_name' => $lastName]);
-
-        foreach (NotificationCategory::cases() as $category) {
-            $user->notificationSettings()->firstOrCreate(['category' => $category], ['enabled' => true]);
-        }
-
-        return $profile;
+        return [$user, $created];
     }
 
     /**
@@ -120,24 +132,55 @@ class DemoLoginSeeder extends Seeder
      */
     private function agency(User $principal): void
     {
-        $agency = $principal->ledAgency ?? Agency::factory()->create([
-            'legal_name' => 'Demo Login Agency LLC',
-            'tier' => AgencyTier::Agency,
-            'rate_type' => RateType::Founding,
-            'status' => AgencyStatus::Active,
-        ]);
+        $agency = Agency::query()->firstOrNew(['legal_name' => self::AGENCY_NAME]);
 
-        $principalProfile = $this->profile($principal, 'Demo', 'Principal', $agency);
-
-        if ($agency->members()->whereKeyNot($principalProfile->getKey())->doesntExist()) {
-            $colleague = User::factory()->create(['email' => 'demo-agency.person02@properx.test']);
-            $colleague->assignRole(Role::Member->value);
-            $this->profile($colleague, 'Demo', 'Colleague', $agency);
+        if (! $agency->exists) {
+            $agency->forceFill([
+                'agency_type' => AgencyType::HealthLife,
+                'fein' => '74-1000999',
+                'legal_address' => DemoPeople::address(91),
+                'mailing_same_as_legal' => true,
+                'phone' => DemoPeople::phone(91),
+                'website' => 'https://www.demologinagency.example',
+                'billing_email' => 'billing@demologinagency.example',
+                'referral_source' => 'referral',
+                'tier' => AgencyTier::Agency,
+                'rate_type' => RateType::Founding,
+                'status' => AgencyStatus::Active,
+            ])->save();
         }
+
+        $this->agencyProfile($principal, 'Demo', 'Principal', $agency, PersonType::LicensedProducer, 92);
+
+        [$colleague] = DemoPeople::user('demo-agency.person02@properx.test', 'Demo Colleague', Role::Member);
+        $this->agencyProfile($colleague, 'Demo', 'Colleague', $agency, PersonType::AgencyEmployee, 93);
 
         $agency->forceFill(['principal_user_id' => $principal->getKey()])->saveQuietly();
         $agency->syncPrincipal();
         $agency->syncHeadcount();
+    }
+
+    private function agencyProfile(User $user, string $first, string $last, Agency $agency, PersonType $type, int $index): void
+    {
+        $license = $type === PersonType::AgencyEmployee ? [] : [
+            'npn' => sprintf('%08d', 39_000_000 + $index),
+            'license_number' => sprintf('TX-%07d', 9_000_000 + $index),
+            'license_state' => 'TX',
+            'license_type' => 'Life & Health',
+            'license_expires_at' => today()->addYear(),
+        ];
+
+        DemoPeople::profile($user, $license + [
+            'first_name' => $first,
+            'last_name' => $last,
+            'phone' => DemoPeople::phone($index),
+            'address' => DemoPeople::address($index),
+            'firm_name' => $agency->legal_name,
+            'agency_id' => $agency->getKey(),
+            'person_type' => $type,
+            'invite_status' => InviteStatus::AccountActive,
+        ]);
+        DemoPeople::notificationSettings($user);
     }
 
     private function report(): void

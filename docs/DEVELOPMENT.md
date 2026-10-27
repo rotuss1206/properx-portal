@@ -37,14 +37,30 @@ Mail: `MAIL_MAILER=log` locally (messages are written to the log). Production us
 
 Tests: `php vendor/bin/phpunit` (SQLite in memory, faked Blob disk; `AzuriteIntegrationTest` runs only when Azurite is up).
 
-## Test accounts (seeded)
+## Reference data (roles, permissions, service account)
 
-All passwords are `password`. Every account must enrol in 2FA on first login unless `NOVA_REQUIRE_2FA=false` locally.
+Roles, permissions and the API Service account ship as **migrations**, because the KEENEY pipeline runs
+only `php artisan migrate --force` and never a seeder. The single source is `App\Services\ReferenceData`;
+the `seed_reference_data` migration and `DatabaseSeeder` (`RolesAndPermissionsSeeder`,
+`ServiceAccountSeeder`) all call it. It only adds: missing roles, permissions and grants are created,
+nothing is ever removed, and running it again changes nothing.
 
-With `DEMO_LOGIN_EMAIL=you@example.com` in `.env`, `DemoSeeder` (through `DemoLoginSeeder`) also creates
+**Rule for new roles or permissions:** add them to `ReferenceData::ROLE_PERMISSIONS` (or
+`EXECUTIVE_ONLY`) and ship a **new** migration whose `up()` calls `app(ReferenceData::class)->seed()`
+(never edit an old migration: environments that already ran it would not pick the change up). Its
+`down()` deletes nothing. Removing or renaming a permission needs its own explicit migration.
+
+## Demo data and accounts
+
+`DemoSeeder` adds fixed fictional data, without Faker or factories (both are dev-only, so missing from
+the platform image), and is idempotent: running it again adds nothing. It refuses to run unless
+`DEMO_SEED_ALLOWED=true`.
+
+The `@properx.test` accounts below have random passwords nobody knows. To sign in, set
+`DEMO_LOGIN_EMAIL=you@example.com` before seeding: `DemoLoginSeeder` then creates
 `you+director@`, `you+coordinator@`, `you+compliance@`, `you+member@` and `you+agency@example.com`
-(principal of "Demo Login Agency LLC") with random passwords, printed once in the seeder output and reset
-on every run. Useful for demos where invitation and reset emails must reach a real inbox.
+(principal of "Demo Login Agency LLC") and prints their random passwords once; they are reset on every
+run. Every account must enrol in 2FA on first login unless `NOVA_REQUIRE_2FA=false` locally.
 
 | Account | Role | Notes |
 |---|---|---|
@@ -56,7 +72,7 @@ on every run. Useful for demos where invitation and reset emails must reach a re
 | `member03@properx.test` | Member | Past due beyond the grace period: restricted |
 | `member04@properx.test` | Member | Canceled: restricted |
 | `member05@properx.test` | Member | No Stripe data yet (treated as active) |
-| `member06@` … `member30@properx.test` | Member | Random license and payment states |
+| `member06@` … `member30@properx.test` | Member | Fixed mix of license and payment states |
 | `api-service@properx.test` | API Service | Machine account, cannot log in (random password) |
 
 ## Health probes
