@@ -5,11 +5,12 @@ namespace Database\Seeders;
 use App\Enums\Role;
 use App\Models\User;
 use App\Services\ApiKeys\ApiKeyManager;
+use App\Services\ServiceAccount;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 /**
- * One test account per staff role (password: "password") and the API service account.
+ * One test account per staff role (password: "password"), plus the local API key of the
+ * API Service account (created by ServiceAccountSeeder).
  */
 class StaffSeeder extends Seeder
 {
@@ -27,18 +28,12 @@ class StaffSeeder extends Seeder
                 ->assignRole($role->value);
         }
 
-        // Machine account: random password nobody knows, it authenticates by API key only.
-        $service = User::factory()
-            ->create([
-                'name' => 'API Service',
-                'email' => 'api-service@properx.test',
-                'password' => Str::random(64),
-            ])
-            ->assignRole(Role::ApiService->value);
+        // The service account itself comes from ServiceAccountSeeder. Register the key from .env
+        // so local calls to /api/service/* keep working after a reseed (the Stripe webhook needs
+        // no key). Without one, run `php artisan app:api-key:rotate` and put the key in .env.
+        $service = app(ServiceAccount::class)->user();
 
-        // Register the key from .env so local webhooks keep working after a reseed.
-        // Without one, run `php artisan app:api-key:rotate` and put the key in .env.
-        if (filled(config('services.api_service.key'))) {
+        if ($service !== null && filled(config('services.api_service.key'))) {
             app(ApiKeyManager::class)->register($service, config('services.api_service.key'), 'from environment');
         }
     }

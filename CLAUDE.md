@@ -78,7 +78,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - `MemberProfileObserver`: profile edits (not the nightly status refresh);
   - `DocumentObserver`: uploads and deletions of license, tax and library documents;
   - explicit calls: document review actions, document and certificate downloads, certificate generation.
-- `DatabaseSeeder` seeds roles and permissions only. Fictional data comes from `DemoSeeder` (`php artisan migrate:fresh --seeder=DemoSeeder`), which refuses to run unless `DEMO_SEED_ALLOWED=true` (local only). Demo accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`, agency principals and people (below). Placeholder files for documents: `DemoFilesSeeder`. With `DEMO_LOGIN_EMAIL` set, `DemoLoginSeeder` adds one login per role (director, coordinator, compliance, member, agency principal) on its plus addresses with random passwords printed once; it is guarded by `DEMO_SEED_ALLOWED` too.
+- `DatabaseSeeder` seeds reference data only: roles and permissions and the API Service system account. Fictional data comes from `DemoSeeder` (`php artisan migrate:fresh --seeder=DemoSeeder`), which refuses to run unless `DEMO_SEED_ALLOWED=true` (local only). Demo accounts (password `password`): `director@`, `coordinator@`, `compliance@`, `member01@` … `member30@properx.test`, agency principals and people (below). Placeholder files for documents: `DemoFilesSeeder`. With `DEMO_LOGIN_EMAIL` set, `DemoLoginSeeder` adds one login per role (director, coordinator, compliance, member, agency principal) on its plus addresses with random passwords printed once; it is guarded by `DEMO_SEED_ALLOWED` too.
 - Database TLS: `config/database.php` adds `Pdo\Mysql::ATTR_SSL_CA` + `ATTR_SSL_VERIFY_SERVER_CERT` only when `MYSQL_ATTR_SSL_CA` is set (the platform's CA); locally no TLS.
 - Tests: the base `Tests\TestCase` calls `Nova::flushState()` because Nova caches request data in static properties.
 
@@ -114,7 +114,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 
 ## Stripe payment status (Spec 7)
 
-- The portal takes no payments. `POST /api/webhooks/stripe` (signature via `STRIPE_WEBHOOK_SECRET`, `stripe/stripe-php`) runs as the API Service account through `App\Services\Stripe\StripeWebhookHandler`.
+- The portal takes no payments. `POST /api/webhooks/stripe` is authenticated by the Stripe signature only (`STRIPE_WEBHOOK_SECRET`, `stripe/stripe-php`; no API key) and runs as the API Service account (`ServiceAccount::user()`) through `App\Services\Stripe\StripeWebhookHandler`.
 - Idempotency: `stripe_events` (event id primary key). Out-of-order events: ignored when older than `member_profiles.payment_event_at`.
 - `payment_status_updated_at` = when the status last changed; it starts the `PAYMENT_GRACE_DAYS` grace period for `past_due`.
 - `MemberProfile::hasRestrictedMembership()` (canceled, or past due beyond grace) closes certificate, library and license documents for the member; profile, notification settings and tax documents stay open. Login is never blocked.
@@ -124,8 +124,8 @@ SSO with external identity providers, member-to-member messaging, events and cal
 ## Machine API (Spec 3.7, 8)
 
 - Health probes (`routes/health.php`, no auth, no session, no throttle): `GET /api/health/live` (liveness, no dependencies) and `GET /api/health` (readiness: database, cache, queue, documents disk; 503 on failure). Responses show only `ok`/`fail`; reasons go to the log.
-- API Service key: `api_keys` stores a SHA-256 hash only; the plain key comes from `API_SERVICE_KEY` (Key Vault). `App\Services\ApiKeys\ApiKeyManager`:
-  - `serviceAccount()`: the app acting as the service account (Stripe webhook); a missing, revoked or expired key stops processing (503).
+- API Service account: a system user with the API Service role, created by `ServiceAccountSeeder` (part of `DatabaseSeeder`, i.e. reference data). `App\Services\ServiceAccount::user()` finds it by role, without a key; it is the actor of automated work such as the Stripe webhook (503 if it is missing or lacks the webhook permissions).
+- API Service key: only for external callers (`/api/service/*`, future `/api/intake/*`); the Stripe webhook does not use it. `api_keys` stores a SHA-256 hash only; the plain key comes from `API_SERVICE_KEY` (Key Vault). `App\Services\ApiKeys\ApiKeyManager`:
   - middleware `auth.api-key[:permission]` for automated callers (`Authorization: Bearer` or `X-Api-Key`), e.g. `GET /api/service/whoami`.
   - `php artisan app:api-key:rotate [--overlap=24]`: quarterly rotation; prints the new key once, the old key expires after the overlap window; audited as `api_key_rotated`.
 - Other stateless endpoints (webhooks, service API) live in `routes/machine.php`, rate limited 120/min per IP.

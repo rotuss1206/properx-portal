@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Route;
 | Rate limited (see bootstrap/app.php).
 */
 
-// Signature is verified in the controller (it needs the raw body); processing runs
-// as the API Service account authenticated with API_SERVICE_KEY.
+// Stripe is authenticated by its signature only, verified in the controller (it needs the
+// raw body); processing is audited as the API Service account. No API key.
 Route::post('/api/webhooks/stripe', StripeWebhookController::class)
     ->name('webhooks.stripe');
 

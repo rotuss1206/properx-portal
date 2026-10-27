@@ -20,7 +20,7 @@ docker run --rm -v "${PWD}:/app" -w /app node:22.20.0-trixie-slim npm ci --no-au
 
 Without Docker, run the same two npm commands with a portable Node 22.20.0 (nodejs.org zip) first on PATH.
 
-`DatabaseSeeder` adds roles and permissions only. These steps are manual and local only. On the KEENEY platform `APP_KEY` comes from Key Vault and
+`DatabaseSeeder` adds reference data only (roles and permissions, the API Service account). These steps are manual and local only. On the KEENEY platform `APP_KEY` comes from Key Vault and
 migrations run in the platform's deploy step, so no Composer script generates keys or migrates.
 
 Run alongside the web server:
@@ -70,9 +70,13 @@ No authentication. The response only says `ok` or `fail` per check; the reason i
 
 ## API Service key
 
-Machine calls (the Stripe webhook processing, future automation) run as the API Service account,
-authenticated with an API key. The database stores only its SHA-256 hash; the plain key lives in
-`API_SERVICE_KEY` (Azure Key Vault in production).
+The API Service account is a system user (no web login) created by `DatabaseSeeder` as reference
+data. Automated work runs and is audited as this account: the Stripe webhook finds it by its role and
+needs no key (Stripe is authenticated by its signature).
+
+The API key is for external callers only: `/api/service/*` today, `/api/intake/*` later. The
+database stores only its SHA-256 hash; the plain key lives in `API_SERVICE_KEY` (Azure Key Vault in
+production).
 
 ```bash
 php artisan app:api-key:rotate            # prints a new key once; put it into API_SERVICE_KEY
@@ -82,7 +86,7 @@ curl -H "Authorization: Bearer $API_SERVICE_KEY" https://properx-portal.local/ap
 
 Rotate quarterly. The previous key keeps working for `API_KEY_ROTATION_OVERLAP_HOURS` (24) so Key Vault
 can be updated without downtime; every rotation is recorded in the audit log. After `migrate:fresh --seeder=DemoSeeder`
-the seeder re-registers the key from `.env`, so local webhooks keep working.
+the seeder re-registers the key from `.env`, so local calls to `/api/service/*` keep working.
 
 ## Stripe payment status webhooks (Spec 7)
 

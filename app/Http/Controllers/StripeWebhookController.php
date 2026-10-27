@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ApiKeys\ApiKeyManager;
+use App\Services\ServiceAccount;
 use App\Services\Stripe\StripeWebhookHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,12 +14,13 @@ use Symfony\Component\HttpFoundation\Response;
 use UnexpectedValueException;
 
 /**
- * Stripe membership payment webhook (Spec 7, 3.7). Verifies the signature and
- * processes the event as the API Service account.
+ * Stripe membership payment webhook (Spec 7, 3.7). Stripe is authenticated by the
+ * signature alone (STRIPE_WEBHOOK_SECRET); the event is then processed, and audited,
+ * as the API Service account. No API key is involved.
  */
 class StripeWebhookController extends Controller
 {
-    public function __invoke(Request $request, StripeWebhookHandler $handler, ApiKeyManager $keys): JsonResponse
+    public function __invoke(Request $request, StripeWebhookHandler $handler, ServiceAccount $serviceAccounts): JsonResponse
     {
         $secret = (string) config('services.stripe.webhook_secret');
 
@@ -40,13 +41,11 @@ class StripeWebhookController extends Controller
             return response()->json(['error' => 'Invalid signature.'], Response::HTTP_BAD_REQUEST);
         }
 
-        // The app acts as the API Service account, authenticated with its own key
-        // (API_SERVICE_KEY from Key Vault); a revoked or expired key stops processing.
-        $serviceAccount = $keys->serviceAccount();
+        $serviceAccount = $serviceAccounts->user();
 
         if ($serviceAccount === null || ! $serviceAccount->checkPermissionTo('webhooks.stripe.handle')
             || ! $serviceAccount->checkPermissionTo('members.payment-status.update')) {
-            Log::critical('Stripe webhook cannot run: API_SERVICE_KEY is missing, invalid, expired or lacks permissions.');
+            Log::critical('Stripe webhook cannot run: no API Service account with the Stripe webhook permissions (run the database seeder).');
 
             // Non-2xx makes Stripe retry once the account is fixed.
             return response()->json(['error' => 'Service account unavailable.'], Response::HTTP_SERVICE_UNAVAILABLE);

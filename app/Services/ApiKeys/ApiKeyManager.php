@@ -89,15 +89,6 @@ class ApiKeyManager
         return $key->user;
     }
 
-    /**
-     * The service account the application itself acts as (Stripe webhook, jobs),
-     * authenticated with the key from API_SERVICE_KEY (Key Vault in production).
-     */
-    public function serviceAccount(): ?User
-    {
-        return $this->authenticate(config('services.api_service.key'));
-    }
-
     public static function hash(string $plain): string
     {
         return hash('sha256', $plain);

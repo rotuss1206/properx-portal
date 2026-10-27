@@ -3,6 +3,7 @@
 namespace Tests\Feature\Stripe;
 
 use App\Enums\PaymentStatus;
+use App\Enums\Role;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Models\StripeEvent;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Spatie\Permission\Models\Role as SpatieRole;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
@@ -35,9 +37,8 @@ class StripeWebhookTest extends TestCase
         config(['services.stripe.webhook_secret' => self::SECRET]);
         $this->service = $this->apiService();
 
-        // The app authenticates as the service account with API_SERVICE_KEY.
-        [, $plainKey] = app(ApiKeyManager::class)->issue($this->service);
-        config(['services.api_service.key' => $plainKey]);
+        // Stripe is authenticated by the signature only: no API key is configured.
+        config(['services.api_service.key' => null]);
     }
 
     /**
@@ -172,17 +173,45 @@ class StripeWebhookTest extends TestCase
         $this->assertSame(0, StripeEvent::count());
     }
 
-    public function test_requires_a_valid_service_key(): void
+    public function test_works_without_an_api_service_key(): void
+    {
+        $profile = $this->memberWithCustomer();
+
+        // No key at all, or one that is not registered: neither matters to the webhook.
+        foreach ([null, 'ppx_not-a-registered-key'] as $key) {
+            config(['services.api_service.key' => $key]);
+
+            $this->send($this->event('invoice.payment_failed', ['customer' => 'cus_123']))->assertOk();
+        }
+
+        $this->assertSame(PaymentStatus::PastDue, $profile->fresh()->payment_status);
+        $this->assertSame(0, $this->service->apiKeys()->count());
+        $this->assertSame(2, StripeEvent::count());
+    }
+
+    public function test_a_bad_signature_is_rejected_even_with_an_api_key(): void
+    {
+        [, $plainKey] = app(ApiKeyManager::class)->issue($this->service);
+        config(['services.api_service.key' => $plainKey]);
+
+        $this->postJson('/api/webhooks/stripe', $this->event('invoice.paid', ['customer' => 'cus_123']), [
+            'Stripe-Signature' => 't='.time().',v1=forged',
+            'Authorization' => 'Bearer '.$plainKey,
+        ])->assertStatus(400);
+
+        $this->assertSame(0, StripeEvent::count());
+    }
+
+    public function test_requires_the_webhook_permissions(): void
     {
         $this->memberWithCustomer();
+        SpatieRole::findByName(Role::ApiService->value)->revokePermissionTo('webhooks.stripe.handle');
+        Log::spy();
 
-        config(['services.api_service.key' => null]);
-        $this->send($this->event('invoice.paid', ['customer' => 'cus_123']))->assertStatus(503);
-
-        config(['services.api_service.key' => 'ppx_not-a-registered-key']);
         $this->send($this->event('invoice.paid', ['customer' => 'cus_123']))->assertStatus(503);
 
         $this->assertSame(0, StripeEvent::count());
+        Log::shouldHaveReceived('critical')->once();
     }
 
     public function test_duplicate_events_are_processed_once(): void

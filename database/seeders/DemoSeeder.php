@@ -28,6 +28,7 @@ class DemoSeeder extends Seeder
 
         $this->call([
             RolesAndPermissionsSeeder::class,
+            ServiceAccountSeeder::class,
             StaffSeeder::class,
             MemberSeeder::class,
             AgencySeeder::class,

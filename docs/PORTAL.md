@@ -66,7 +66,7 @@ php artisan queue:work
 php artisan schedule:work
 ```
 
-`DatabaseSeeder` adds roles and permissions only and is safe everywhere. `DemoSeeder`
+`DatabaseSeeder` adds reference data only (roles and permissions, the API Service system account) and is safe everywhere. `DemoSeeder`
 refuses to run unless `DEMO_SEED_ALLOWED=true`, which is never set on the platform.
 
 ## Tests
@@ -89,7 +89,7 @@ Production values are App Service settings and Key Vault references (root `READM
 |---|---|
 | `BLIND_INDEX_KEY` | HMAC key for blind indexes of encrypted fields (separate from `APP_KEY`) |
 | `DOCUMENTS_ENCRYPTION_KEY` | App-level encryption of license and tax documents (falls back to `APP_KEY`) |
-| `API_SERVICE_KEY` | API Service account key (`php artisan app:api-key:rotate`, quarterly) |
+| `API_SERVICE_KEY` | API key for external callers of `/api/service/*` (later `/api/intake/*`); `php artisan app:api-key:rotate`, quarterly. Not needed by the Stripe webhook |
 | `STRIPE_WEBHOOK_SECRET`, `PAYMENT_PORTAL_URL`, `PAYMENT_GRACE_DAYS` | Stripe membership payment status |
 | `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise) |
 | `AZURE_CLIENT_ID` | Client ID of a user-assigned managed identity, if one is used |

@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\Agency;
 use App\Models\LibraryDocument;
 use App\Models\User;
+use App\Services\ServiceAccount;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -21,8 +23,21 @@ class SeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertGreaterThan(0, Role::query()->count());
-        $this->assertSame(0, User::query()->count());
         $this->assertSame(0, Agency::query()->count());
+
+        // The only user is the API Service system account (the Stripe webhook's actor).
+        $service = User::query()->sole();
+        $this->assertTrue($service->is(app(ServiceAccount::class)->user()));
+        $this->assertTrue($service->checkPermissionTo('webhooks.stripe.handle'));
+        $this->assertFalse(Gate::forUser($service)->allows('viewNova'));
+    }
+
+    public function test_database_seeder_keeps_an_existing_service_account(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+
+        $this->assertSame(1, User::query()->count());
     }
 
     public function test_demo_seeder_refuses_to_run_unless_allowed(): void
