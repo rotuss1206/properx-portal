@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\AgencyRole;
 use App\Enums\Role;
+use App\Models\Agency;
 use App\Models\User;
 use App\Services\ReferenceData;
 use Database\Seeders\DemoLoginSeeder;
@@ -111,6 +112,7 @@ class DemoLoginSeederTest extends TestCase
         $agency = $principal->ledAgency;
 
         $this->assertNotNull($agency);
+        $this->assertSame('Demo Agency (kevin)', $agency->legal_name);
         $this->assertTrue($principal->hasRole(Role::AgencyPrincipal->value));
         $this->assertSame(AgencyRole::Principal, $principal->memberProfile->agency_role);
         $this->assertSame(2, $agency->fresh()->headcount);
@@ -130,6 +132,39 @@ class DemoLoginSeederTest extends TestCase
         $principal = User::query()->where('email', 'kevin+agency@example.com')->sole();
         $this->assertTrue($principal->hasRole(Role::AgencyPrincipal->value));
         $this->assertSame(2, $principal->ledAgency->headcount);
+    }
+
+    public function test_each_address_gets_its_own_agency_and_leaves_earlier_ones_alone(): void
+    {
+        config(['portal.demo_login_email' => 'kevin@example.com']);
+        $this->runSeeder();
+        $firstPasswords = User::query()->where('email', 'like', 'kevin+%')->pluck('password', 'email')->all();
+
+        config(['portal.demo_login_email' => 'kkeeney+inbox@other.example']);
+        $this->runSeeder();
+        $this->runSeeder(); // the same address again adds nothing
+
+        $agencies = Agency::query()->where('legal_name', 'like', 'Demo Agency (%')->with('members')->orderBy('id')->get();
+        $this->assertSame(['Demo Agency (kevin)', 'Demo Agency (kkeeney)'], $agencies->pluck('legal_name')->all());
+
+        foreach (['kevin+agency@example.com', 'kkeeney+agency@other.example'] as $index => $email) {
+            $agency = $agencies[$index];
+            $principal = User::query()->where('email', $email)->sole();
+
+            $this->assertSame($principal->id, $agency->principal_user_id, $email);
+            $this->assertSame(2, $agency->headcount, $agency->legal_name);
+            $this->assertCount(2, $agency->members);
+            $this->assertSame([$principal->id], $agency->members->where('agency_role', AgencyRole::Principal)->pluck('user_id')->values()->all());
+            $this->assertTrue($principal->hasRole(Role::AgencyPrincipal->value));
+        }
+
+        // The first address's accounts are untouched; NPNs differ between the two addresses.
+        $this->assertSame($firstPasswords, User::query()->where('email', 'like', 'kevin+%')->pluck('password', 'email')->all());
+        $this->assertNotSame(
+            User::query()->firstWhere('email', 'kevin+member@example.com')->memberProfile->npn,
+            User::query()->firstWhere('email', 'kkeeney+member@other.example')->memberProfile->npn,
+        );
+        $this->assertSame(10, User::query()->where('email', 'like', '%+%')->count());
     }
 
     public function test_an_existing_plus_tag_is_replaced(): void

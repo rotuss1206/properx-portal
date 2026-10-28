@@ -22,7 +22,7 @@ use RuntimeException;
 /**
  * Login accounts for a real inbox (DEMO_LOGIN_EMAIL), one per role, on plus addresses:
  * DEMO_LOGIN_EMAIL=kevin@example.com gives kevin+director@example.com, kevin+coordinator@…,
- * kevin+compliance@…, kevin+member@… and kevin+agency@… (principal of a small demo agency).
+ * kevin+compliance@…, kevin+member@… and kevin+agency@… (principal of "Demo Agency (kevin)", one agency per address).
  *
  * Passwords are random and never shown (seeder output can end up in platform logs): the owner of
  * the inbox sets one with "Forgot your password?" on the login page, or staff print a one-time
@@ -37,7 +37,11 @@ class DemoLoginSeeder extends Seeder
         'compliance' => ['Demo Compliance Specialist', Role::ComplianceSpecialist],
     ];
 
-    private const AGENCY_NAME = 'Demo Login Agency LLC';
+    /** Local part of DEMO_LOGIN_EMAIL without a +tag: names this address's demo agency. */
+    private string $local = '';
+
+    /** Per-address number, so each address gets its own NPNs and license numbers. */
+    private int $seed = 0;
 
     /**
      * Accounts of the last run: [role label, email]. No passwords.
@@ -59,6 +63,9 @@ class DemoLoginSeeder extends Seeder
             return;
         }
 
+        $this->local = Str::before(Str::before(self::plusAddress($base, 'x'), '@'), '+');
+        $this->seed = crc32(strtolower($this->local)) % 1_000_000;
+
         foreach (self::STAFF as $tag => [$name, $role]) {
             $this->account($base, $tag, $name, $role);
         }
@@ -70,8 +77,8 @@ class DemoLoginSeeder extends Seeder
             'phone' => DemoPeople::phone(90),
             'address' => DemoPeople::address(90),
             'firm_name' => 'Demo Insurance Services',
-            'npn' => '39000090',
-            'license_number' => 'TX-9000090',
+            'npn' => sprintf('%08d', 41_000_000 + $this->seed),
+            'license_number' => sprintf('TX-1%06d', $this->seed),
             'license_state' => 'TX',
             'license_type' => 'Life & Health',
             'license_expires_at' => today()->addYear(),
@@ -131,12 +138,14 @@ class DemoLoginSeeder extends Seeder
      */
     private function agency(User $principal): void
     {
-        $agency = Agency::query()->firstOrNew(['legal_name' => self::AGENCY_NAME]);
+        // One agency per DEMO_LOGIN_EMAIL, found by the principal account of that address (not by
+        // name): another address gets its own agency and leaves this one alone.
+        $agency = Agency::query()->firstOrNew(['principal_user_id' => $principal->getKey()]);
 
         if (! $agency->exists) {
             $agency->forceFill([
+                'legal_name' => "Demo Agency ({$this->local})",
                 'agency_type' => AgencyType::HealthLife,
-                'fein' => '74-1000999',
                 'legal_address' => DemoPeople::address(91),
                 'mailing_same_as_legal' => true,
                 'phone' => DemoPeople::phone(91),
@@ -151,7 +160,7 @@ class DemoLoginSeeder extends Seeder
 
         $this->agencyProfile($principal, 'Demo', 'Principal', $agency, PersonType::LicensedProducer, 92);
 
-        [$colleague] = DemoPeople::user('demo-agency.person02@properx.test', 'Demo Colleague', Role::Member);
+        [$colleague] = DemoPeople::user('demo-agency.'.Str::slug($this->local).'.person02@properx.test', 'Demo Colleague', Role::Member);
         $this->agencyProfile($colleague, 'Demo', 'Colleague', $agency, PersonType::AgencyEmployee, 93);
 
         $agency->forceFill(['principal_user_id' => $principal->getKey()])->saveQuietly();
@@ -162,8 +171,8 @@ class DemoLoginSeeder extends Seeder
     private function agencyProfile(User $user, string $first, string $last, Agency $agency, PersonType $type, int $index): void
     {
         $license = $type === PersonType::AgencyEmployee ? [] : [
-            'npn' => sprintf('%08d', 39_000_000 + $index),
-            'license_number' => sprintf('TX-%07d', 9_000_000 + $index),
+            'npn' => sprintf('%08d', 42_000_000 + $this->seed),
+            'license_number' => sprintf('TX-2%06d', $this->seed),
             'license_state' => 'TX',
             'license_type' => 'Life & Health',
             'license_expires_at' => today()->addYear(),

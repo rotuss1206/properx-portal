@@ -61,7 +61,7 @@ environment they get random passwords nobody knows.
 
 Accounts for a real inbox: set `DEMO_LOGIN_EMAIL=you@example.com` before seeding. `DemoLoginSeeder` then
 creates `you+director@`, `you+coordinator@`, `you+compliance@`, `you+member@` and `you+agency@example.com`
-(principal of "Demo Login Agency LLC") with random passwords that are never shown (seeder output can end up
+(principal of its own two-person "Demo Agency (you)"; each address gets a separate agency) with random passwords that are never shown (seeder output can end up
 in platform logs); the seeder lists the email addresses only. To sign in, use "Forgot your password?" on
 the login page. If the email does not arrive (e.g. Azure Communication Services is not set up), print the
 same one-time link on the server:
