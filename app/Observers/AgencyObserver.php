@@ -16,7 +16,7 @@ class AgencyObserver
     /**
      * Maintained by the system rather than edited by a person.
      */
-    private const SYSTEM_ATTRIBUTES = ['headcount', 'updated_at'];
+    private const SYSTEM_ATTRIBUTES = ['headcount', 'updated_at', 'agency_npn_index', 'fein_index'];
 
     public function created(Agency $agency): void
     {
@@ -28,15 +28,19 @@ class AgencyObserver
     public function updated(Agency $agency): void
     {
         if ($agency->wasChanged('principal_user_id')) {
-            AuditLog::record('agency_principal_changed', $agency);
+            AuditLog::record('agency_principal_changed', $agency, details: [
+                'from_user_id' => $agency->getOriginal('principal_user_id'),
+                'to_user_id' => $agency->principal_user_id,
+            ]);
 
             $agency->syncPrincipal($agency->getOriginal('principal_user_id'));
         }
 
         $edited = array_diff(array_keys($agency->getChanges()), [...self::SYSTEM_ATTRIBUTES, 'principal_user_id']);
 
+        // Field names only: the values (addresses, FEIN, phone) are PHI and stay out of the log.
         if ($edited !== []) {
-            AuditLog::record('agency_updated', $agency);
+            AuditLog::record('agency_updated', $agency, details: ['fields' => array_values($edited)]);
         }
     }
 

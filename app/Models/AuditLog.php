@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 /**
  * Append-only: rows are never updated, so there is no updated_at column.
  */
-#[Fillable(['user_id', 'action', 'resource_type', 'resource_id', 'ip_address', 'user_agent'])]
+#[Fillable(['user_id', 'action', 'resource_type', 'resource_id', 'details', 'ip_address', 'user_agent'])]
 class AuditLog extends Model
 {
     /** @use HasFactory<AuditLogFactory> */
@@ -47,6 +47,8 @@ class AuditLog extends Model
         'agency_updated',
         'agency_deleted',
         'agency_principal_changed',
+        'agency_tier_changed',
+        'agency_rate_type_changed',
         'agency_member_added',
         'agency_member_removed',
         'partner_code_created',
@@ -54,10 +56,20 @@ class AuditLog extends Model
         'partner_code_deleted',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'details' => 'array',
+        ];
+    }
+
     /**
      * Append an entry for the current request (IP, user agent, signed-in user).
+     *
+     * @param  array<string, mixed>  $details  what changed, never PHI: record IDs, role and field
+     *                                         names, enum values (shown by the Nova Audit Log)
      */
-    public static function record(string $action, ?Model $resource = null, ?User $user = null): self
+    public static function record(string $action, ?Model $resource = null, ?User $user = null, array $details = []): self
     {
         $request = request();
 
@@ -66,6 +78,7 @@ class AuditLog extends Model
             'action' => $action,
             'resource_type' => $resource?->getMorphClass(),
             'resource_id' => $resource?->getKey(),
+            'details' => $details === [] ? null : $details,
             'ip_address' => $request->ip(),
             'user_agent' => Str::limit((string) $request->userAgent(), 1000, ''),
         ]);

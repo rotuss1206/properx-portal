@@ -32,6 +32,19 @@ class MyLicense extends Table
             return [];
         }
 
+        if ($profile->isAgencyEmployee()) {
+            return [
+                MetricTableRow::make()
+                    ->icon('information-circle')
+                    ->iconClass('text-gray-400')
+                    ->title('License: not applicable')
+                    ->subtitle('Agency employees join without a license of their own.')
+                    ->actions(fn () => [MenuItem::link('Open my profile', "/resources/member-profiles/{$profile->getKey()}")]),
+
+                $this->membershipRow($profile),
+            ];
+        }
+
         [$icon, $class] = match ($profile->license_status) {
             LicenseStatus::Active => ['check-circle', 'text-green-500'],
             LicenseStatus::Expiring => ['exclamation-circle', 'text-amber-500'],

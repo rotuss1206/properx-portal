@@ -2,6 +2,7 @@
 
 namespace App\Nova;
 
+use App\Enums\AgencyRole;
 use App\Enums\LicenseStatus;
 use App\Enums\MemberStatus;
 use App\Enums\MemberType;
@@ -35,6 +36,9 @@ use Laravel\Nova\Panel;
 class MemberProfile extends Resource
 {
     public static $model = \App\Models\MemberProfile::class;
+
+    /** Badge value for people without a license status (agency employees). */
+    private const NO_LICENSE = 'none';
 
     public static $search = ['first_name', 'last_name', 'license_number'];
 
@@ -77,7 +81,27 @@ class MemberProfile extends Resource
 
     public static function indexQuery(NovaRequest $request, Builder $query): Builder
     {
-        return static::ownRecordsUnless($request, $query, 'members.view');
+        $query = static::ownRecordsUnless($request, $query, 'members.view');
+
+        if (! static::isAgencyRoster($request)) {
+            return $query;
+        }
+
+        // Unless a column is sorted: the principal first ("principal" sorts after "member"),
+        // then by name. Nova applies its default "id desc" before this, hence reorder().
+        return $query->with('user')->when(blank($request->get('orderBy')), fn (Builder $query) => $query
+            ->reorder()
+            ->orderByDesc('agency_role')
+            ->orderBy('last_name')
+            ->orderBy('first_name'));
+    }
+
+    /**
+     * The People list on an agency (Agency spec 7).
+     */
+    private static function isAgencyRoster(NovaRequest $request): bool
+    {
+        return $request->viaResource === Agency::uriKey() && $request->viaRelationship === 'members' && $request->isResourceIndexRequest();
     }
 
     public static function relatableQuery(NovaRequest $request, Builder $query): Builder
@@ -87,6 +111,10 @@ class MemberProfile extends Resource
 
     public function fields(NovaRequest $request): array
     {
+        if (static::isAgencyRoster($request)) {
+            return $this->rosterFields();
+        }
+
         return [
             ID::make()->sortable(),
 
@@ -115,6 +143,46 @@ class MemberProfile extends Resource
     }
 
     /**
+     * Agency spec 7: who is on the roster and how far their invitation got. Agency people have
+     * no license number, type or expiry date (Agency spec 3.5); employees have no NPN or state.
+     *
+     * @return array<int, Field>
+     */
+    private function rosterFields(): array
+    {
+        $profile = $this->resource;
+        $licensed = ! $profile->isAgencyEmployee();
+
+        return [
+            ID::make()->sortable(),
+            Text::make('Name', fn () => $profile->fullName()),
+            Text::make('Email', fn () => $profile->user?->email),
+            Text::make('Person Type', fn () => $profile->person_type?->label()),
+            Badge::make('Agency Role', fn () => $profile->agency_role?->value)
+                ->map([AgencyRole::Principal->value => 'success', AgencyRole::Member->value => 'info'])
+                ->labels(self::enumOptions(AgencyRole::cases())),
+            Text::make('NPN', fn () => $licensed ? $profile->npn : null),
+            Text::make('Resident State', fn () => $licensed ? (UsStates::ALL[$profile->license_state] ?? null) : null),
+            Text::make('Invite Status', fn () => $profile->invite_status?->label()),
+            Text::make('Status', fn () => $profile->status?->label()),
+        ];
+    }
+
+    /**
+     * License number, type and expiry date are not collected for agency people (Agency spec
+     * 3.5): hidden for them, the columns kept for individual members (expand-then-contract).
+     */
+    private static function individualLicenseOnly(Field $field): Field
+    {
+        $inAgency = fn (NovaRequest $request, $resource) => $resource->agency_id !== null;
+
+        return $field
+            ->resolveUsing(fn ($value, $resource) => $resource->agency_id !== null ? null : $value)
+            ->hideFromDetail($inAgency)
+            ->hideWhenUpdating($inAgency);
+    }
+
+    /**
      * @return array<int, Field>
      */
     private function licenseFields(): array
@@ -125,7 +193,7 @@ class MemberProfile extends Resource
 
             Text::make('NPN', 'npn')->rules('nullable', 'max:20'),
 
-            Text::make('License Number')->rules('nullable', 'max:50')->sortable(),
+            self::individualLicenseOnly(Text::make('License Number')->rules('nullable', 'max:50')->sortable()),
 
             Select::make('License State')
                 ->options(UsStates::ALL)
@@ -133,24 +201,28 @@ class MemberProfile extends Resource
                 ->rules('nullable', 'size:2')
                 ->filterable(),
 
-            Select::make('License Type')
+            self::individualLicenseOnly(Select::make('License Type')
                 ->options(array_combine(\App\Models\MemberProfile::LICENSE_TYPES, \App\Models\MemberProfile::LICENSE_TYPES))
                 ->rules('nullable', 'max:100')
-                ->filterable(),
+                ->filterable()),
 
-            Date::make('License Expires At')
+            self::individualLicenseOnly(Date::make('License Expires At')
                 ->rules('nullable', 'date')
                 ->sortable()
-                ->filterable(),
+                ->filterable()),
 
+            // Agency employees hold no license: no status (shown as a dash).
             Badge::make('License Status')
+                ->resolveUsing(fn ($value) => ($value instanceof LicenseStatus ? $value->value : $value) ?? self::NO_LICENSE)
                 ->map([
                     LicenseStatus::Active->value => 'success',
                     LicenseStatus::Expiring->value => 'warning',
                     LicenseStatus::Expired->value => 'danger',
+                    self::NO_LICENSE => 'info',
                 ])
                 ->labels(collect(LicenseStatus::cases())
                     ->mapWithKeys(fn (LicenseStatus $status) => [$status->value => Str::headline($status->value)])
+                    ->put(self::NO_LICENSE, '—')
                     ->all())
                 ->withIcons()
                 ->sortable()
@@ -216,7 +288,7 @@ class MemberProfile extends Resource
     }
 
     /**
-     * @param  list<MemberType|PersonType|MemberStatus>  $cases
+     * @param  list<MemberType|PersonType|MemberStatus|AgencyRole>  $cases
      * @return array<string, string>
      */
     private static function enumOptions(array $cases): array

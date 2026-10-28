@@ -18,6 +18,7 @@ class ExpiringLicenses extends Value
     {
         // By date rather than stored status, so it is accurate even before the daily job runs.
         $count = MemberProfile::query()
+            ->licensed()
             // Compare plain dates: a datetime bound would drop licenses expiring today on some drivers.
             ->whereBetween('license_expires_at', [today()->toDateString(), today()->addDays(LicenseStatus::EXPIRING_WINDOW_DAYS)->toDateString()])
             ->count();

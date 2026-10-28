@@ -82,6 +82,8 @@ class ReferenceData
         'certificates.sign',
         'audit-logs.view',
         'agencies.delete',
+        // Change tier / Change rate type actions; normally both follow from headcount and payment date.
+        'agencies.pricing.override',
     ];
 
     public const SERVICE_ACCOUNT_EMAIL = 'api-service@properx.test';

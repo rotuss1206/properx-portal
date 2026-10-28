@@ -15,6 +15,8 @@ use Carbon\CarbonInterface;
 use Database\Factories\MemberProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -77,8 +79,12 @@ class MemberProfile extends Model
             $profile->agency?->syncHeadcount();
         });
 
+        // Employees hold no license (Agency spec 3.5): no license status. Runs after
+        // syncMembershipType(), which defaults the person type of agency members.
         static::saving(function (self $profile) {
-            if ($profile->isDirty('license_expires_at') || $profile->license_status === null) {
+            if ($profile->isAgencyEmployee()) {
+                $profile->license_status = null;
+            } elseif ($profile->isDirty(['license_expires_at', 'person_type']) || $profile->license_status === null) {
                 $profile->license_status = LicenseStatus::fromExpiryDate($profile->license_expires_at);
             }
         });
@@ -160,6 +166,24 @@ class MemberProfile extends Model
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    public function isAgencyEmployee(): bool
+    {
+        return $this->person_type === PersonType::AgencyEmployee;
+    }
+
+    /**
+     * People who hold a license: everyone except agency employees (individual members have no person type).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function licensed(Builder $query): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->whereNull($query->qualifyColumn('person_type'))
+            ->orWhere($query->qualifyColumn('person_type'), '!=', PersonType::AgencyEmployee->value));
     }
 
     public function isAgencyPrincipal(): bool

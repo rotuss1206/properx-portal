@@ -30,6 +30,11 @@ class MemberProfileObserver
      */
     private const ROSTER_ATTRIBUTES = ['agency_id', 'member_type', 'agency_role'];
 
+    /**
+     * Blind indexes follow their encrypted field and are not listed separately.
+     */
+    private const INDEX_ATTRIBUTES = ['member_number_index', 'npn_index', 'certificate_code_index'];
+
     public function __construct(private CertificateGeneratorService $certificates) {}
 
     public function created(MemberProfile $profile): void
@@ -58,8 +63,11 @@ class MemberProfileObserver
         // Joining an agency also defaults the person type; that is part of the roster change.
         $roster = $profile->wasChanged('agency_id') ? [...self::ROSTER_ATTRIBUTES, 'person_type'] : self::ROSTER_ATTRIBUTES;
 
-        if (array_diff(array_keys($profile->getChanges()), [...self::SYSTEM_ATTRIBUTES, ...$roster]) !== []) {
-            AuditLog::record('profile_updated', $profile);
+        $edited = array_diff(array_keys($profile->getChanges()), [...self::SYSTEM_ATTRIBUTES, ...$roster, ...self::INDEX_ATTRIBUTES]);
+
+        // Field names only, never the values.
+        if ($edited !== []) {
+            AuditLog::record('profile_updated', $profile, details: ['fields' => array_values($edited)]);
         }
     }
 

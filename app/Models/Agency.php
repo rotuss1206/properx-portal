@@ -8,8 +8,10 @@ use App\Enums\AgencyTier;
 use App\Enums\AgencyType;
 use App\Enums\RateType;
 use App\Enums\Role;
+use App\Exceptions\IneligiblePrincipalException;
 use App\Models\Concerns\HasBlindIndexes;
 use App\Observers\AgencyObserver;
+use App\Services\Agencies\AgencyPricingService;
 use Database\Factories\AgencyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -79,6 +81,53 @@ class Agency extends Model
                 $agency->mailing_address = null;
             }
         });
+
+        // Tier and rate type are not chosen by hand (Agency spec 3): the tier follows the
+        // headcount and the rate type the payment date. Staff override them with Nova actions.
+        static::creating(function (self $agency) {
+            $agency->tier ??= AgencyTier::forHeadcount(max($agency->headcount, (int) config('agency.minimum_headcount')));
+            $agency->rate_type ??= app(AgencyPricingService::class)->rateTypeFor(now());
+        });
+
+        // Also enforced here, not only in Nova: a forged request or other code path cannot
+        // make an employee or someone from another agency the principal.
+        static::saving(function (self $agency) {
+            if ($agency->principal_user_id !== null && $agency->isDirty('principal_user_id')) {
+                $problem = $agency->principalProblem(User::query()->with('memberProfile')->find($agency->principal_user_id));
+
+                if ($problem !== null) {
+                    throw new IneligiblePrincipalException($problem);
+                }
+            }
+        });
+    }
+
+    /**
+     * Why $user cannot lead this agency, or null if they can: a licensed producer with an NPN
+     * (individual members count as licensed) on this agency's roster. An agency without
+     * people yet (just created) may take an individual member who is on no agency.
+     */
+    public function principalProblem(?User $user): ?string
+    {
+        $profile = $user?->memberProfile;
+
+        if ($user === null || $profile === null || ! $user->hasRole(Role::Member->value)) {
+            return 'The principal must be a member with a member profile.';
+        }
+
+        if ($profile->isAgencyEmployee() || blank($profile->npn)) {
+            return 'The principal must be a licensed producer with an NPN; agency employees cannot lead an agency.';
+        }
+
+        if ($profile->agency_id !== null && $profile->agency_id !== $this->getKey()) {
+            return 'This person belongs to another agency.';
+        }
+
+        if ($profile->agency_id === null && $this->exists && $this->members()->exists()) {
+            return "Choose the principal from this agency's people.";
+        }
+
+        return null;
     }
 
     protected function casts(): array

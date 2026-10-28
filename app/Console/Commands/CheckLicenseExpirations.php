@@ -41,7 +41,9 @@ class CheckLicenseExpirations extends Command
         $outOfTime = false;
 
         try {
+            // Agency employees hold no license: no status and no expiry reminders.
             MemberProfile::query()
+                ->licensed()
                 ->with(['user.notificationSettings'])
                 ->chunkById(200, function ($profiles) use ($today, $deadline, &$outOfTime) {
                     foreach ($profiles as $profile) {

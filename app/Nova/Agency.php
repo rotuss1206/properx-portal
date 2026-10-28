@@ -7,6 +7,9 @@ use App\Enums\AgencyTier;
 use App\Enums\AgencyType;
 use App\Enums\RateType;
 use App\Enums\Role;
+use App\Nova\Actions\ChangeAgencyRateType;
+use App\Nova\Actions\ChangeAgencyTier;
+use App\Rules\EligiblePrincipal;
 use App\Rules\UniqueBlindIndex;
 use App\Services\Agencies\AgencyPricingService;
 use App\Services\Agencies\AgencyQuote;
@@ -107,19 +110,23 @@ class Agency extends Resource
                 ->hideFromIndex()
                 ->filterable(),
 
+            // Read-only (Agency spec 3): the tier follows the headcount, the rate type is locked at
+            // payment. The Executive Director overrides them with the Change tier / rate type actions.
             Select::make('Tier')
                 ->options(self::enumOptions(AgencyTier::cases()))
                 ->displayUsingLabels()
-                ->rules('required', Rule::enum(AgencyTier::class))
-                ->help('Follows the headcount at enrollment and renewal; crossing up moves everyone to the lower rate.')
+                ->readonly()
+                ->hideWhenCreating()
+                ->help('Follows the headcount. To override it, use the "Change tier" action.')
                 ->sortable()
                 ->filterable(),
 
             Select::make('Rate Type')
                 ->options(self::enumOptions(RateType::cases()))
                 ->displayUsingLabels()
-                ->rules('required', Rule::enum(RateType::class))
-                ->help('Founding rates stay locked while the agency remains a member without a break.')
+                ->readonly()
+                ->hideWhenCreating()
+                ->help('Founding rates are locked at payment and stay while the agency remains a member without a break. To override it, use the "Change rate type" action.')
                 ->filterable(),
 
             Text::make('Rate', fn () => ($quote = $this->quote()) ? Money::format($quote->rate).' / person' : '—')
@@ -148,15 +155,27 @@ class Agency extends Resource
                 ->onlyOnForms(),
 
             // Reassigning the principal moves the Agency Principal role (staff only, never self-serve).
+            // Licensed producers with an NPN on this agency's roster (a new agency without people:
+            // an individual member on no agency). Checked again by Agency::principalProblem() on save.
             BelongsTo::make('Principal', 'principal', Member::class)
                 ->searchable()
-                ->rules('required')
-                ->relatableQueryUsing(fn (NovaRequest $request, Builder $query) => $query
-                    ->role(Role::Member->value)
-                    ->whereHas('memberProfile', fn (Builder $profile) => $profile
-                        ->whereNull('agency_id')
-                        ->when($request->resourceId, fn (Builder $profile) => $profile->orWhere('agency_id', $request->resourceId))))
-                ->help('A member who is not on another agency. The previous principal stays on the roster as a member.'),
+                ->rules('required', new EligiblePrincipal($this->agencyBeingEdited($request)))
+                ->relatableQueryUsing(function (NovaRequest $request, Builder $query) {
+                    $agency = $this->agencyBeingEdited($request);
+                    $onRoster = $agency->exists && $agency->members()->exists();
+
+                    return $query
+                        ->role(Role::Member->value)
+                        ->whereHas('memberProfile', fn (Builder $profile) => $profile
+                            ->licensed()
+                            ->whereNotNull('npn_index')
+                            ->when(
+                                $onRoster,
+                                fn (Builder $profile) => $profile->where('agency_id', $agency->getKey()),
+                                fn (Builder $profile) => $profile->whereNull('agency_id'),
+                            ));
+                })
+                ->help("A licensed producer with an NPN from this agency's people (agency employees cannot lead an agency). The previous principal stays on the roster as a member."),
 
             BelongsTo::make('Partner Code', 'partnerCode', PartnerCode::class)
                 ->nullable()
@@ -251,6 +270,25 @@ class Agency extends Resource
 
             Text::make('Stripe Subscription ID', 'stripe_subscription_id')->onlyOnDetail(),
         ];
+    }
+
+    public function actions(NovaRequest $request): array
+    {
+        $canOverride = fn (Request $request) => (bool) Nova::user($request)?->checkPermissionTo('agencies.pricing.override');
+
+        return [
+            ChangeAgencyTier::make()->canSee($canOverride)->canRun($canOverride),
+            ChangeAgencyRateType::make()->canSee($canOverride)->canRun($canOverride),
+        ];
+    }
+
+    private function agencyBeingEdited(NovaRequest $request): \App\Models\Agency
+    {
+        if ($this->resource->exists) {
+            return $this->resource;
+        }
+
+        return $request->resourceId ? \App\Models\Agency::query()->findOrNew($request->resourceId) : new \App\Models\Agency;
     }
 
     private function quote(): ?AgencyQuote

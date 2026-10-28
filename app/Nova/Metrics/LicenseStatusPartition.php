@@ -15,7 +15,8 @@ class LicenseStatusPartition extends Partition
 
     public function calculate(NovaRequest $request): PartitionResult
     {
-        return $this->count($request, MemberProfile::class, 'license_status')
+        // Agency employees have no license status.
+        return $this->count($request, MemberProfile::query()->licensed(), 'license_status')
             ->label(fn ($value) => Str::headline($value instanceof LicenseStatus ? $value->value : (string) $value))
             ->colors([
                 LicenseStatus::Active->value => '#16a34a',
