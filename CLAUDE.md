@@ -101,6 +101,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
   - Alerts the Executive Director on errors.
 - Mail: default mailer `azure` (`App\Mail\AcsTransportFactory` parses `KEENEY_ACS_CONNECTION_STRING`; sender `KEENEY_MAIL_FROM` / `KEENEY_MAIL_FROM_NAME`). Use `log` locally.
   - Email bodies contain no PHI (no names, license numbers, dates): they only link back to the portal.
+  - Branding: published templates in `resources/views/vendor/mail` (header, message, layout, theme) and `vendor/notifications/email.blade.php` use `config('portal.brand')` ("ProPerx Alliance", Nova colours), never `app.name`; the header is a text logo (no remote images, Outlook blocks them). Only the customised templates are published. `MailBrandingTest` renders the reset, reminder and task-failure emails with `app.name = Laravel` and checks no framework branding or PHI.
 
 ## Agency membership (spec "ProPerx Agency Membership", Option B)
 

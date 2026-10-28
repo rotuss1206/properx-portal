@@ -17,7 +17,7 @@ the root `README.md`, owned by KEENEY. This file describes the application.
 | Roles | spatie/laravel-permission: Executive Director, Membership Coordinator, Compliance Specialist, Member, Agency Principal, API Service |
 | Database | MySQL 8 (TLS with a verified certificate when `MYSQL_ATTR_SSL_CA` is set) |
 | Files | Private Azure Blob container (`azure-oss/storage-blob-laravel`), managed identity; Azurite locally |
-| Mail | Azure Communication Services (`symfony/azure-mailer`); no PHI in bodies |
+| Mail | Azure Communication Services (`symfony/azure-mailer`); no PHI in bodies; ProPerx Alliance templates (`resources/views/vendor/mail`, `config portal.brand`) |
 | PDF | barryvdh/laravel-dompdf, hardened (`config/dompdf.php`) |
 | Payments | Stripe webhooks only (`stripe/stripe-php`); the portal takes no payments |
 

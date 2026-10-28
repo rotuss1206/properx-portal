@@ -16,6 +16,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Brand (emails)
+    |--------------------------------------------------------------------------
+    |
+    | Header, signature and footer of every email (resources/views/vendor/mail and
+    | vendor/notifications). Fixed rather than APP_NAME, so mail never shows framework
+    | branding when a server leaves APP_NAME unset. Colours match the Nova palette
+    | (config/nova.php "brand": 800 navy, 600 for buttons).
+    |
+    */
+
+    'brand' => [
+        'name' => 'ProPerx Alliance',
+        'tagline' => 'Member Portal',
+        'navy' => '#1e3a5f',
+        'button' => '#21579d',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Document encryption and uploads
     |--------------------------------------------------------------------------
     |
