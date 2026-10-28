@@ -106,6 +106,7 @@ SSO with external identity providers, member-to-member messaging, events and cal
 
 ## Agency membership (spec "ProPerx Agency Membership", Option B)
 
+- Requirements: [docs/specs/agency-membership.md](docs/specs/agency-membership.md) (English summary of the client spec; cite as "Agency spec §N"). We build **Option B** (Agency spec §12). The spec lives in this repository only: `sync-to-keeney.ps1` copies no `docs/` file except `docs/PORTAL.md`.
 - Agencies enroll 2+ people on one annual invoice. `agencies` (identifiers and contact details encrypted; `agency_npn`, `fein` with blind indexes), `partner_codes` (MGA/FMO; `PartnerCode::findValid()`).
 - Every person is a user (Member role) with a `member_profiles` row: `agency_id`, `agency_role` (principal/member), `person_type` (licensed producer/agency employee, employees have no NPN), `invite_status`, `status`. `member_type` follows `agency_id` (set in `MemberProfile::syncMembershipType()`).
 - `headcount` follows the roster automatically (`Agency::syncHeadcount()`, saved quietly). The tier is not changed automatically: dropping below a tier changes the rate only at renewal.
