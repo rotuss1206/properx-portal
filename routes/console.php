@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AgencyRegistrationDraft;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -15,4 +16,10 @@ Schedule::command('app:check-license-expirations')
     ->cron('0 2-5 * * *')
     ->timezone(config('portal.schedule_timezone'))
     ->withoutOverlapping(5)
+    ->onOneServer();
+
+// Unfinished agency enrollments are kept for portal.registration.draft_days after their last save.
+Schedule::command('model:prune', ['--model' => [AgencyRegistrationDraft::class]])
+    ->dailyAt('01:30')
+    ->timezone(config('portal.schedule_timezone'))
     ->onOneServer();

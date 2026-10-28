@@ -4,6 +4,7 @@ use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\VerifyCertificateController;
 use App\Http\Middleware\RequireTwoFactor;
+use App\Livewire\AgencyRegistration\Wizard;
 use Illuminate\Support\Facades\Route;
 
 // The portal lives in Nova; the bare domain sends visitors there.
@@ -26,3 +27,9 @@ Route::get('/verify-certificate/{code}', VerifyCertificateController::class)
     ->where('code', '[A-Za-z0-9\-]{1,40}')
     ->middleware('throttle:certificate-verification')
     ->name('certificates.verify');
+
+// Public agency enrollment (agency membership spec, "Enrollment flow"). Livewire round trips
+// go to the update route registered in AppServiceProvider, throttled per IP as well.
+Route::livewire('/join/agency', Wizard::class)
+    ->middleware('throttle:agency-registration')
+    ->name('join.agency');

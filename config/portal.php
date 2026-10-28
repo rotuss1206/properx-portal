@@ -114,6 +114,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Agency enrollment (/join/agency)
+    |--------------------------------------------------------------------------
+    |
+    | Public six-step wizard. "Just me" sends visitors to the individual application
+    | on the marketing site (a Gravity Form run by KEENEY, outside the portal). The
+    | draft (encrypted) is kept for draft_days after its last save.
+    |
+    */
+
+    'registration' => [
+        'individual_url' => env('INDIVIDUAL_MEMBERSHIP_URL'),
+        'draft_days' => 30,
+        // Per IP: page loads, and Livewire round trips (every "Continue", "Back", blurred field).
+        'page_requests_per_minute' => 30,
+        'livewire_requests_per_minute' => 120,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Scheduled jobs
     |--------------------------------------------------------------------------
     |

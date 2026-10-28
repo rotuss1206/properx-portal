@@ -87,6 +87,23 @@ application log. Every account must enrol in 2FA on first login unless `NOVA_REQ
 | `member06@` … `member30@properx.test` | Member | Fixed mix of license and payment states |
 | `api-service@properx.test` | API Service | Machine account, cannot log in (random password) |
 
+## Agency enrollment (/join/agency)
+
+Public wizard, no login: https://properx-portal.local/join/agency. Useful links:
+
+| Link | Opens |
+|---|---|
+| `/join/agency` | Screen 1 (who is joining, partner code) |
+| `/join/agency?partner=CODE` | Screen 1 with the partner code filled in (QR links of MGA/FMO partners) |
+| `/join/agency?tier=agency-plus` | Screen 2 with the tier preselected (`agency`, `agency-plus`, `agency-enterprise`, or the tier values from `config/agency.php`) |
+
+Partner codes are managed in Nova (Agencies → Partner Codes). "Just me" links to
+`INDIVIDUAL_MEMBERSHIP_URL`. Answers are saved encrypted after each step
+(`agency_registration_drafts`); the session keeps the draft id, so a new browser session starts over
+(the "continue later" email comes with Option B). Screens 5 and 6 are placeholders.
+
+Livewire runs in CSP-safe mode and needs no `npm run build`.
+
 ## Health probes
 
 | Endpoint | Use | Checks |

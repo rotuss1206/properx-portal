@@ -19,12 +19,14 @@ the root `README.md`, owned by KEENEY. This file describes the application.
 | Files | Private Azure Blob container (`azure-oss/storage-blob-laravel`), managed identity; Azurite locally |
 | Mail | Azure Communication Services (`symfony/azure-mailer`); no PHI in bodies; ProPerx Alliance templates (`resources/views/vendor/mail`, `config portal.brand`) |
 | PDF | barryvdh/laravel-dompdf, hardened (`config/dompdf.php`) |
+| Public forms | Livewire 4 in CSP-safe mode (`config/livewire.php`), scripts from Livewire's own route with the CSP nonce; agency enrollment at `/join/agency` |
 | Payments | Stripe webhooks only (`stripe/stripe-php`); the portal takes no payments |
 
 Main features: member profiles with encrypted identifiers (blind indexes for lookups),
 license and tax documents (encrypted, streamed through short-lived signed routes after a
 policy check), a compliance library, membership certificates with public verification,
-license expiry reminders, agency membership (agencies, partner codes, pricing), Stripe
+license expiry reminders, agency membership (agencies, partner codes, pricing, public
+enrollment wizard), Stripe
 payment status, health probes and an audit log.
 
 ## Local setup
@@ -98,5 +100,6 @@ Production values are App Service settings and Key Vault references (root `READM
 | `API_SERVICE_KEY` | API key for external callers of `/api/service/*` (later `/api/intake/*`); `php artisan app:api-key:rotate`, quarterly. Not needed by the Stripe webhook |
 | `STRIPE_WEBHOOK_SECRET`, `PAYMENT_PORTAL_URL`, `PAYMENT_GRACE_DAYS` | Stripe membership payment status |
 | `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise) |
+| `INDIVIDUAL_MEMBERSHIP_URL` | Individual application on the marketing site ("Just me" on `/join/agency`) |
 | `AZURE_CLIENT_ID` | Client ID of a user-assigned managed identity, if one is used |
 | `NOVA_LICENSE_KEY` | Nova licence key |

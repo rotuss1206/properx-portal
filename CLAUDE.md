@@ -11,6 +11,7 @@ Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in 
 - **Laravel 13**, PHP 8.4, MySQL.
 - **Laravel Nova 5.11**: staff admin panel and member area (`/nova`). Installed and upgraded manually by the project owner; agents do not install it.
 - **Laravel Fortify** (bundled with Nova): login, password reset, TOTP 2FA with recovery codes.
+- **Livewire 4** (public forms only, `/join/agency`): `csp_safe` mode, because Livewire 3 compiles `wire:` expressions with `new Function` and the CSP has no `unsafe-eval`. Assets come from Livewire's route (`@livewireScripts` with the Vite nonce, `inject_assets` off); no Vite build needed.
 - **spatie/laravel-permission**: roles and permissions (`HasRoles` trait on `App\Models\User`).
 - **barryvdh/laravel-dompdf**: membership certificate PDF.
 - **Azure Communication Services** (`symfony/azure-mailer`, `Mail::extend('azure')`): transactional email; the only mail provider allowed by the KEENEY platform (`MAIL_MAILER=log` locally).
@@ -113,6 +114,12 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Nova (group "Agencies"): `Agency` (tier, rate type, rate, headcount, status; filters by type, tier, rate type and status; People = roster; principal reassignment) and `PartnerCode`. Staff-only: both resources override `authorizedTo()` to require `agencies.view`, so a principal's own-agency rights in `AgencyPolicy` do not open Nova screens. Staff move people between agencies on the member profile ("Agency Membership" panel); members see those fields read-only. Encrypted uniqueness: `App\Rules\UniqueBlindIndex`; per-field index normalisation via `normalizeForBlindIndex()` (FEIN/NPN digits only).
 - Seeders run with model events muted: `AgencySeeder` calls `syncPrincipal()` / `syncHeadcount()` itself. Accounts: `principal01@` … `principal03@properx.test` (5, 12 and 55 people), people `agency01.person02@properx.test` etc.
 - Audited: `agency_created/updated/deleted`, `agency_principal_changed`, `agency_member_added/removed`, `partner_code_created/updated/deleted`.
+- Enrollment wizard (public, `/join/agency`, `App\Livewire\AgencyRegistration\Wizard`, layout `join/layout.blade.php`): six screens, 1–4 done (Membership type, Tier, Agency, Principal), 5–6 placeholders. One `StepForm` per screen (`rules()`, `normalize()`, `toDraft()`/`fillFromDraft()`); "Continue" validates the current screen, "Back" and the progress indicator save without validating; `step`/`furthestStep` are `#[Locked]`.
+  - Draft: `agency_registration_drafts` (`data` `encrypted:array`, `token_hash` for a future continue link, `expires_at` 30 days after the last save, pruned daily by `model:prune`); the session holds only the draft id (`Wizard::SESSION_KEY`). Created on the first "Continue", not on page load.
+  - Query parameters: `?partner=CODE` fills the partner code; `?tier=agency_10to49` or `?tier=agency-plus` preselects the tier and opens screen 2.
+  - Price block: `AgencyPricingService::quote()` for the chosen tier's minimum headcount until the People screen exists.
+  - Duplicates: principal email against `users.email`, NPN, agency NPN and FEIN through blind indexes ("Please contact ProPerx"). Legal address: `App\Rules\NotPoBox`; phones: `App\Rules\UsPhone`.
+  - Rate limits per IP: `agency-registration` (page) and `livewire` (Livewire's update route, replaced in `AppServiceProvider` with the same path). Nothing is logged.
 
 ## Stripe payment status (Spec 7)
 
