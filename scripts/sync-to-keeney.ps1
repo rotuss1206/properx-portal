@@ -50,7 +50,9 @@ $PlatformPatterns = @('^\.git/', '^azure-pipelines-[^/]*\.yml$', '^pipelines/')
 
 # Never copied, wherever they appear.
 $ExcludedNames = @('CLAUDE.md', 'AGENTS.md', '.mcp.json', 'boost.json', '.env', 'auth.json', '.phpunit.result.cache')
-$ExcludedDirectories = @('.claude', '.ai', '.vscode', '.idea', '.osp', 'vendor', 'node_modules', 'scripts')
+$ExcludedDirectories = @('.claude', '.ai', '.vscode', '.idea', '.osp')
+# Only at the repository root: resources/views/vendor (published mail templates) is application code.
+$ExcludedRootDirectories = @('vendor', 'node_modules', 'scripts')
 
 # Areas named in the suggested commit message. A changed path (lower case) belongs to the first
 # area whose pattern matches it; file names count, so tests and migrations land in their area.
@@ -116,6 +118,7 @@ function Test-Platform([string] $Path) {
 function Test-Excluded([string] $Path) {
     $segments = $Path -split '/'
     if ($ExcludedNames -contains $segments[-1]) { return $true }
+    if ($ExcludedRootDirectories -contains $segments[0]) { return $true }
     foreach ($segment in $segments[0..($segments.Count - 1)]) {
         if ($ExcludedDirectories -contains $segment) { return $true }
     }
