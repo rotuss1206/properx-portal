@@ -6,6 +6,7 @@ use App\Enums\AgencyTier;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Models\User;
+use App\Nova\Actions\ChangeAgencyPricing;
 use App\Nova\Filters\AuditResourceType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -144,6 +145,8 @@ class AuditLog extends Resource
 
     private static function fromTo(string $what, ?string $from, ?string $to, ?string $reason): string
     {
+        $reason = $reason === null ? null : (ChangeAgencyPricing::REASONS[$reason] ?? $reason);
+
         return "{$what}: ".($from ?? '—').' → '.($to ?? '—').($reason ? ". Reason: {$reason}" : '');
     }
 

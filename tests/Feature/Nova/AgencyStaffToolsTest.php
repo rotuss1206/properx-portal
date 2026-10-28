@@ -278,23 +278,32 @@ class AgencyStaffToolsTest extends TestCase
             'resources' => (string) $agency->id,
             'value' => 'agency_10to49',
             'reason' => 'Board-approved exception for a merger.',
+        ])->assertJsonValidationErrors(['reason']);
+
+        $this->postJson('/nova-api/agencies/action?action=change-agency-tier', [
+            'resources' => (string) $agency->id,
+            'value' => 'agency_10to49',
+            'reason' => 'approved_pricing_exception',
         ])->assertOk();
 
         $this->assertSame(AgencyTier::AgencyPlus, $agency->fresh()->tier);
 
         $log = AuditLog::query()->where('action', 'agency_tier_changed')->sole();
         $this->assertSame($director->id, $log->user_id);
-        $this->assertSame(['from' => 'agency_2to9', 'to' => 'agency_10to49', 'reason' => 'Board-approved exception for a merger.'], $log->details);
+        $this->assertSame(['from' => 'agency_2to9', 'to' => 'agency_10to49', 'reason' => 'approved_pricing_exception'], $log->details);
         $this->assertSame(0, AuditLog::query()->where('action', 'agency_updated')->count());
+
+        $changes = collect($this->getJson("/nova-api/audit-logs/{$log->id}")->assertOk()->json('resource.fields'))->firstWhere('name', 'Changes');
+        $this->assertSame('Tier: Agency → Agency Plus. Reason: Approved pricing exception', $changes['value']);
 
         $this->postJson('/nova-api/agencies/action?action=change-agency-rate-type', [
             'resources' => (string) $agency->id,
             'value' => 'standard',
-            'reason' => 'Membership lapsed in 2026.',
+            'reason' => 'renewal_adjustment',
         ])->assertOk();
 
         $this->assertSame(RateType::Standard, $agency->fresh()->rate_type);
-        $this->assertSame(['from' => 'founding', 'to' => 'standard', 'reason' => 'Membership lapsed in 2026.'], AuditLog::query()->where('action', 'agency_rate_type_changed')->sole()->details);
+        $this->assertSame(['from' => 'founding', 'to' => 'standard', 'reason' => 'renewal_adjustment'], AuditLog::query()->where('action', 'agency_rate_type_changed')->sole()->details);
     }
 
     public function test_only_the_executive_director_can_change_tier_or_rate_type(): void
@@ -311,7 +320,7 @@ class AgencyStaffToolsTest extends TestCase
         $status = $this->postJson('/nova-api/agencies/action?action=change-agency-tier', [
             'resources' => (string) $agency->id,
             'value' => 'agency_50plus',
-            'reason' => 'Trying anyway.',
+            'reason' => 'other',
         ])->status();
         $this->assertContains($status, [403, 404]);
 

@@ -11,17 +11,25 @@ use Laravel\Nova\Actions\Action;
 use Laravel\Nova\Actions\ActionResponse;
 use Laravel\Nova\Fields\ActionFields;
 use Laravel\Nova\Fields\Select;
-use Laravel\Nova\Fields\Textarea;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
 /**
  * Manual override of a value that normally follows from the rules (Agency spec 3): the tier
  * from the headcount, the rate type from the payment date. Executive Director only
- * (agencies.pricing.override, checked by the Agency resource), with a mandatory reason.
- * Saved quietly and audited as its own action with from, to and the reason.
+ * (agencies.pricing.override, checked by the Agency resource), with a mandatory reason
+ * picked from a fixed list (no free text, so nothing personal reaches the audit log).
+ * Saved quietly and audited as its own action with from, to and the reason key.
  */
 abstract class ChangeAgencyPricing extends Action
 {
+    public const REASONS = [
+        'data_entry_correction' => 'Data entry correction',
+        'approved_pricing_exception' => 'Approved pricing exception',
+        'renewal_adjustment' => 'Renewal adjustment',
+        'client_request' => 'Client request',
+        'other' => 'Other',
+    ];
+
     /** Agency attribute, e.g. "tier". */
     abstract protected function attribute(): string;
 
@@ -39,9 +47,10 @@ abstract class ChangeAgencyPricing extends Action
                 ->options(collect($this->cases())->mapWithKeys(fn ($case) => [$case->value => $case->label()])->all())
                 ->rules('required', 'in:'.implode(',', array_map(fn ($case) => $case->value, $this->cases()))),
 
-            Textarea::make('Reason')
-                ->rules('required', 'string', 'max:500')
-                ->help('Recorded in the audit log. Describe the decision; do not include personal data.'),
+            Select::make('Reason')
+                ->options(self::REASONS)
+                ->rules('required', 'in:'.implode(',', array_keys(self::REASONS)))
+                ->help('Recorded in the audit log.'),
         ];
     }
 
