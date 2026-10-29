@@ -19,6 +19,9 @@ return [
     'stripe' => [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'webhook_tolerance' => 300,
+        // Per IP. Higher than the rest of the machine API (120): Stripe sends bursts,
+        // e.g. at renewals or when it redelivers after an outage.
+        'webhook_requests_per_minute' => 600,
     ],
 
     // API Service account (Spec 3.7, 8): the plain key comes from the environment

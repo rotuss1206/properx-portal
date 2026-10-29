@@ -173,6 +173,29 @@ class StripeWebhookTest extends TestCase
         $this->assertSame(0, StripeEvent::count());
     }
 
+    public function test_ignored_events_are_acknowledged_even_without_an_api_service_account(): void
+    {
+        $this->memberWithCustomer();
+        $this->service->removeRole('API Service');
+
+        $this->send($this->event('payment_intent.succeeded', ['customer' => 'cus_123']))
+            ->assertOk()
+            ->assertJson(['outcome' => 'ignored']);
+        $this->assertSame(0, StripeEvent::count());
+    }
+
+    public function test_has_its_own_higher_rate_limit(): void
+    {
+        // Above the machine API's 120 per minute, below the webhook's 600.
+        foreach (range(1, 121) as $attempt) {
+            $this->send($this->event('charge.succeeded', ['customer' => 'cus_123']))->assertOk();
+        }
+
+        config(['services.stripe.webhook_requests_per_minute' => 121]);
+
+        $this->send($this->event('charge.succeeded', ['customer' => 'cus_123']))->assertTooManyRequests();
+    }
+
     public function test_works_without_an_api_service_key(): void
     {
         $profile = $this->memberWithCustomer();

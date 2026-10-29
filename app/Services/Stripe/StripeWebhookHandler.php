@@ -28,12 +28,17 @@ class StripeWebhookHandler
         'invoice.payment_failed',
     ];
 
+    public static function handles(Event $event): bool
+    {
+        return in_array($event->type, self::HANDLED_EVENTS, true);
+    }
+
     /**
      * @return string Outcome: duplicate, ignored, unmatched, stale, unchanged or updated.
      */
     public function handle(Event $event, User $serviceAccount): string
     {
-        if (! in_array($event->type, self::HANDLED_EVENTS, true)) {
+        if (! self::handles($event)) {
             return 'ignored';
         }
 

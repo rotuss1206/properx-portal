@@ -41,6 +41,12 @@ class StripeWebhookController extends Controller
             return response()->json(['error' => 'Invalid signature.'], Response::HTTP_BAD_REQUEST);
         }
 
+        // Acknowledge events we do not process before anything that can fail, so Stripe
+        // never retries (or disables the endpoint over) an event that needs no work.
+        if (! StripeWebhookHandler::handles($event)) {
+            return response()->json(['outcome' => 'ignored']);
+        }
+
         $serviceAccount = $serviceAccounts->user();
 
         if ($serviceAccount === null || ! $serviceAccount->checkPermissionTo('webhooks.stripe.handle')

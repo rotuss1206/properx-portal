@@ -132,6 +132,8 @@ SSO with external identity providers, member-to-member messaging, events and cal
 ## Stripe payment status (Spec 7)
 
 - The portal takes no payments. `POST /api/webhooks/stripe` is authenticated by the Stripe signature only (`STRIPE_WEBHOOK_SECRET`, `stripe/stripe-php`; no API key) and runs as the API Service account (`ServiceAccount::user()`) through `App\Services\Stripe\StripeWebhookHandler`.
+- Event types outside `StripeWebhookHandler::HANDLED_EVENTS` get 200 `{"outcome":"ignored"}` right after the signature check, before the service account check. The route has its own rate limit (`stripe-webhook`, `services.stripe.webhook_requests_per_minute`, 600/min per IP) instead of the machine API's 120.
+- Future agency Stripe work (not built yet): the handler must look up `agencies.stripe_customer_id` first and fall back to `member_profiles.stripe_customer_id` only for individual members; the email fallback must never apply to a Stripe customer that belongs to an agency, so an agency event cannot change the principal's personal profile.
 - Idempotency: `stripe_events` (event id primary key). Out-of-order events: ignored when older than `member_profiles.payment_event_at`.
 - `payment_status_updated_at` = when the status last changed; it starts the `PAYMENT_GRACE_DAYS` grace period for `past_due`.
 - `MemberProfile::hasRestrictedMembership()` (canceled, or past due beyond grace) closes certificate, library and license documents for the member; profile, notification settings and tax documents stay open. Login is never blocked.

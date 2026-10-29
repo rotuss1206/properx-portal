@@ -48,6 +48,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(config('portal.registration.page_requests_per_minute'))->by($request->ip());
         });
 
+        RateLimiter::for('stripe-webhook', function (Request $request) {
+            return Limit::perMinute(config('services.stripe.webhook_requests_per_minute'))->by('stripe|'.$request->ip());
+        });
+
         RateLimiter::for('livewire', function (Request $request) {
             return Limit::perMinute(config('portal.registration.livewire_requests_per_minute'))->by($request->ip());
         });
