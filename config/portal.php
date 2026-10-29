@@ -38,6 +38,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Nova sidebar (App\Nova\Menu\SidebarMenu)
+    |--------------------------------------------------------------------------
+    |
+    | Billing has no page yet: the member menu shows it only once this Nova path
+    | (e.g. "/billing") or URL is set.
+    |
+    */
+
+    'menu' => [
+        'billing_path' => env('PORTAL_BILLING_PATH'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Document encryption and uploads
     |--------------------------------------------------------------------------
     |

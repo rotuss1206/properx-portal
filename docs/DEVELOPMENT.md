@@ -79,7 +79,7 @@ application log. Every account must enrol in 2FA on first login unless `NOVA_REQ
 | `director@properx.test` | Executive Director | Everything, including staff and the audit log |
 | `coordinator@properx.test` | Membership Coordinator | Members, license documents, reminder log |
 | `compliance@properx.test` | Compliance Specialist | Library, tax documents, members read-only |
-| `member01@properx.test` | Member | Payment active, full access |
+| `member01@properx.test` | Member | Payment active, full access; membership renews in 76 days ("Renewal due" card) |
 | `member02@properx.test` | Member | Payment past due, within the 14-day grace period (banner) |
 | `member03@properx.test` | Member | Past due beyond the grace period: restricted |
 | `member04@properx.test` | Member | Canceled: restricted |
@@ -138,9 +138,15 @@ the seeder re-registers the key from `.env`, so local calls to `/api/service/*` 
 The portal never takes payments. It only receives the membership payment status from Stripe at
 `POST /api/webhooks/stripe` and verifies every request with `STRIPE_WEBHOOK_SECRET`.
 
-Handled events: `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`,
+Handled events: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`,
 `invoice.payment_failed`. Members are matched by `stripe_customer_id`, otherwise by the invoice
 `customer_email` (the customer id is then stored on the profile). Unmatched events are logged with a warning.
+
+The end of the paid period (`member_profiles.paid_through_at`, shown in the Membership Payment panel and used by
+the sidebar's "Renewal due" card) comes from the subscription items' `current_period_end`
+(`customer.subscription.created` / `.updated`) or the paid invoice lines' `period.end` (`invoice.paid`). It only moves
+forward: an older event never shortens it. `agencies.paid_through_at` exists but is filled once agency customers are
+matched (Stripe work for agencies).
 
 ### Testing locally with the Stripe CLI
 
@@ -149,7 +155,7 @@ Handled events: `customer.subscription.updated`, `customer.subscription.deleted`
 
    ```bash
    stripe listen --forward-to https://properx-portal.local/api/webhooks/stripe --skip-verify \
-       --events customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed
+       --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed
    ```
 
 3. Copy the printed signing secret (`whsec_...`) into `.env` as `STRIPE_WEBHOOK_SECRET`, then run `php artisan config:clear`.
@@ -178,7 +184,7 @@ Handled events: `customer.subscription.updated`, `customer.subscription.deleted`
 
 | Response `outcome` | Meaning |
 |---|---|
-| `updated` | Payment status changed |
+| `updated` | Payment status changed, or the paid period moved forward |
 | `unchanged` | Event matched, status already the same |
 | `stale` | Older than the last applied event (Stripe does not guarantee order) |
 | `duplicate` | Event id already processed |
@@ -191,6 +197,34 @@ HTTP `400` means an invalid or expired signature; `503` means `STRIPE_WEBHOOK_SE
 
 - `past_due`: full access plus a banner with the payment link (`PAYMENT_PORTAL_URL`) for `PAYMENT_GRACE_DAYS` (14) days.
 - `canceled`, or past due after the grace period: login still works, but only the profile, notification settings and tax documents are available. Certificate, library and license documents are closed with an explanation, and the public verification page shows the membership as not active.
+
+## Nova sidebar
+
+The left column of every signed-in Nova page is the ProPerx sidebar:
+
+- Items and access: `App\Nova\Menu\SidebarMenu` (`Nova::mainMenu`), per role, each item behind Nova's resource
+  authorization or the profile policy. A new Nova resource must be added there to appear in the sidebar.
+  "Billing" stays hidden until `PORTAL_BILLING_PATH` names its page.
+- Drawing: `resources/js/nova/sidebar.js` + `resources/css/nova/sidebar.css` (served by `Nova::script` / `Nova::style`,
+  signed-in users only). The script replaces Nova's `MainMenu` component with one built from render functions (the
+  CSP has no `unsafe-eval`); it hides nothing itself. If it does not load or throws, Nova's own menu renders and the
+  layout overrides switch off (`html.ppx-shell` is removed).
+- The collapsed state is kept in `localStorage` (`ppx-sidebar-collapsed`) of that browser only.
+- "Renewal due" card: `App\Support\RenewalNotice` (members only, paid period ends within 90 days; agency people
+  follow the agency and only the principal sees it). "Renew now" opens `PAYMENT_PORTAL_URL`.
+
+**After every Nova upgrade, check the sidebar** (it depends on Nova's internal structure):
+
+1. The component is still registered as `MainMenu`, and the store getters `mainMenu` / `mainMenuShown` and the
+   mutation `toggleMainMenu` still exist (`resources/js/store` in Nova).
+2. `layouts/AppLayout.vue` still wraps the desktop menu in a `lg:absolute … w-60` column and the content in `lg:ml-60`,
+   and `layouts/MainHeader.vue` still has the `lg:w-60` logo block and the `max-w-xxs` mobile drawer: the selectors in
+   `sidebar.css` rely on these classes.
+3. Panels still carry `dusk="<slug>-panel"` (Certificate and Notifications scroll to `membership-certificate-panel` and
+   `notification-preferences-panel`).
+4. Sign in as `member01@properx.test`, a staff account and on a phone width: the sidebar, the active item, collapse,
+   the mobile drawer and the Renewal due card all work, and the browser console shows no
+   "ProPerx sidebar failed" message. If it fails, Nova's menu shows instead, so nothing breaks while it is fixed.
 
 ## Syncing to the KEENEY repository
 

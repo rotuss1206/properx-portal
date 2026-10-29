@@ -22,6 +22,12 @@ Route::middleware(['auth', 'signed', RequireTwoFactor::class])->group(function (
         ->name('documents.download');
 });
 
+// The certificate button on the profile page: re-checks access, then redirects to the signed route.
+Route::get('/certificates/{memberProfile}', [CertificateController::class, 'open'])
+    ->middleware(['auth', RequireTwoFactor::class])
+    ->whereNumber('memberProfile')
+    ->name('certificates.open');
+
 // Public, linked from the QR code on the certificate.
 Route::get('/verify-certificate/{code}', VerifyCertificateController::class)
     ->where('code', '[A-Za-z0-9\-]{1,40}')

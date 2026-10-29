@@ -6,7 +6,9 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Nova\Dashboards\Main;
 use App\Nova\Dashboards\MyMembership;
+use App\Nova\Menu\SidebarMenu;
 use App\Support\MembershipBanner;
+use App\Support\PortalSidebar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Fortify\Features;
@@ -42,10 +44,18 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         // Branding: replaces the default "Powered by Laravel Nova" footer.
         Nova::footer(fn (Request $request) => view('nova.footer')->render());
 
+        // Sidebar items per role; drawn by resources/js/nova/sidebar.js, Nova's own menu as fallback.
+        Nova::mainMenu(fn (Request $request) => SidebarMenu::for($request));
+
         // Past-due / inactive membership banner for members (Spec 7).
         Nova::serving(function (ServingNova $event) {
             Nova::provideToScript(['membershipBanner' => MembershipBanner::for($event->request->user())]);
             Nova::script('membership-banner', resource_path('js/nova/membership-banner.js'));
+
+            // Branded sidebar (signed-in pages only: Nova serves tool scripts to signed-in users).
+            Nova::provideToScript(['portalSidebar' => PortalSidebar::for($event->request->user())]);
+            Nova::script('portal-sidebar', resource_path('js/nova/sidebar.js'));
+            Nova::style('portal-sidebar', resource_path('css/nova/sidebar.css'));
 
             // Branded sign-in page (public/portal, loaded by the vendor/nova/partials/meta view).
             Nova::provideToScript(['loginPage' => ['supportUrl' => config('portal.brand.support_url') ?: null]]);

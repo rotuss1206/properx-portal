@@ -9,9 +9,11 @@ use App\Enums\MemberType;
 use App\Enums\NotificationCategory;
 use App\Enums\PaymentStatus;
 use App\Enums\PersonType;
+use App\Exceptions\CertificateUnavailableException;
 use App\Models\NotificationSetting;
 use App\Nova\Actions\DownloadMyCertificate;
 use App\Nova\Actions\GenerateCertificate;
+use App\Services\Certificates\CertificateGeneratorService;
 use App\Support\UsStates;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -136,6 +138,8 @@ class MemberProfile extends Resource
 
             new Panel('License', $this->licenseFields()),
 
+            new Panel('Membership Certificate', $this->certificateFields()),
+
             new Panel('Membership Payment', $this->paymentFields()),
 
             new Panel('Notification Preferences', $this->notificationFields()),
@@ -235,6 +239,36 @@ class MemberProfile extends Resource
     }
 
     /**
+     * The member's certificate block ("Certificate" in the sidebar scrolls here): a download
+     * button while the certificate is available, otherwise the reason.
+     *
+     * @return array<int, Field>
+     */
+    private function certificateFields(): array
+    {
+        return [
+            Text::make('Certificate', function () {
+                $profile = $this->resource;
+
+                try {
+                    app(CertificateGeneratorService::class)->assertEligible($profile);
+                } catch (CertificateUnavailableException $e) {
+                    return e($e->getMessage());
+                }
+
+                return sprintf(
+                    '<a href="%s" class="ppx-certificate-download">Download certificate</a>',
+                    e(route('certificates.open', $profile)),
+                );
+            })
+                ->asHtml()
+                ->onlyOnDetail()
+                ->canSee(fn (Request $request) => static::viewerIsMember($request)
+                    && Gate::forUser($request->user())->check('downloadCertificate', $this->resource)),
+        ];
+    }
+
+    /**
      * Staff move people between agencies here; the principal is reassigned on the agency.
      * Members see their own agency fields read-only.
      *
@@ -323,6 +357,9 @@ class MemberProfile extends Resource
                 ->hideFromIndex(),
 
             Text::make('Grace Period Ends', fn () => $this->resource->paymentGraceEndsAt()?->toFormattedDateString())
+                ->onlyOnDetail(),
+
+            Text::make('Paid Through', fn () => $this->resource->paid_through_at?->toFormattedDateString())
                 ->onlyOnDetail(),
 
             Text::make('Stripe Customer ID', 'stripe_customer_id')

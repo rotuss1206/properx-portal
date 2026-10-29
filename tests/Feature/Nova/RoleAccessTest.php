@@ -78,7 +78,7 @@ class RoleAccessTest extends TestCase
 
         $json = json_encode($menu, JSON_UNESCAPED_SLASHES);
         $this->assertIsString($json, json_last_error_msg());
-        preg_match_all('#"path":"/nova/resources/([a-z-]+)"#', $json, $matches);
+        preg_match_all('#"path":"/nova/resources/([a-z-]+)[/?"]#', $json, $matches); // the member's own profile ends in its id
 
         $resources = array_values(array_unique($matches[1]));
         sort($resources);

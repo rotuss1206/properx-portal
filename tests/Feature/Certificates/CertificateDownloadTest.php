@@ -121,4 +121,45 @@ class CertificateDownloadTest extends TestCase
             ->assertOk()
             ->assertJsonPath('danger', fn (string $message) => str_contains($message, 'expired'));
     }
+
+    public function test_the_profile_button_hands_over_a_signed_download_link(): void
+    {
+        $member = $this->member();
+
+        $response = $this->actingAs($member)->get(route('certificates.open', $member->memberProfile))->assertRedirect();
+
+        $this->assertStringContainsString('/certificates/'.$member->memberProfile->id.'/download?expires=', $response->headers->get('Location'));
+        $this->assertStringContainsString('signature=', $response->headers->get('Location'));
+    }
+
+    public function test_the_profile_button_checks_access_and_eligibility(): void
+    {
+        $other = $this->member();
+
+        $this->actingAs($this->member())->get(route('certificates.open', $other->memberProfile))->assertForbidden();
+
+        $expired = $this->member('expired');
+        $this->actingAs($expired)->get(route('certificates.open', $expired->memberProfile))
+            ->assertUnprocessable()
+            ->assertSee('the license expired on');
+
+        auth()->logout();
+        $this->get(route('certificates.open', $other->memberProfile))->assertRedirect();
+    }
+
+    public function test_the_member_profile_shows_the_certificate_block_with_the_button(): void
+    {
+        $member = $this->member();
+
+        $fields = collect($this->actingAs($member)
+            ->getJson('/nova-api/member-profiles/'.$member->memberProfile->id)
+            ->assertOk()
+            ->json('resource.fields'));
+
+        $certificate = $fields->firstWhere('panel', 'Membership Certificate');
+
+        $this->assertNotNull($certificate);
+        $this->assertStringContainsString(route('certificates.open', $member->memberProfile), $certificate['value']);
+        $this->assertStringContainsString('Download certificate', $certificate['value']);
+    }
 }
