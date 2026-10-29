@@ -50,21 +50,17 @@
 
 .ppx-login__panel--bottom { grid-area: bottom; padding-bottom: 44px; overflow: hidden; }
 
+/* Design artwork (public/portal/login-art.svg): the full width of the bottom part. */
 .ppx-login__art {
     position: absolute;
     right: 0;
     bottom: 0;
-    width: 85%;
-    max-width: 400px;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: auto;
     pointer-events: none;
 }
-
-/* Short desktop screens: keep the star clear of the feature list. */
-@media (min-width: 901px) and (max-height: 860px) {
-    .ppx-login__art { width: 66%; max-width: 300px; }
-}
-
-.ppx-login__star { fill: #fff; opacity: 0.32; }
 
 .ppx-login__logo,
 .ppx-login__intro,
@@ -92,14 +88,16 @@
     max-width: 360px;
     margin: 0;
     font-family: var(--ppx-heading);
-    font-size: 30px;
+    color: #FFF;
+    font-size: 31px;
+    font-style: normal;
     font-weight: 700;
-    line-height: 1.25;
+    line-height: 37.2px;
 }
 
 .ppx-login__lead {
     max-width: 400px;
-    margin: 18px 0 0;
+    margin: 26px 0 0;
     color: rgba(255, 255, 255, 0.78);
     font-size: 14px;
     line-height: 1.6;
@@ -354,8 +352,6 @@
 
     .ppx-login__badge { margin-top: 20px; }
 
-    .ppx-login__art { width: 220px; opacity: 0.45; }
-
     .ppx-login__main { align-items: flex-start; padding: 36px 20px 48px; }
 }
 
@@ -367,8 +363,6 @@
     .ppx-login__logo svg { height: 30px; }
 
     .ppx-login__tagline { font-size: 17px; }
-
-    .ppx-login__art { width: 200px; }
 
     .ppx-login__title { font-size: 24px; }
 

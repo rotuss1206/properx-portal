@@ -72,24 +72,11 @@
         ['library', 'Full compliance & training library access'],
     ]
 
-    // Placeholder artwork (star and swooshes) until the client supplies the real one.
-    function artwork() {
-        var gradient = function (id, color) {
-            return h('linearGradient', { id: id, x1: '0', y1: '1', x2: '1', y2: '0' }, [
-                h('stop', { offset: '0', 'stop-color': color, 'stop-opacity': '0' }),
-                h('stop', { offset: '1', 'stop-color': color, 'stop-opacity': '0.75' }),
-            ])
-        }
+    // Decorative artwork (star and swooshes) from the design, next to this script.
+    var artworkUrl = new URL('login-art.svg', document.currentScript ? document.currentScript.src : window.location.origin + '/portal/').href
 
-        return h('svg', { class: 'ppx-login__art', viewBox: '0 0 400 320', 'aria-hidden': 'true', focusable: 'false' }, [
-            h('defs', [gradient('ppx-login-swoosh-green', '#8cc63f'), gradient('ppx-login-swoosh-blue', '#2f7fd1')]),
-            h('path', { d: 'M20 320C110 270 200 205 262 120C226 210 150 280 90 320Z', fill: 'url(#ppx-login-swoosh-green)' }),
-            h('path', { d: 'M150 320C205 268 255 215 292 150C272 220 236 275 210 320Z', fill: 'url(#ppx-login-swoosh-blue)' }),
-            h('path', {
-                class: 'ppx-login__star',
-                d: 'M330 30C334 68 346 80 384 84C346 88 334 100 330 138C326 100 314 88 276 84C314 80 326 68 330 30Z',
-            }),
-        ])
+    function artwork() {
+        return h('img', { class: 'ppx-login__art', src: artworkUrl, alt: '', 'aria-hidden': 'true' })
     }
 
     function logo() {
