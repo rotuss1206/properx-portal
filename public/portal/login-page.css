@@ -315,7 +315,7 @@
 
 .ppx-login__sso:hover { border-color: #b9c2cf; background: #f8fafc; }
 
-.ppx-login__sso .ppx-login__icon { width: 20px; height: 20px; color: var(--ppx-link); }
+.ppx-login__sso .ppx-login__icon { width: 20px; height: 20px; color: #14508c; }
 
 .ppx-login__sso:focus-visible,
 .ppx-login__checkbox:focus-visible {
