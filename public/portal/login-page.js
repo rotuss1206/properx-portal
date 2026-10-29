@@ -84,21 +84,28 @@
             : h('span', { class: 'ppx-login__logo ppx-login__logo--text' }, Nova.config('appName'))
     }
 
-    function panel() {
-        return h('section', { class: 'ppx-login__panel', 'aria-label': 'About the member portal' }, [
-            artwork(),
+    // The brand panel comes in two parts so phones can show the features below the form:
+    // on desktop both form one navy column left of the form (grid, see the stylesheet).
+    function panelTop() {
+        return h('section', { class: 'ppx-login__panel ppx-login__panel--top', 'aria-label': 'About the member portal' }, [
             logo(),
             h('div', { class: 'ppx-login__intro' }, [
                 h('p', { class: 'ppx-login__tagline' }, 'Your professional membership hub.'),
                 h('p', { class: 'ppx-login__lead' },
                     'Manage your licenses, certificates, tax documents, and compliance resources — all in one place.'),
-                h('ul', { class: 'ppx-login__features' }, FEATURES.map(function (feature) {
-                    return h('li', { class: 'ppx-login__feature' }, [
-                        h('span', { class: 'ppx-login__feature-icon' }, [icon('ppx-login__icon', ICONS[feature[0]])]),
-                        h('span', feature[1]),
-                    ])
-                })),
             ]),
+        ])
+    }
+
+    function panelBottom() {
+        return h('div', { class: 'ppx-login__panel ppx-login__panel--bottom' }, [
+            artwork(),
+            h('ul', { class: 'ppx-login__features' }, FEATURES.map(function (feature) {
+                return h('li', { class: 'ppx-login__feature' }, [
+                    h('span', { class: 'ppx-login__feature-icon' }, [icon('ppx-login__icon', ICONS[feature[0]])]),
+                    h('span', feature[1]),
+                ])
+            })),
             h('span', { class: 'ppx-login__badge' }, 'Member portal'),
         ])
     }
@@ -134,8 +141,9 @@
 
             return function () {
                 return h('div', { class: 'ppx-login' }, [
-                    panel(),
+                    panelTop(),
                     h('main', { class: 'ppx-login__main' }, context.slots.default ? context.slots.default() : []),
+                    panelBottom(),
                 ])
             }
         },
