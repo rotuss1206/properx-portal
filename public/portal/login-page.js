@@ -1,21 +1,20 @@
 /*
- * ProPerx sign-in page. Replaces only the markup and layout of Nova's login page
- * (Nova 5 pages/Login.vue): the form state, attempt() (POST /nova/login, the 2FA
- * redirect), browser validation and server errors stay Nova's own. Render functions
- * only: the CSP has no unsafe-eval, so Vue templates cannot be compiled in the browser.
- * Styles: public/portal/login-page.css (classes only, no inline styles).
+ * ProPerx sign-in pages. Replaces only the markup and layout of Nova's guest pages
+ * (Nova 5 pages/Login.vue, ForgotPassword.vue, ResetPassword.vue): the form state,
+ * attempt() (POST /nova/login and the 2FA redirect, /nova/password/email,
+ * /nova/password/reset), browser validation and server errors stay Nova's own. Render
+ * functions only: the CSP has no unsafe-eval, so Vue templates cannot be compiled in
+ * the browser. Styles: public/portal/login-page.css (classes only, no inline styles).
  *
  * Loaded with "defer" from resources/views/vendor/nova/partials/meta.blade.php (Nova
  * gives guests no tool scripts): it runs after window.Nova exists and before Nova
- * mounts on DOMContentLoaded, so patching the page object takes effect. If a Nova
- * upgrade changes the page so this no longer fits, the stock login page stays.
+ * mounts on DOMContentLoaded, so patching the page objects takes effect. If a Nova
+ * upgrade changes a page so this no longer fits, the stock page stays.
  */
 (function () {
     var Vue = window.Vue
-    var page = window.Nova && Nova.pages && Nova.pages['Nova.Login']
 
-    if (!Vue || !page || page.__properx || typeof page.data !== 'function'
-        || !page.methods || typeof page.methods.attempt !== 'function') {
+    if (!Vue || !window.Nova || !Nova.pages) {
         return
     }
 
@@ -193,12 +192,17 @@
         },
     }
 
+
     function errorFor(vm, name) {
         return vm.form.errors.has(name) ? vm.form.errors.first(name) : null
     }
 
     function errorText(id, message) {
         return message ? h('p', { id: id, class: 'ppx-login__error' }, message) : null
+    }
+
+    function routeLink(href, text, className) {
+        return h(Vue.resolveComponent('Link'), { href: href, class: className || 'ppx-login__link' }, { default: function () { return text } })
     }
 
     function forgotPasswordLink(vm) {
@@ -209,8 +213,14 @@
         var text = vm.__('Forgot password?')
 
         return vm.forgotPasswordPath === false
-            ? h(Vue.resolveComponent('Link'), { href: vm.$url('/password/reset'), class: 'ppx-login__link' }, { default: function () { return text } })
+            ? routeLink(vm.$url('/password/reset'), text)
             : h('a', { href: vm.forgotPasswordPath, class: 'ppx-login__link' }, text)
+    }
+
+    function backToSignIn(vm) {
+        return h('p', { class: 'ppx-login__back' }, [
+            routeLink(vm.$url('/login'), vm.__('Back to sign in'), 'ppx-login__link ppx-login__link--plain'),
+        ])
     }
 
     // Placeholder until PORTAL_SUPPORT_URL is set: the link only shows a notice.
@@ -257,17 +267,64 @@
         ])
     }
 
-    function render() {
-        var vm = this
-        var field = vm.username
-        var usernameError = errorFor(vm, field)
-        var passwordError = errorFor(vm, 'password')
+    // One labelled input bound to vm.form[field.name]. Password inputs get the reveal
+    // button; vm.revealed[field.id] says whether the value is shown.
+    function inputField(vm, field) {
+        var error = errorFor(vm, field.name)
+        var errorId = field.id + '-error'
+        var isPassword = field.type === 'password'
+        var shown = isPassword && !!vm.revealed[field.id]
 
+        var input = h('input', {
+            id: field.id,
+            class: ['ppx-login__input', error && 'is-invalid'],
+            type: shown ? 'text' : field.type,
+            name: field.name,
+            value: vm.form[field.name],
+            onInput: function (event) { vm.form[field.name] = event.target.value },
+            autofocus: field.autofocus ? '' : null,
+            autocomplete: field.autocomplete,
+            required: true,
+            'aria-invalid': error ? 'true' : null,
+            'aria-describedby': error ? errorId : null,
+        })
+
+        var label = h('label', { class: 'ppx-login__label', for: field.id }, field.label)
+
+        return h('div', { class: 'ppx-login__field' }, [
+            field.aside ? h('div', { class: 'ppx-login__label-row' }, [label, field.aside]) : label,
+            isPassword
+                ? h('div', { class: 'ppx-login__password' }, [
+                    input,
+                    h('button', {
+                        type: 'button',
+                        class: 'ppx-login__reveal',
+                        'aria-controls': field.id,
+                        'aria-pressed': shown ? 'true' : 'false',
+                        'aria-label': vm.__('Show password'),
+                        onClick: function () { vm.revealed[field.id] = !shown },
+                    }, [revealIcon(shown)]),
+                ])
+                : input,
+            errorText(errorId, error),
+        ])
+    }
+
+    function submitButton(vm, text, busyText) {
+        return h('button', {
+            type: 'submit',
+            class: 'ppx-login__submit',
+            disabled: vm.form.processing,
+            'aria-busy': vm.form.processing ? 'true' : null,
+        }, vm.form.processing ? busyText : text)
+    }
+
+    function card(vm, title, subtitle, fields, after) {
         return h('div', { class: 'ppx-login__card' }, [
-            h(Vue.resolveComponent('Head'), { title: vm.__('Sign in') }),
+            h(Vue.resolveComponent('Head'), { title: title }),
 
-            h('h1', { class: 'ppx-login__title' }, vm.__('Sign in')),
-            h('p', { class: 'ppx-login__subtitle' }, vm.__('Enter your credentials to access your account.')),
+            h('h1', { class: 'ppx-login__title' }, title),
+            h('p', { class: 'ppx-login__subtitle' }, subtitle),
 
             h('form', {
                 class: 'ppx-login__form',
@@ -275,79 +332,144 @@
                     event.preventDefault()
                     vm.attempt()
                 },
-            }, [
-                h('div', { class: 'ppx-login__field' }, [
-                    h('label', { class: 'ppx-login__label', for: 'username' },
-                        vm.__(vm.username === vm.email ? 'Email address' : 'Username')),
-                    h('input', {
-                        id: 'username',
-                        class: ['ppx-login__input', usernameError && 'is-invalid'],
-                        type: vm.usernameInputType,
-                        name: field,
-                        value: vm.form[field],
-                        onInput: function (event) { vm.form[field] = event.target.value },
-                        autofocus: '',
-                        autocomplete: 'username',
-                        required: true,
-                        'aria-invalid': usernameError ? 'true' : null,
-                        'aria-describedby': usernameError ? 'username-error' : null,
-                    }),
-                    errorText('username-error', usernameError),
-                ]),
+            }, fields),
+        ].concat(after))
+    }
 
-                h('div', { class: 'ppx-login__field' }, [
-                    h('div', { class: 'ppx-login__label-row' }, [
-                        h('label', { class: 'ppx-login__label', for: 'password' }, vm.__('Password')),
-                        forgotPasswordLink(vm),
-                    ]),
-                    h('div', { class: 'ppx-login__password' }, [
-                        h('input', {
-                            id: 'password',
-                            class: ['ppx-login__input', passwordError && 'is-invalid'],
-                            type: vm.showPassword ? 'text' : 'password',
-                            name: 'password',
-                            value: vm.form.password,
-                            onInput: function (event) { vm.form.password = event.target.value },
-                            autocomplete: 'current-password',
-                            required: true,
-                            'aria-invalid': passwordError ? 'true' : null,
-                            'aria-describedby': passwordError ? 'password-error' : null,
-                        }),
-                        h('button', {
-                            type: 'button',
-                            class: 'ppx-login__reveal',
-                            'aria-controls': 'password',
-                            'aria-pressed': vm.showPassword ? 'true' : 'false',
-                            'aria-label': vm.__('Show password'),
-                            onClick: function () { vm.showPassword = !vm.showPassword },
-                        }, [revealIcon(vm.showPassword)]),
-                    ]),
-                    errorText('password-error', passwordError),
-                ]),
+    // Adds the reveal state to a page's data and swaps its markup and layout.
+    function restyle(page, render) {
+        var data = page.data
 
+        page.data = function (instance) {
+            return Object.assign(data.call(this, instance), { revealed: {} })
+        }
+
+        page.render = render
+        page.layout = Layout
+        page.__properx = true
+    }
+
+    function fits(page) {
+        return page && !page.__properx && typeof page.data === 'function'
+            && page.methods && typeof page.methods.attempt === 'function'
+    }
+
+    // Sign in (Nova.Login): Nova's data, attempt() and computed properties.
+    var login = Nova.pages['Nova.Login']
+
+    if (fits(login)) {
+        restyle(login, function () {
+            var vm = this
+
+            return card(vm, vm.__('Sign in'), vm.__('Enter your credentials to access your account.'), [
+                inputField(vm, {
+                    id: 'username',
+                    name: vm.username,
+                    type: vm.usernameInputType,
+                    label: vm.__(vm.username === vm.email ? 'Email address' : 'Username'),
+                    autocomplete: 'username',
+                    autofocus: true,
+                }),
+                inputField(vm, {
+                    id: 'password',
+                    name: 'password',
+                    type: 'password',
+                    label: vm.__('Password'),
+                    autocomplete: 'current-password',
+                    aside: forgotPasswordLink(vm),
+                }),
                 rememberCheckbox(vm),
-
-                h('button', {
-                    type: 'submit',
-                    class: 'ppx-login__submit',
-                    disabled: vm.form.processing,
-                    'aria-busy': vm.form.processing ? 'true' : null,
-                }, vm.form.processing ? vm.__('Signing in…') : vm.__('Sign in')),
-            ]),
-
-            ssoButton(vm),
-
-            helpLine(),
-        ])
+                submitButton(vm, vm.__('Sign in'), vm.__('Signing in…')),
+            ], ssoButton(vm).concat([helpLine()]))
+        })
     }
 
-    var novaData = page.data
+    // Forgot password (Nova.ForgotPassword): Nova's form and attempt() (sends the link).
+    var forgot = Nova.pages['Nova.ForgotPassword']
 
-    page.data = function (instance) {
-        return Object.assign(novaData.call(this, instance), { showPassword: false })
+    if (fits(forgot)) {
+        restyle(forgot, function () {
+            var vm = this
+
+            return card(vm, vm.__('Forgot your password?'),
+                vm.__('Enter your email address and we will send you a link to reset your password.'), [
+                    inputField(vm, {
+                        id: 'email',
+                        name: 'email',
+                        type: 'email',
+                        label: vm.__('Email address'),
+                        autocomplete: 'email',
+                        autofocus: true,
+                    }),
+                    submitButton(vm, vm.__('Send Password Reset Link'), vm.__('Sending…')),
+                ], [backToSignIn(vm), helpLine()])
+        })
     }
 
-    page.render = render
-    page.layout = Layout
-    page.__properx = true
+    // Reset password (Nova.ResetPassword, the link from the email). Nova builds it with
+    // <script setup>, so its form and attempt() are closed over and cannot be reused:
+    // they are restated here exactly as in Nova 5 ResetPassword.vue. Recheck after Nova
+    // upgrades; the guard keeps the stock page if the component changes shape.
+    var reset = Nova.pages['Nova.ResetPassword']
+
+    if (reset && !reset.__properx && typeof reset.setup === 'function' && reset.props && reset.props.token
+        && String(reset.setup).indexOf('/password/reset') !== -1) {
+        delete reset.setup
+
+        reset.data = function () {
+            return {
+                form: Nova.form({
+                    email: this.email,
+                    password: '',
+                    password_confirmation: '',
+                    token: this.token,
+                }),
+            }
+        }
+
+        reset.methods = {
+            attempt: async function () {
+                var result = await this.form.post(Nova.url('/password/reset'))
+                var redirect = { url: Nova.url('/'), remote: true }
+
+                Nova.$toasted.show(result.message, {
+                    action: { onClick: function () { Nova.visit(redirect) }, text: this.__('Reload') },
+                    duration: null,
+                    type: 'success',
+                })
+
+                setTimeout(function () { Nova.visit(redirect) }, 5000)
+            },
+        }
+
+        restyle(reset, function () {
+            var vm = this
+
+            return card(vm, vm.__('Reset Password'), vm.__('Choose a new password for your account.'), [
+                inputField(vm, {
+                    id: 'email',
+                    name: 'email',
+                    type: 'email',
+                    label: vm.__('Email address'),
+                    autocomplete: 'username',
+                    autofocus: true,
+                }),
+                inputField(vm, {
+                    id: 'password',
+                    name: 'password',
+                    type: 'password',
+                    label: vm.__('Password'),
+                    autocomplete: 'new-password',
+                }),
+                inputField(vm, {
+                    id: 'password_confirmation',
+                    name: 'password_confirmation',
+                    type: 'password',
+                    label: vm.__('Confirm Password'),
+                    autocomplete: 'new-password',
+                }),
+                submitButton(vm, vm.__('Reset Password'), vm.__('Saving…')),
+            ], [backToSignIn(vm), helpLine()])
+        })
+    }
 })()

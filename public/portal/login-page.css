@@ -125,9 +125,9 @@
     padding: 4px 9px;
     border-radius: 3px;
     background: var(--ppx-yellow);
-    color: var(--ppx-ink);
+    color: #143A63;
     font-family: var(--ppx-heading);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -260,10 +260,11 @@
     height: 48px;
     margin-top: 4px;
     border: 0;
-    border-radius: 8px;
-    background: var(--ppx-yellow);
-    box-shadow: 0 8px 18px rgba(240, 186, 30, 0.32);
-    color: var(--ppx-ink);
+    padding: 1px 6px;
+    border-radius: 12px;
+    background: #FAD250;
+    box-shadow: 0 8px 20px 0 rgba(20, 80, 140, 0.28);
+    color: #0A2D4B;
     font-family: var(--ppx-heading);
     font-size: 15px;
     font-weight: 600;
@@ -284,6 +285,13 @@
     color: var(--ppx-ink);
     font-size: 13px;
     cursor: pointer;
+}
+.ppx-login__remember span{
+    color: #2A3340;
+    font-size: 13.5px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
 }
 
 /* Custom box from the design: an empty 1px frame, filled with the white tick
@@ -314,9 +322,16 @@
     color: #9aa4b2;
     font-size: 12px;
 }
+.ppx-login__divider span{
+    color: #9AA7B4;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+}
 
 .ppx-login__divider::before,
-.ppx-login__divider::after { flex: 1; height: 1px; background: #e3e7ed; content: ''; }
+.ppx-login__divider::after { flex: 1; height: 1px; background: #E2E8F0; content: ''; }
 
 .ppx-login__sso {
     display: flex;
@@ -325,8 +340,8 @@
     gap: 10px;
     width: 100%;
     height: 46px;
-    border: 1px solid var(--ppx-border);
-    border-radius: 8px;
+    border: 1px solid #CDD6E0;
+    border-radius: 12px;
     background: #fff;
     color: var(--ppx-ink);
     font-family: var(--ppx-heading);
@@ -346,7 +361,9 @@
     outline-offset: 2px;
 }
 
-.ppx-login__help { margin: 26px 0 0; color: var(--ppx-muted); font-size: 13px; text-align: center; }
+.ppx-login__help { margin: 30px 0 0; color: #5F7185; font-size: 13px; text-align: center; }
+
+.ppx-login__back { margin: 24px 0 0; font-size: 13px; text-align: center; }
 
 .ppx-login__reveal:focus-visible,
 .ppx-login__submit:focus-visible,

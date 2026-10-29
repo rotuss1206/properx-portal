@@ -29,6 +29,12 @@ class LoginPageTest extends TestCase
             ->assertSee('mailto:support@example.com', false);
     }
 
+    public function test_the_password_reset_pages_load_them_too(): void
+    {
+        $this->get('/nova/password/reset')->assertOk()->assertSee('portal/login-page.js?v=', false);
+        $this->get('/nova/password/reset/some-token')->assertOk()->assertSee('portal/login-page.js?v=', false);
+    }
+
     public function test_signed_in_pages_do_not_load_them(): void
     {
         $this->seedRoles();
