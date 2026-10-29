@@ -98,7 +98,7 @@
         ['library', 'Full compliance & training library access'],
     ]
 
-    // Images next to this script (public/portal).
+    // Images in public/portal/img, next to this script.
     var assetBase = document.currentScript ? document.currentScript.src : window.location.origin + '/portal/'
 
     function assetUrl(name) {
@@ -106,7 +106,7 @@
     }
 
     // Decorative artwork (star and swooshes) from the design.
-    var artworkUrl = assetUrl('login-art.svg')
+    var artworkUrl = assetUrl('img/login-art.svg')
 
     function artwork() {
         return h('img', { class: 'ppx-login__art', src: artworkUrl, alt: '', 'aria-hidden': 'true' })
@@ -115,7 +115,7 @@
     // Full-colour logo for the sign-in page only (Nova's header keeps config nova.brand.logo).
     function logo() {
         return h('span', { class: 'ppx-login__logo' }, [
-            h('img', { class: 'ppx-login__logo-image', src: assetUrl('properx-alliance-logo.png'), alt: 'ProPerx Alliance' }),
+            h('img', { class: 'ppx-login__logo-image', src: assetUrl('img/properx-alliance-logo.png'), alt: 'ProPerx Alliance' }),
         ])
     }
 

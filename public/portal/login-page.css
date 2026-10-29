@@ -50,7 +50,7 @@
 
 .ppx-login__panel--bottom { grid-area: bottom; padding-bottom: 44px; }
 
-/* Design artwork (public/portal/login-art.svg): the full width of the bottom part. */
+/* Design artwork (public/portal/img/login-art.svg): the full width of the bottom part. */
 .ppx-login__art {
     position: absolute;
     right: 0;
