@@ -257,68 +257,58 @@
     outline-offset: 2px;
 }
 
-/* Tablet: both panel parts become one header above the form. */
+/* Tablet and phone: logo and tagline side by side (the tagline wraps below when there
+   is no room), the form, then features and badge as a navy footer. */
 
 @media (max-width: 900px) {
     .ppx-login {
-        grid-template-areas: 'top' 'bottom' 'main';
+        grid-template-areas: 'top' 'main' 'bottom';
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto 1fr;
+        grid-template-rows: auto 1fr auto;
     }
 
     .ppx-login__panel { padding: 0 20px; }
-
-    .ppx-login__panel--top { padding-top: 24px; }
-
-    .ppx-login__panel--bottom { padding-bottom: 28px; }
-
-    .ppx-login__art { width: 260px; opacity: 0.6; }
-
-    .ppx-login__logo { padding: 10px 14px; }
-
-    .ppx-login__logo svg { height: 36px; }
-
-    .ppx-login__intro { margin: 0; padding-top: 24px; }
-
-    .ppx-login__tagline { font-size: 24px; }
-
-    .ppx-login__lead { margin-top: 12px; }
-
-    .ppx-login__features { padding-top: 18px; }
-
-    .ppx-login__badge { margin-top: 20px; }
-
-    .ppx-login__main { align-items: flex-start; padding: 36px 20px 48px; }
-}
-
-/* Phone: logo and tagline side by side (the tagline wraps below when there is no room),
-   the form, then features and badge as a navy footer. */
-
-@media (max-width: 600px) {
-    .ppx-login { grid-template-areas: 'top' 'main' 'bottom'; grid-template-rows: auto 1fr auto; }
 
     .ppx-login__panel--top {
         flex-direction: row;
         flex-wrap: wrap;
         align-items: center;
-        gap: 14px 16px;
+        gap: 14px 20px;
         padding-top: 20px;
         padding-bottom: 20px;
     }
 
-    .ppx-login__logo { padding: 8px 12px; }
+    .ppx-login__logo { padding: 10px 14px; }
 
-    .ppx-login__logo svg { height: 30px; }
+    .ppx-login__logo svg { height: 36px; }
 
-    .ppx-login__intro { flex: 1 1 130px; padding-top: 0; }
+    .ppx-login__intro { flex: 1 1 130px; margin: 0; padding-top: 0; }
 
-    .ppx-login__tagline { font-size: 17px; line-height: 1.3; }
+    .ppx-login__tagline { max-width: none; font-size: 20px; line-height: 1.3; }
 
     .ppx-login__lead { display: none; }
 
     .ppx-login__panel--bottom { padding-top: 6px; padding-bottom: 24px; }
 
-    .ppx-login__art { width: 200px; opacity: 0.45; }
+    .ppx-login__features { padding-top: 18px; }
+
+    .ppx-login__badge { margin-top: 20px; }
+
+    .ppx-login__art { width: 220px; opacity: 0.45; }
+
+    .ppx-login__main { align-items: flex-start; padding: 36px 20px 48px; }
+}
+
+@media (max-width: 600px) {
+    .ppx-login__panel--top { gap: 14px 16px; }
+
+    .ppx-login__logo { padding: 8px 12px; }
+
+    .ppx-login__logo svg { height: 30px; }
+
+    .ppx-login__tagline { font-size: 17px; }
+
+    .ppx-login__art { width: 200px; }
 
     .ppx-login__title { font-size: 24px; }
 
