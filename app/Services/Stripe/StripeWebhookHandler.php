@@ -22,6 +22,7 @@ use Stripe\Event;
 class StripeWebhookHandler
 {
     public const HANDLED_EVENTS = [
+        'customer.subscription.created',
         'customer.subscription.updated',
         'customer.subscription.deleted',
         'invoice.paid',
@@ -85,11 +86,19 @@ class StripeWebhookHandler
             $profile->stripe_customer_id = $customerId;
         }
 
+        // The paid period only moves forward, whatever order the events arrive in.
+        $paidThrough = $this->paidThroughFor($event);
+        $extended = $paidThrough !== null && ($profile->paid_through_at === null || $paidThrough->gt($profile->paid_through_at));
+
+        if ($extended) {
+            $profile->paid_through_at = $paidThrough;
+        }
+
         $status = $this->statusFor($event);
         $occurredAt = Carbon::createFromTimestamp($event->created);
 
         if ($profile->payment_event_at !== null && $occurredAt->lt($profile->payment_event_at)) {
-            $profile->save(); // keep a newly linked customer id
+            $profile->save(); // keep a newly linked customer id and a later paid period
 
             return ['stale', $profile];
         }
@@ -99,7 +108,7 @@ class StripeWebhookHandler
         if ($status === null || $status === $profile->payment_status) {
             $profile->save();
 
-            return ['unchanged', $profile];
+            return [$extended ? 'updated' : 'unchanged', $profile];
         }
 
         $profile->payment_status = $status;
@@ -116,12 +125,36 @@ class StripeWebhookHandler
         $object = $event->data->object;
 
         return match ($event->type) {
+            'customer.subscription.created',
             'customer.subscription.updated' => PaymentStatus::fromSubscriptionStatus((string) ($object->status ?? '')),
             'customer.subscription.deleted' => PaymentStatus::Canceled,
             'invoice.paid' => PaymentStatus::Active,
             'invoice.payment_failed' => PaymentStatus::PastDue,
             default => null,
         };
+    }
+
+    /**
+     * End of the paid period: the subscription items' current_period_end (newer API
+     * versions moved it off the subscription itself) or the paid invoice lines' period end.
+     */
+    private function paidThroughFor(Event $event): ?Carbon
+    {
+        $object = $event->data->object;
+
+        $ends = match ($event->type) {
+            'customer.subscription.created',
+            'customer.subscription.updated' => array_merge(
+                array_map(fn ($item) => $item->current_period_end ?? null, $object->items->data ?? []),
+                [$object->current_period_end ?? null],
+            ),
+            'invoice.paid' => array_map(fn ($line) => $line->period->end ?? null, $object->lines->data ?? []),
+            default => [],
+        };
+
+        $ends = array_filter($ends, fn ($end) => is_int($end) && $end > 0);
+
+        return $ends === [] ? null : Carbon::createFromTimestamp(max($ends));
     }
 
     /**

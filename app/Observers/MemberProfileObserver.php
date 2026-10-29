@@ -22,6 +22,7 @@ class MemberProfileObserver
      */
     private const SYSTEM_ATTRIBUTES = [
         'license_status', 'updated_at', 'stripe_customer_id', 'payment_status', 'payment_status_updated_at', 'payment_event_at',
+        'paid_through_at',
         'invite_status',
     ];
 

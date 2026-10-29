@@ -111,6 +111,7 @@ class MemberProfile extends Model
             'payment_status' => PaymentStatus::class,
             'payment_status_updated_at' => 'datetime',
             'payment_event_at' => 'datetime',
+            'paid_through_at' => 'datetime',
             // Contact details of members and agency principals.
             'phone' => 'encrypted',
             'address' => 'encrypted',

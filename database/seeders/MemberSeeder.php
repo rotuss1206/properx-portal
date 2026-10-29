@@ -58,10 +58,13 @@ class MemberSeeder extends Seeder
             ]);
 
             if (! $created) {
+                $this->setPaidThrough($profile, $index); // added later: fill it in for existing members too
+
                 continue; // History was seeded with the member.
             }
 
             $this->setPaymentStatus($profile, $index);
+            $this->setPaidThrough($profile, $index);
             DemoPeople::notificationSettings($user, $index % 6 === 0 ? [NotificationCategory::LicenseExpiry] : []);
             $this->licenseDocuments($user, $index);
             $this->taxDocuments($user, $index);
@@ -106,6 +109,28 @@ class MemberSeeder extends Seeder
             'payment_event_at' => $daysAgo === null ? null : now()->subDays($daysAgo),
             'stripe_customer_id' => $status === PaymentStatus::Unknown ? null : sprintf('cus_demo%06d', $index),
         ])->saveQuietly();
+    }
+
+    /**
+     * End of the paid period (Stripe), so the sidebar's "Renewal due" card shows locally:
+     * active members renew in 76 (member01), 30 or 200 days; past due and canceled members'
+     * periods have ended; no date without Stripe data. Only fills an empty date.
+     */
+    private function setPaidThrough(MemberProfile $profile, int $index): void
+    {
+        if ($profile->paid_through_at !== null) {
+            return;
+        }
+
+        $days = match ($profile->payment_status) {
+            PaymentStatus::Active => $index === 1 ? 76 : [30, 76, 200][$index % 3],
+            PaymentStatus::PastDue, PaymentStatus::Canceled => -(int) $profile->payment_status_updated_at?->diffInDays(now()),
+            default => null,
+        };
+
+        if ($days !== null) {
+            $profile->forceFill(['paid_through_at' => today()->addDays($days)->endOfDay()])->saveQuietly();
+        }
     }
 
     /**

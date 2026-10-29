@@ -10,6 +10,7 @@ use App\Models\StripeEvent;
 use App\Models\User;
 use App\Services\ApiKeys\ApiKeyManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -129,6 +130,7 @@ class StripeWebhookTest extends TestCase
             'subscription past_due' => ['customer.subscription.updated', ['status' => 'past_due'], PaymentStatus::Active, PaymentStatus::PastDue],
             'subscription unpaid' => ['customer.subscription.updated', ['status' => 'unpaid'], PaymentStatus::Active, PaymentStatus::PastDue],
             'subscription active' => ['customer.subscription.updated', ['status' => 'active'], PaymentStatus::Canceled, PaymentStatus::Active],
+            'subscription created' => ['customer.subscription.created', ['status' => 'active'], PaymentStatus::Canceled, PaymentStatus::Active],
         ];
     }
 
@@ -294,6 +296,63 @@ class StripeWebhookTest extends TestCase
         Log::shouldHaveReceived('warning')->withArgs(fn ($message, $context) => str_contains($message, 'could not be matched')
             && ! str_contains(json_encode($context), 'nobody@example.com'))->once(); // IDs only, no email
         $this->assertDatabaseHas('stripe_events', ['outcome' => 'unmatched']);
+    }
+
+    public function test_subscription_events_record_the_end_of_the_paid_period(): void
+    {
+        $profile = $this->memberWithCustomer();
+        $periodEnd = now()->addDays(365)->startOfSecond();
+
+        $this->send($this->event('customer.subscription.created', [
+            'customer' => 'cus_123',
+            'status' => 'active',
+            'items' => ['object' => 'list', 'data' => [['object' => 'subscription_item', 'current_period_end' => $periodEnd->getTimestamp()]]],
+        ]))->assertOk()->assertJson(['outcome' => 'updated']);
+
+        $this->assertTrue($profile->fresh()->paid_through_at->equalTo($periodEnd));
+    }
+
+    public function test_paid_invoices_record_the_end_of_the_paid_period(): void
+    {
+        $profile = $this->memberWithCustomer();
+        $periodEnd = now()->addDays(200)->startOfSecond();
+
+        $this->send($this->event('invoice.paid', [
+            'customer' => 'cus_123',
+            'lines' => ['object' => 'list', 'data' => [
+                ['object' => 'line_item', 'period' => ['start' => now()->getTimestamp(), 'end' => now()->addDays(30)->getTimestamp()]],
+                ['object' => 'line_item', 'period' => ['start' => now()->getTimestamp(), 'end' => $periodEnd->getTimestamp()]],
+            ]],
+        ]))->assertOk();
+
+        $this->assertTrue($profile->fresh()->paid_through_at->equalTo($periodEnd));
+    }
+
+    public function test_the_paid_period_only_moves_forward(): void
+    {
+        $profile = $this->memberWithCustomer();
+        $later = now()->addDays(300)->startOfSecond();
+        $earlier = now()->addDays(20)->startOfSecond();
+        $subscription = fn (Carbon $end) => [
+            'customer' => 'cus_123',
+            'status' => 'active',
+            'items' => ['object' => 'list', 'data' => [['object' => 'subscription_item', 'current_period_end' => $end->getTimestamp()]]],
+        ];
+
+        $this->send($this->event('customer.subscription.updated', $subscription($later)))->assertOk();
+        $this->send($this->event('customer.subscription.updated', $subscription($earlier)))->assertJson(['outcome' => 'unchanged']);
+
+        $this->assertTrue($profile->fresh()->paid_through_at->equalTo($later));
+
+        // A late, older event still extends the period, but does not touch the status.
+        $profile->forceFill(['paid_through_at' => $earlier])->save();
+        $this->send($this->event('invoice.payment_failed', ['customer' => 'cus_123']))->assertOk();
+        $this->send($this->event('customer.subscription.updated', $subscription($later), created: now()->subHour()->getTimestamp()))
+            ->assertJson(['outcome' => 'stale']);
+
+        $profile->refresh();
+        $this->assertTrue($profile->paid_through_at->equalTo($later));
+        $this->assertSame(PaymentStatus::PastDue, $profile->payment_status);
     }
 
     public function test_unrelated_event_types_are_acknowledged_and_ignored(): void

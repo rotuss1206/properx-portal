@@ -139,6 +139,7 @@ class Agency extends Model
             'status' => AgencyStatus::class,
             'mailing_same_as_legal' => 'boolean',
             'headcount' => 'integer',
+            'paid_through_at' => 'datetime',
             // Encrypted at rest; agency NPN and FEIN are looked up through their blind indexes.
             'agency_npn' => 'encrypted',
             'fein' => 'encrypted',
