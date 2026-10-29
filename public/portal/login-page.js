@@ -1,0 +1,259 @@
+/*
+ * ProPerx sign-in page. Replaces only the markup and layout of Nova's login page
+ * (Nova 5 pages/Login.vue): the form state, attempt() (POST /nova/login, the 2FA
+ * redirect), browser validation and server errors stay Nova's own. Render functions
+ * only: the CSP has no unsafe-eval, so Vue templates cannot be compiled in the browser.
+ * Styles: public/portal/login-page.css (classes only, no inline styles).
+ *
+ * Loaded with "defer" from resources/views/vendor/nova/partials/meta.blade.php (Nova
+ * gives guests no tool scripts): it runs after window.Nova exists and before Nova
+ * mounts on DOMContentLoaded, so patching the page object takes effect. If a Nova
+ * upgrade changes the page so this no longer fits, the stock login page stays.
+ */
+(function () {
+    var Vue = window.Vue
+    var page = window.Nova && Nova.pages && Nova.pages['Nova.Login']
+
+    if (!Vue || !page || page.__properx || typeof page.data !== 'function'
+        || !page.methods || typeof page.methods.attempt !== 'function') {
+        return
+    }
+
+    var h = Vue.h
+    var settings = Nova.config('loginPage') || {}
+
+    function icon(className, paths, extra) {
+        return h('svg', {
+            class: className,
+            viewBox: '0 0 24 24',
+            fill: 'none',
+            stroke: 'currentColor',
+            'stroke-width': '1.8',
+            'stroke-linecap': 'round',
+            'stroke-linejoin': 'round',
+            'aria-hidden': 'true',
+            focusable: 'false',
+        }, paths.map(function (d) { return h('path', { d: d }) }).concat(extra || []))
+    }
+
+    var ICONS = {
+        shield: ['M12 3l7 3v5c0 4.5-3 8.4-7 10-4-1.6-7-5.5-7-10V6l7-3z', 'M9 12l2 2 4-4'],
+        award: ['M8.5 13.2L7.5 21l4.5-2.4 4.5 2.4-1-7.8', 'M12 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10z'],
+        library: ['M5 4v16', 'M9 4v16', 'M13 4v16', 'M16.5 4.6l3.6 14.8'],
+        eye: ['M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+        eyeOff: [
+            'M3 3l18 18',
+            'M10.6 10.6a2 2 0 0 0 2.8 2.8',
+            'M9.9 5.2A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.9 3.7',
+            'M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.8-1.3',
+        ],
+    }
+
+    var FEATURES = [
+        ['shield', 'License tracking & expiry reminders'],
+        ['award', 'Instant membership certificate generation'],
+        ['library', 'Full compliance & training library access'],
+    ]
+
+    // Placeholder artwork (star and swooshes) until the client supplies the real one.
+    function artwork() {
+        var gradient = function (id, color) {
+            return h('linearGradient', { id: id, x1: '0', y1: '1', x2: '1', y2: '0' }, [
+                h('stop', { offset: '0', 'stop-color': color, 'stop-opacity': '0' }),
+                h('stop', { offset: '1', 'stop-color': color, 'stop-opacity': '0.75' }),
+            ])
+        }
+
+        return h('svg', { class: 'ppx-login__art', viewBox: '0 0 400 320', 'aria-hidden': 'true', focusable: 'false' }, [
+            h('defs', [gradient('ppx-login-swoosh-green', '#8cc63f'), gradient('ppx-login-swoosh-blue', '#2f7fd1')]),
+            h('path', { d: 'M20 320C110 270 200 205 262 120C226 210 150 280 90 320Z', fill: 'url(#ppx-login-swoosh-green)' }),
+            h('path', { d: 'M150 320C205 268 255 215 292 150C272 220 236 275 210 320Z', fill: 'url(#ppx-login-swoosh-blue)' }),
+            h('path', {
+                class: 'ppx-login__star',
+                d: 'M330 30C334 68 346 80 384 84C346 88 334 100 330 138C326 100 314 88 276 84C314 80 326 68 330 30Z',
+            }),
+        ])
+    }
+
+    function logo() {
+        var svg = Nova.config('logo')
+
+        // Same source as Nova's own header logo (config nova.brand.logo, a trusted file).
+        return svg
+            ? h('span', { class: 'ppx-login__logo', innerHTML: svg })
+            : h('span', { class: 'ppx-login__logo ppx-login__logo--text' }, Nova.config('appName'))
+    }
+
+    function panel() {
+        return h('section', { class: 'ppx-login__panel', 'aria-label': 'About the member portal' }, [
+            artwork(),
+            logo(),
+            h('div', { class: 'ppx-login__intro' }, [
+                h('p', { class: 'ppx-login__tagline' }, 'Your professional membership hub.'),
+                h('p', { class: 'ppx-login__lead' },
+                    'Manage your licenses, certificates, tax documents, and compliance resources — all in one place.'),
+                h('ul', { class: 'ppx-login__features' }, FEATURES.map(function (feature) {
+                    return h('li', { class: 'ppx-login__feature' }, [
+                        h('span', { class: 'ppx-login__feature-icon' }, [icon('ppx-login__icon', ICONS[feature[0]])]),
+                        h('span', feature[1]),
+                    ])
+                })),
+            ]),
+            h('span', { class: 'ppx-login__badge' }, 'Member portal'),
+        ])
+    }
+
+    // Replaces Nova's Auth layout; keeps its error and expired-session handlers.
+    var Layout = {
+        name: 'ProperxLoginLayout',
+
+        setup: function (props, context) {
+            var onError = function (message) {
+                Nova.error(message)
+            }
+
+            var onTokenExpired = function () {
+                Nova.$toasted.show('Sorry, your session has expired.', {
+                    action: { onClick: function () { Nova.redirectToLogin() }, text: 'Reload' },
+                    duration: null,
+                    type: 'error',
+                })
+
+                setTimeout(function () { Nova.redirectToLogin() }, 5000)
+            }
+
+            Vue.onMounted(function () {
+                Nova.$on('error', onError)
+                Nova.$on('token-expired', onTokenExpired)
+            })
+
+            Vue.onBeforeUnmount(function () {
+                Nova.$off('error', onError)
+                Nova.$off('token-expired', onTokenExpired)
+            })
+
+            return function () {
+                return h('div', { class: 'ppx-login' }, [
+                    panel(),
+                    h('main', { class: 'ppx-login__main' }, context.slots.default ? context.slots.default() : []),
+                ])
+            }
+        },
+    }
+
+    function errorFor(vm, name) {
+        return vm.form.errors.has(name) ? vm.form.errors.first(name) : null
+    }
+
+    function errorText(id, message) {
+        return message ? h('p', { id: id, class: 'ppx-login__error' }, message) : null
+    }
+
+    function forgotPasswordLink(vm) {
+        if (!vm.supportsPasswordReset && vm.forgotPasswordPath === false) {
+            return null
+        }
+
+        var text = vm.__('Forgot password?')
+
+        return vm.forgotPasswordPath === false
+            ? h(Vue.resolveComponent('Link'), { href: vm.$url('/password/reset'), class: 'ppx-login__link' }, { default: function () { return text } })
+            : h('a', { href: vm.forgotPasswordPath, class: 'ppx-login__link' }, text)
+    }
+
+    function helpLine() {
+        return h('p', { class: 'ppx-login__help' }, settings.supportUrl
+            ? ['Need help? ', h('a', { href: settings.supportUrl, class: 'ppx-login__link ppx-login__link--plain' }, 'Contact support')]
+            : 'Need help? Contact the ProPerx Alliance membership team.')
+    }
+
+    function render() {
+        var vm = this
+        var field = vm.username
+        var usernameError = errorFor(vm, field)
+        var passwordError = errorFor(vm, 'password')
+
+        return h('div', { class: 'ppx-login__card' }, [
+            h(Vue.resolveComponent('Head'), { title: vm.__('Sign in') }),
+
+            h('h1', { class: 'ppx-login__title' }, vm.__('Sign in')),
+            h('p', { class: 'ppx-login__subtitle' }, vm.__('Enter your credentials to access your account.')),
+
+            h('form', {
+                class: 'ppx-login__form',
+                onSubmit: function (event) {
+                    event.preventDefault()
+                    vm.attempt()
+                },
+            }, [
+                h('div', { class: 'ppx-login__field' }, [
+                    h('label', { class: 'ppx-login__label', for: 'username' },
+                        vm.__(vm.username === vm.email ? 'Email address' : 'Username')),
+                    h('input', {
+                        id: 'username',
+                        class: ['ppx-login__input', usernameError && 'is-invalid'],
+                        type: vm.usernameInputType,
+                        name: field,
+                        value: vm.form[field],
+                        onInput: function (event) { vm.form[field] = event.target.value },
+                        autofocus: '',
+                        autocomplete: 'username',
+                        required: true,
+                        'aria-invalid': usernameError ? 'true' : null,
+                        'aria-describedby': usernameError ? 'username-error' : null,
+                    }),
+                    errorText('username-error', usernameError),
+                ]),
+
+                h('div', { class: 'ppx-login__field' }, [
+                    h('div', { class: 'ppx-login__label-row' }, [
+                        h('label', { class: 'ppx-login__label', for: 'password' }, vm.__('Password')),
+                        forgotPasswordLink(vm),
+                    ]),
+                    h('div', { class: 'ppx-login__password' }, [
+                        h('input', {
+                            id: 'password',
+                            class: ['ppx-login__input', passwordError && 'is-invalid'],
+                            type: vm.showPassword ? 'text' : 'password',
+                            name: 'password',
+                            value: vm.form.password,
+                            onInput: function (event) { vm.form.password = event.target.value },
+                            autocomplete: 'current-password',
+                            required: true,
+                            'aria-invalid': passwordError ? 'true' : null,
+                            'aria-describedby': passwordError ? 'password-error' : null,
+                        }),
+                        h('button', {
+                            type: 'button',
+                            class: 'ppx-login__reveal',
+                            'aria-controls': 'password',
+                            'aria-pressed': vm.showPassword ? 'true' : 'false',
+                            'aria-label': vm.__('Show password'),
+                            onClick: function () { vm.showPassword = !vm.showPassword },
+                        }, [icon('ppx-login__icon', vm.showPassword ? ICONS.eyeOff : ICONS.eye)]),
+                    ]),
+                    errorText('password-error', passwordError),
+                ]),
+
+                h('button', {
+                    type: 'submit',
+                    class: 'ppx-login__submit',
+                    disabled: vm.form.processing,
+                    'aria-busy': vm.form.processing ? 'true' : null,
+                }, vm.form.processing ? vm.__('Signing in…') : vm.__('Sign in')),
+            ]),
+
+            helpLine(),
+        ])
+    }
+
+    var novaData = page.data
+
+    page.data = function (instance) {
+        return Object.assign(novaData.call(this, instance), { showPassword: false })
+    }
+
+    page.render = render
+    page.layout = Layout
+    page.__properx = true
+})()

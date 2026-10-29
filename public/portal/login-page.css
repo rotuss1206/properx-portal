@@ -1,0 +1,286 @@
+/*
+ * ProPerx sign-in page (markup: public/portal/login-page.js, loaded by
+ * resources/views/vendor/nova/partials/meta.blade.php). Fonts are self-hosted in
+ * public/portal/fonts (SIL Open Font License): the CSP allows no external hosts.
+ */
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/poppins-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/poppins-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/poppins-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/inter-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/inter-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/inter-latin-600-normal.woff2') format('woff2'); }
+
+.ppx-login {
+    --ppx-navy: #0c2a4b;
+    --ppx-ink: #14243a;
+    --ppx-muted: #5d6b7e;
+    --ppx-border: #d5dbe4;
+    --ppx-link: #1f4f8f;
+    --ppx-yellow: #fbd24e;
+    --ppx-yellow-hover: #f6c731;
+    --ppx-green: #4e9a2c;
+    --ppx-danger: #b42318;
+    --ppx-heading: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --ppx-body: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    display: flex;
+    min-height: 100vh;
+    background: #fff;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-body);
+    font-weight: 400;
+}
+
+/* Brand panel */
+
+.ppx-login__panel {
+    position: relative;
+    display: flex;
+    flex: 0 0 36%;
+    flex-direction: column;
+    min-width: 380px;
+    max-width: 560px;
+    padding: 48px 52px 44px;
+    overflow: hidden;
+    background: var(--ppx-navy);
+    color: #fff;
+}
+
+.ppx-login__art {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 85%;
+    max-width: 400px;
+    pointer-events: none;
+}
+
+/* Short desktop screens: keep the star clear of the feature list. */
+@media (min-width: 901px) and (max-height: 860px) {
+    .ppx-login__art { width: 66%; max-width: 300px; }
+}
+
+.ppx-login__star { fill: #fff; opacity: 0.32; }
+
+.ppx-login__logo,
+.ppx-login__intro,
+.ppx-login__badge { position: relative; }
+
+.ppx-login__logo {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    padding: 12px 18px;
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ppx-navy);
+}
+
+.ppx-login__logo svg { display: block; width: auto; height: 46px; }
+
+.ppx-login__logo--text { font-family: var(--ppx-heading); font-size: 20px; font-weight: 700; }
+
+.ppx-login__intro { margin: auto 0; padding: 56px 0; }
+
+.ppx-login__tagline {
+    max-width: 360px;
+    margin: 0;
+    font-family: var(--ppx-heading);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.ppx-login__lead {
+    max-width: 400px;
+    margin: 18px 0 26px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.ppx-login__features { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+
+.ppx-login__feature { display: flex; align-items: center; gap: 14px; color: rgba(255, 255, 255, 0.9); font-size: 13.5px; }
+
+.ppx-login__feature-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: var(--ppx-green);
+    color: #fff;
+}
+
+.ppx-login__icon { width: 18px; height: 18px; }
+
+.ppx-login__badge {
+    align-self: flex-start;
+    padding: 4px 9px;
+    border-radius: 3px;
+    background: var(--ppx-yellow);
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Form */
+
+.ppx-login__main {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+}
+
+.ppx-login__card { width: 100%; max-width: 380px; }
+
+.ppx-login__title {
+    margin: 0 0 6px;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.ppx-login__subtitle { margin: 0 0 28px; color: var(--ppx-muted); font-size: 14px; line-height: 1.5; }
+
+.ppx-login__form { display: flex; flex-direction: column; gap: 20px; }
+
+.ppx-login__label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+
+.ppx-login__label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--ppx-ink);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ppx-login__input {
+    display: block;
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--ppx-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-body);
+    font-size: 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ppx-login__input:focus {
+    border-color: var(--ppx-link);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.18);
+}
+
+.ppx-login__input.is-invalid { border-color: var(--ppx-danger); }
+
+.ppx-login__input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15); }
+
+.ppx-login__error { margin: 6px 0 0; color: var(--ppx-danger); font-size: 12.5px; line-height: 1.4; }
+
+.ppx-login__password { position: relative; }
+
+.ppx-login__password .ppx-login__input { padding-right: 48px; }
+
+.ppx-login__reveal {
+    position: absolute;
+    top: 50%;
+    right: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #6b7686;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.ppx-login__reveal:hover { color: var(--ppx-ink); }
+
+.ppx-login__reveal .ppx-login__icon { width: 20px; height: 20px; }
+
+.ppx-login__link { color: var(--ppx-link); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+
+.ppx-login__link--plain { font-size: inherit; font-weight: 500; }
+
+.ppx-login__link:hover { text-decoration: underline; }
+
+.ppx-login__submit {
+    height: 48px;
+    margin-top: 4px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--ppx-yellow);
+    box-shadow: 0 8px 18px rgba(240, 186, 30, 0.32);
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.ppx-login__submit:hover { background: var(--ppx-yellow-hover); }
+
+.ppx-login__submit:disabled { cursor: wait; opacity: 0.75; }
+
+.ppx-login__help { margin: 32px 0 0; color: var(--ppx-muted); font-size: 13px; text-align: center; }
+
+.ppx-login__reveal:focus-visible,
+.ppx-login__submit:focus-visible,
+.ppx-login__link:focus-visible {
+    outline: 2px solid var(--ppx-link);
+    outline-offset: 2px;
+}
+
+/* Tablet and phone: the panel becomes a header above the form. */
+
+@media (max-width: 900px) {
+    .ppx-login { flex-direction: column; }
+
+    .ppx-login__panel { flex: none; min-width: 0; max-width: none; padding: 24px 20px 28px; }
+
+    .ppx-login__art { width: 260px; opacity: 0.6; }
+
+    .ppx-login__logo { padding: 10px 14px; }
+
+    .ppx-login__logo svg { height: 36px; }
+
+    .ppx-login__intro { margin: 0; padding: 24px 0 20px; }
+
+    .ppx-login__tagline { font-size: 24px; }
+
+    .ppx-login__lead { margin: 12px 0 18px; }
+
+    .ppx-login__main { align-items: flex-start; padding: 36px 20px 48px; }
+}
+
+@media (max-width: 600px) {
+    .ppx-login__lead,
+    .ppx-login__features { display: none; }
+
+    .ppx-login__intro { padding: 20px 0 16px; }
+
+    .ppx-login__tagline { font-size: 21px; }
+
+    .ppx-login__title { font-size: 24px; }
+
+    .ppx-login__main { padding-top: 28px; }
+}

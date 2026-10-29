@@ -46,6 +46,9 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         Nova::serving(function (ServingNova $event) {
             Nova::provideToScript(['membershipBanner' => MembershipBanner::for($event->request->user())]);
             Nova::script('membership-banner', resource_path('js/nova/membership-banner.js'));
+
+            // Branded sign-in page (public/portal, loaded by the vendor/nova/partials/meta view).
+            Nova::provideToScript(['loginPage' => ['supportUrl' => config('portal.brand.support_url') ?: null]]);
         });
     }
 

@@ -31,6 +31,9 @@ return [
         'tagline' => 'Member Portal',
         'navy' => '#1e3a5f',
         'button' => '#21579d',
+        // "Contact support" on the sign-in page (https:// or mailto:); without it the page
+        // names the membership team instead of linking.
+        'support_url' => env('PORTAL_SUPPORT_URL'),
     ],
 
     /*
