@@ -48,7 +48,7 @@
 
 .ppx-login__panel--top { grid-area: top; padding-top: 48px; }
 
-.ppx-login__panel--bottom { grid-area: bottom; padding-bottom: 44px; overflow: hidden; }
+.ppx-login__panel--bottom { grid-area: bottom; padding-bottom: 44px; }
 
 /* Design artwork (public/portal/login-art.svg): the full width of the bottom part. */
 .ppx-login__art {
@@ -71,15 +71,13 @@
     display: inline-flex;
     align-self: flex-start;
     align-items: center;
-    padding: 12px 18px;
+    padding: 6px 12px;
     border-radius: 6px;
     background: #fff;
     color: var(--ppx-navy);
 }
 
-.ppx-login__logo svg { display: block; width: auto; height: 46px; }
-
-.ppx-login__logo--text { font-family: var(--ppx-heading); font-size: 20px; font-weight: 700; }
+.ppx-login__logo-image { display: block; width: auto; height: 60px; }
 
 /* Sits on the seam between the two parts, like one block centred in the column. */
 .ppx-login__intro { margin-top: auto; padding-top: 56px; }
@@ -336,9 +334,12 @@
         padding-bottom: 20px;
     }
 
-    .ppx-login__logo { padding: 10px 14px; }
+    .ppx-login__panel--bottom{
+        overflow: hidden;
+    }
+    .ppx-login__logo { padding: 4px 10px; }
 
-    .ppx-login__logo svg { height: 36px; }
+    .ppx-login__logo-image { height: 48px; }
 
     .ppx-login__intro { flex: 1 1 130px; margin: 0; padding-top: 0; }
 
@@ -358,9 +359,9 @@
 @media (max-width: 600px) {
     .ppx-login__panel--top { gap: 14px 16px; }
 
-    .ppx-login__logo { padding: 8px 12px; }
+    .ppx-login__logo { padding: 4px 8px; }
 
-    .ppx-login__logo svg { height: 30px; }
+    .ppx-login__logo-image { height: 42px; }
 
     .ppx-login__tagline { font-size: 17px; }
 

@@ -72,20 +72,25 @@
         ['library', 'Full compliance & training library access'],
     ]
 
-    // Decorative artwork (star and swooshes) from the design, next to this script.
-    var artworkUrl = new URL('login-art.svg', document.currentScript ? document.currentScript.src : window.location.origin + '/portal/').href
+    // Images next to this script (public/portal).
+    var assetBase = document.currentScript ? document.currentScript.src : window.location.origin + '/portal/'
+
+    function assetUrl(name) {
+        return new URL(name, assetBase).href
+    }
+
+    // Decorative artwork (star and swooshes) from the design.
+    var artworkUrl = assetUrl('login-art.svg')
 
     function artwork() {
         return h('img', { class: 'ppx-login__art', src: artworkUrl, alt: '', 'aria-hidden': 'true' })
     }
 
+    // Full-colour logo for the sign-in page only (Nova's header keeps config nova.brand.logo).
     function logo() {
-        var svg = Nova.config('logo')
-
-        // Same source as Nova's own header logo (config nova.brand.logo, a trusted file).
-        return svg
-            ? h('span', { class: 'ppx-login__logo', innerHTML: svg })
-            : h('span', { class: 'ppx-login__logo ppx-login__logo--text' }, Nova.config('appName'))
+        return h('span', { class: 'ppx-login__logo' }, [
+            h('img', { class: 'ppx-login__logo-image', src: assetUrl('properx-alliance-logo.png'), alt: 'ProPerx Alliance' }),
+        ])
     }
 
     // The brand panel comes in two parts so phones can show the features below the form:
