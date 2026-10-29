@@ -22,6 +22,22 @@
     var h = Vue.h
     var settings = Nova.config('loginPage') || {}
 
+    // Placeholder notices: at most one on screen. Repeated clicks keep the visible one;
+    // a different notice replaces it.
+    var current = null
+
+    function notice(message) {
+        if (current && current.toast && current.toast.el && current.toast.el.isConnected) {
+            if (current.message === message) {
+                return
+            }
+
+            current.toast.goAway(0)
+        }
+
+        current = { message: message, toast: Nova.$toasted.show(message, { type: 'info' }) }
+    }
+
     function icon(className, paths, extra) {
         return h('svg', {
             class: className,
@@ -180,7 +196,7 @@
                 onClick: function (event) {
                     if (!settings.supportUrl) {
                         event.preventDefault()
-                        Nova.info('Please contact the ProPerx Alliance membership team.')
+                        notice('Please contact the ProPerx Alliance membership team.')
                     }
                 },
             }, 'Contact support'),
@@ -194,7 +210,7 @@
             h('button', {
                 type: 'button',
                 class: 'ppx-login__sso',
-                onClick: function () { Nova.info('Single sign-on is not available yet. Please sign in with your email and password.') },
+                onClick: function () { notice('Single sign-on is not available yet. Please sign in with your email and password.') },
             }, [icon('ppx-login__icon', ICONS.device), h('span', vm.__('Sign in with SSO'))]),
         ]
     }
