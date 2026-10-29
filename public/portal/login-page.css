@@ -248,7 +248,67 @@
 
 .ppx-login__submit:disabled { cursor: wait; opacity: 0.75; }
 
-.ppx-login__help { margin: 32px 0 0; color: var(--ppx-muted); font-size: 13px; text-align: center; }
+.ppx-login__remember {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 10px;
+    margin-top: -4px;
+    color: var(--ppx-ink);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.ppx-login__checkbox {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border-radius: 4px;
+    accent-color: var(--ppx-link);
+    cursor: pointer;
+}
+
+.ppx-login__divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 22px 0;
+    color: #9aa4b2;
+    font-size: 12px;
+}
+
+.ppx-login__divider::before,
+.ppx-login__divider::after { flex: 1; height: 1px; background: #e3e7ed; content: ''; }
+
+.ppx-login__sso {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 46px;
+    border: 1px solid var(--ppx-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.ppx-login__sso:hover { border-color: #b9c2cf; background: #f8fafc; }
+
+.ppx-login__sso .ppx-login__icon { width: 20px; height: 20px; color: var(--ppx-link); }
+
+.ppx-login__sso:focus-visible,
+.ppx-login__checkbox:focus-visible {
+    outline: 2px solid var(--ppx-link);
+    outline-offset: 2px;
+}
+
+.ppx-login__help { margin: 26px 0 0; color: var(--ppx-muted); font-size: 13px; text-align: center; }
 
 .ppx-login__reveal:focus-visible,
 .ppx-login__submit:focus-visible,

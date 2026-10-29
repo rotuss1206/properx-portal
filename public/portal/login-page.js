@@ -40,6 +40,7 @@
         shield: ['M12 3l7 3v5c0 4.5-3 8.4-7 10-4-1.6-7-5.5-7-10V6l7-3z', 'M9 12l2 2 4-4'],
         award: ['M8.5 13.2L7.5 21l4.5-2.4 4.5 2.4-1-7.8', 'M12 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10z'],
         library: ['M5 4v16', 'M9 4v16', 'M13 4v16', 'M16.5 4.6l3.6 14.8'],
+        device: ['M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5z', 'M12 18h.01'],
         eye: ['M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
         eyeOff: [
             'M3 3l18 18',
@@ -169,10 +170,48 @@
             : h('a', { href: vm.forgotPasswordPath, class: 'ppx-login__link' }, text)
     }
 
+    // Placeholder until PORTAL_SUPPORT_URL is set: the link only shows a notice.
     function helpLine() {
-        return h('p', { class: 'ppx-login__help' }, settings.supportUrl
-            ? ['Need help? ', h('a', { href: settings.supportUrl, class: 'ppx-login__link ppx-login__link--plain' }, 'Contact support')]
-            : 'Need help? Contact the ProPerx Alliance membership team.')
+        return h('p', { class: 'ppx-login__help' }, [
+            'Need help? ',
+            h('a', {
+                href: settings.supportUrl || '#',
+                class: 'ppx-login__link ppx-login__link--plain',
+                onClick: function (event) {
+                    if (!settings.supportUrl) {
+                        event.preventDefault()
+                        Nova.info('Please contact the ProPerx Alliance membership team.')
+                    }
+                },
+            }, 'Contact support'),
+        ])
+    }
+
+    // Placeholder: SSO with external identity providers is out of scope for now.
+    function ssoButton(vm) {
+        return [
+            h('div', { class: 'ppx-login__divider' }, [h('span', vm.__('or'))]),
+            h('button', {
+                type: 'button',
+                class: 'ppx-login__sso',
+                onClick: function () { Nova.info('Single sign-on is not available yet. Please sign in with your email and password.') },
+            }, [icon('ppx-login__icon', ICONS.device), h('span', vm.__('Sign in with SSO'))]),
+        ]
+    }
+
+    // Bound to Nova's own "remember" field; the portal ignores it (DisableRememberMe:
+    // sessions are owned by the platform), so it is visual for now.
+    function rememberCheckbox(vm) {
+        return h('label', { class: 'ppx-login__remember' }, [
+            h('input', {
+                type: 'checkbox',
+                class: 'ppx-login__checkbox',
+                name: 'remember',
+                checked: vm.form.remember,
+                onChange: function (event) { vm.form.remember = event.target.checked },
+            }),
+            h('span', vm.__('Keep me signed in')),
+        ])
     }
 
     function render() {
@@ -243,6 +282,8 @@
                     errorText('password-error', passwordError),
                 ]),
 
+                rememberCheckbox(vm),
+
                 h('button', {
                     type: 'submit',
                     class: 'ppx-login__submit',
@@ -250,6 +291,8 @@
                     'aria-busy': vm.form.processing ? 'true' : null,
                 }, vm.form.processing ? vm.__('Signing in…') : vm.__('Sign in')),
             ]),
+
+            ssoButton(vm),
 
             helpLine(),
         ])
