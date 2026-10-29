@@ -147,35 +147,47 @@
 
 .ppx-login__title {
     margin: 0 0 6px;
-    color: var(--ppx-ink);
     font-family: var(--ppx-heading);
-    font-size: 28px;
-    font-weight: 600;
-    line-height: 1.3;
+    color: #1C2B3A;
+    font-family: Poppins;
+    font-size: 26px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
 }
 
-.ppx-login__subtitle { margin: 0 0 28px; color: var(--ppx-muted); font-size: 14px; line-height: 1.5; }
+.ppx-login__subtitle { 
+    margin: 0 0 28px;
+    color: #5F7185;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+}
 
-.ppx-login__form { display: flex; flex-direction: column; gap: 20px; }
+.ppx-login__form { display: flex; flex-direction: column; gap: 18px; }
 
 .ppx-login__label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 
 .ppx-login__label {
+    margin-bottom: 7px;
     display: block;
-    margin-bottom: 8px;
-    color: var(--ppx-ink);
+    color: #1C2B3A;
+    font-family: "Open Sans";
     font-size: 13px;
+    font-style: normal;
     font-weight: 600;
+    line-height: normal;
 }
 
 .ppx-login__input {
     display: block;
     width: 100%;
     height: 46px;
-    padding: 0 14px;
-    border: 1px solid var(--ppx-border);
-    border-radius: 8px;
-    background: #fff;
+    padding: 12.5px 14px;
+    border-radius: 12px;
+    border: 1px solid #CDD6E0;
+    background: #FFF;
     color: var(--ppx-ink);
     font-family: var(--ppx-body);
     font-size: 14px;
@@ -238,7 +250,7 @@
     .ppx-login__eye-slash { transition: none; }
 }
 
-.ppx-login__link { color: var(--ppx-link); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.ppx-login__link { color: #14508C; font-size: 12.5px; font-weight: 600; text-decoration: none; }
 
 .ppx-login__link--plain { font-size: inherit; font-weight: 500; }
 
@@ -274,13 +286,24 @@
     cursor: pointer;
 }
 
+/* Custom box from the design: an empty 1px frame, filled with the white tick
+   (img/checkbox-check.svg) when checked. */
 .ppx-login__checkbox {
-    width: 18px;
-    height: 18px;
+    flex: none;
+    width: 20px;
+    height: 20px;
     margin: 0;
+    border: 1px solid #14508c;
     border-radius: 4px;
-    accent-color: var(--ppx-link);
+    background: #fff center / 20px 24px no-repeat border-box;
     cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.ppx-login__checkbox:checked {
+    background-color: #14508c;
+    background-image: url('img/checkbox-check.svg');
 }
 
 .ppx-login__divider {
