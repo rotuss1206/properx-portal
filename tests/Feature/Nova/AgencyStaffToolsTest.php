@@ -392,7 +392,8 @@ class AgencyStaffToolsTest extends TestCase
         $log = AuditLog::query()->where('action', 'agency_principal_changed')->latest('id')->first();
         $fields = collect($this->getJson("/nova-api/audit-logs/{$log->id}")->assertOk()->json('resource.fields'))->keyBy('name');
 
-        $this->assertStringContainsString("Agency: {$agency->legal_name}", $fields['Resource']['value']);
+        // The link is HTML: names such as "D'Amore" arrive escaped.
+        $this->assertStringContainsString(e("Agency: {$agency->legal_name}"), $fields['Resource']['value']);
         $this->assertStringContainsString("/resources/agencies/{$agency->id}", $fields['Resource']['value']);
         $this->assertSame("Principal: {$principal->name} (#{$principal->id}) → {$producer->name} (#{$producer->id})", $fields['Changes']['value']);
 
