@@ -43,6 +43,8 @@ class AuditLog extends Model
         'stripe_event_processed',
         'api_key_rotated',
         'password_link_created',
+        'executive_director_assigned',
+        'executive_director_revoked',
         'agency_created',
         'agency_updated',
         'agency_deleted',

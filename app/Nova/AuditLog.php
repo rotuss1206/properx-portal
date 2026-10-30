@@ -134,6 +134,8 @@ class AuditLog extends Resource
                 ($details['added'] ?? []) !== [] ? 'Role added: '.implode(', ', $details['added']) : null,
                 ($details['removed'] ?? []) !== [] ? 'Role removed: '.implode(', ', $details['removed']) : null,
             ])) ?: null,
+            'executive_director_assigned' => 'Via the console command'.(($details['account_created'] ?? false) ? '; account created' : ''),
+            'executive_director_revoked' => 'Via the console command',
             'agency_updated', 'profile_updated' => isset($details['fields'])
                 ? 'Changed fields: '.implode(', ', array_map(fn (string $field) => Str::headline($field), $details['fields']))
                 : null,

@@ -6,6 +6,7 @@ use App\Enums\ReminderType;
 use App\Enums\Role;
 use App\Notifications\LicenseExpiryReminder;
 use App\Notifications\ScheduledTaskFailed;
+use App\Notifications\StaffAccountCreated;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Markdown;
@@ -80,6 +81,20 @@ class MailBrandingTest extends TestCase
         $this->assertStringContainsString('/nova/password/reset/', $rendered['html']);
 
         foreach ([$member->email, $member->memberProfile->first_name, $member->memberProfile->last_name] as $value) {
+            $this->assertStringNotContainsString($value, $rendered['html'].$rendered['text']);
+        }
+    }
+
+    public function test_new_staff_account_email_is_branded_and_has_no_personal_data(): void
+    {
+        $staff = $this->staff(Role::ComplianceSpecialist);
+
+        $rendered = $this->render((new StaffAccountCreated)->toMail($staff));
+
+        $this->assertBranded($rendered);
+        $this->assertStringContainsString('/nova/password/reset/', $rendered['html']);
+
+        foreach ([$staff->email, $staff->name] as $value) {
             $this->assertStringNotContainsString($value, $rendered['html'].$rendered['text']);
         }
     }

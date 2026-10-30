@@ -4,16 +4,17 @@ namespace App\Nova;
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Notifications\StaffAccountCreated;
 use App\Nova\Concerns\AuthorizesUserResource;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Laravel\Nova\Auth\PasswordValidationRules;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\ID;
-use Laravel\Nova\Fields\Password;
 use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Http\Requests\NovaRequest;
@@ -25,7 +26,7 @@ use Laravel\Nova\Http\Requests\NovaRequest;
  */
 class Staff extends Resource
 {
-    use AuthorizesUserResource, PasswordValidationRules;
+    use AuthorizesUserResource;
 
     public static $model = User::class;
 
@@ -63,6 +64,22 @@ class Staff extends Resource
         if (! $model->hasAnyRole(self::staffRoleNames())) {
             throw ValidationException::withMessages(['role' => 'A staff account must have a staff role.']);
         }
+
+        // They choose their own password through the emailed link (sent after commit).
+        $model->notify(new StaffAccountCreated);
+    }
+
+    /**
+     * Nobody types a password for a new staff member: the account starts with a random,
+     * unknown one until they set theirs from the emailed link.
+     */
+    public static function fill(NovaRequest $request, $model): array
+    {
+        if (! $model->exists) {
+            $model->password = Str::password(64);
+        }
+
+        return parent::fill($request, $model);
     }
 
     public static function indexQuery(NovaRequest $request, Builder $query): Builder
@@ -90,18 +107,24 @@ class Staff extends Resource
                 ->creationRules('unique:users,email')
                 ->updateRules('unique:users,email,{{resourceId}}'),
 
+            // Forms offer only the roles staff may hand out: the Executive Director role is
+            // assigned and revoked with app:assign-executive-director, never through Nova.
             Select::make('Role')
-                ->options(array_combine(self::staffRoleNames(), self::staffRoleNames()))
-                // Only the three staff roles; anything else would leave the account without a role.
-                ->rules('required', Rule::in(self::staffRoleNames()))
-                ->resolveUsing(fn ($value, $user) => $user->getRoleNames()->first())
-                // The Executive Director role cannot be revoked from the UI.
-                ->readonly(fn () => $this->resource->exists && $this->resource->isExecutiveDirector())
-                ->fillUsing(function (NovaRequest $request, $model, $attribute, $requestAttribute) {
-                    $role = $request->input($requestAttribute);
+                ->options(function () use ($request) {
+                    $roles = $request->isFormRequest() && ! $this->isExecutiveDirector()
+                        ? self::assignableRoleNames()
+                        : self::staffRoleNames();
 
-                    if (! in_array($role, self::staffRoleNames(), true)
-                        || ($model->exists && $model->isExecutiveDirector())) {
+                    return array_combine($roles, $roles);
+                })
+                ->rules('required', Rule::in(self::assignableRoleNames()))
+                ->resolveUsing(fn ($value, $user) => $user->getRoleNames()->first())
+                // The Executive Director's role is shown, never changed or removed here.
+                ->readonly(fn () => $this->isExecutiveDirector())
+                ->fillUsing(function (NovaRequest $request, $model, $attribute, $requestAttribute) {
+                    $role = (string) $request->input($requestAttribute);
+
+                    if (! Gate::forUser($request->user())->allows('assignRole', [$model, $role])) {
                         return null;
                     }
 
@@ -115,12 +138,12 @@ class Staff extends Resource
             DateTime::make('Last login', 'last_login_at')
                 ->exceptOnForms()
                 ->sortable(),
-
-            Password::make('Password')
-                ->onlyOnForms()
-                ->creationRules($this->passwordRules())
-                ->updateRules($this->optionalPasswordRules()),
         ];
+    }
+
+    private function isExecutiveDirector(): bool
+    {
+        return $this->resource instanceof User && $this->resource->exists && $this->resource->isExecutiveDirector();
     }
 
     /**
@@ -129,5 +152,13 @@ class Staff extends Resource
     private static function staffRoleNames(): array
     {
         return array_map(fn (Role $role) => $role->value, Role::staff());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function assignableRoleNames(): array
+    {
+        return array_map(fn (Role $role) => $role->value, Role::assignableStaff());
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Role;
 use App\Models\User;
 
 /**
@@ -62,7 +63,23 @@ class UserPolicy
     }
 
     /**
-     * The Executive Director account can only be revoked directly in the database.
+     * Giving a staff account a role in Nova. The actor needs staff.manage; the role must be
+     * one Nova may hand out (never the Executive Director role, which only the
+     * app:assign-executive-director command assigns); an Executive Director's own role
+     * cannot be changed or removed here.
+     */
+    public function assignRole(User $user, User $target, string $role): bool
+    {
+        $assignable = array_map(fn (Role $role) => $role->value, Role::assignableStaff());
+
+        return $user->checkPermissionTo('staff.manage')
+            && in_array($role, $assignable, true)
+            && ! ($target->exists && $target->isExecutiveDirector());
+    }
+
+    /**
+     * An Executive Director account is never deleted in Nova: revoke the role first with
+     * app:assign-executive-director --revoke.
      */
     public function delete(User $user, User $target): bool
     {

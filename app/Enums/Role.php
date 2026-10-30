@@ -22,4 +22,15 @@ enum Role: string
     {
         return [self::ExecutiveDirector, self::MembershipCoordinator, self::ComplianceSpecialist];
     }
+
+    /**
+     * Staff roles that may be handed out in Nova. The Executive Director role is assigned
+     * and revoked only with `php artisan app:assign-executive-director`.
+     *
+     * @return list<self>
+     */
+    public static function assignableStaff(): array
+    {
+        return [self::MembershipCoordinator, self::ComplianceSpecialist];
+    }
 }
