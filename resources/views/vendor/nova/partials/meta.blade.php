@@ -1,9 +1,14 @@
 {{--
-    Overrides Nova's empty head partial. Guests get the branded sign-in page
-    (public/portal): Nova serves tool scripts and styles to signed-in users only.
+    Overrides Nova's empty head partial. Design tokens and fonts for every Nova page; the
+    shared sidebar styles for signed-in users (the sidebar script and its Nova layout rules
+    come from Nova::script / Nova::style); the branded sign-in pages for guests, since Nova
+    serves tool scripts and styles to signed-in users only.
 --}}
+@php($nonce = \Laravel\Nova\Nova::cspNonceAttribute())
+<link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}"{!! $nonce !!}>
 @if (\Laravel\Nova\Nova::user(request()) === null)
-    @php($loginAssetVersion = fn (string $path) => asset($path).'?v='.substr((string) md5_file(public_path($path)), 0, 12))
-    <link rel="stylesheet" href="{{ $loginAssetVersion('portal/login-page.css') }}"{{ \Laravel\Nova\Nova::cspNonceAttribute() }}>
-    <script src="{{ $loginAssetVersion('portal/login-page.js') }}" defer{{ \Laravel\Nova\Nova::cspNonceAttribute() }}></script>
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('login-page.css') }}"{!! $nonce !!}>
+    <script src="{{ \App\Support\PortalAsset::url('login-page.js') }}" defer{!! $nonce !!}></script>
+@else
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('sidebar.css') }}"{!! $nonce !!}>
 @endif

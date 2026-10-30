@@ -39,12 +39,20 @@ class LoginPageTest extends TestCase
     {
         $this->seedRoles();
 
-        $this->actingAs($this->staff(Role::ExecutiveDirector))->get('/nova/user-security')->assertDontSee('portal/login-page', false);
+        $this->actingAs($this->staff(Role::ExecutiveDirector))->get('/nova/user-security')
+            ->assertDontSee('portal/login-page', false)
+            ->assertSee('portal/tokens.css?v=', false)
+            ->assertSee('portal/sidebar.css?v=', false);
+    }
+
+    public function test_the_design_tokens_load_before_the_sign_in_styles(): void
+    {
+        $this->get('/nova/login')->assertOk()->assertSeeInOrder(['portal/tokens.css?v=', 'portal/login-page.css?v='], false);
     }
 
     public function test_the_assets_are_self_contained(): void
     {
-        $css = file_get_contents(public_path('portal/login-page.css'));
+        $css = file_get_contents(public_path('portal/login-page.css')).file_get_contents(public_path('portal/tokens.css'));
         $js = file_get_contents(public_path('portal/login-page.js'));
 
         preg_match_all("~url\\('([^']+)'\\)~", $css, $fonts);

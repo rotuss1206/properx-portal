@@ -8,7 +8,8 @@
  * fallback: if this script does not load, or the component throws, Nova's menu renders
  * and the layout overrides are switched off. Depends on Nova 5 internals (component
  * name "MainMenu", AppLayout and MainHeader markup): recheck after Nova upgrades
- * (docs/DEVELOPMENT.md). Styles: resources/css/nova/sidebar.css.
+ * (docs/DEVELOPMENT.md). Styles: public/portal/sidebar.css (shared with the member area)
+ * and resources/css/nova/sidebar.css (Nova layout); icons: public/portal/img/icons.svg.
  */
 (function () {
     var Vue = window.Vue
@@ -50,52 +51,11 @@
     shell(true)
     collapsedClass(readCollapsed())
 
-    // Icons from the design, 24x24 strokes in currentColor (billing is a filled shape).
-    var ICONS = {
-        dashboard: [
-            'M4 3H9C9.55192 3 10 3.44808 10 4V11C10 11.5519 9.55192 12 9 12H4C3.44808 12 3 11.5519 3 11V4C3 3.44808 3.44808 3 4 3V3',
-            'M15 3H20C20.5519 3 21 3.44808 21 4V7C21 7.55192 20.5519 8 20 8H15C14.4481 8 14 7.55192 14 7V4C14 3.44808 14.4481 3 15 3V3',
-            'M15 12H20C20.5519 12 21 12.4481 21 13V20C21 20.5519 20.5519 21 20 21H15C14.4481 21 14 20.5519 14 20V13C14 12.4481 14.4481 12 15 12V12',
-            'M4 16H9C9.55192 16 10 16.4481 10 17V20C10 20.5519 9.55192 21 9 21H4C3.44808 21 3 20.5519 3 20V17C3 16.4481 3.44808 16 4 16V16',
-        ],
-        profile: [
-            'M7 8C7 10.7596 9.24042 13 12 13C14.7596 13 17 10.7596 17 8C17 5.24042 14.7596 3 12 3C9.24042 3 7 5.24042 7 8V8',
-            'M20 21C20 16.5847 16.4153 13 12 13C7.58468 13 4 16.5847 4 21',
-        ],
-        license: [
-            'M6 22C4.89617 22 4 21.1038 4 20V4C4 2.89617 4.89617 2 6 2H14C14.6394 1.99897 15.2527 2.25309 15.704 2.706L19.292 6.294C19.7461 6.74545 20.001 7.35966 20 8V20C20 21.1038 19.1038 22 18 22H6',
-            'M14 2V7C14 7.55192 14.4481 8 15 8H20',
-            'M10 9H8',
-            'M16 13H8',
-            'M16 17H8',
-        ],
-        tax: [
-            'M12 17V7',
-            'M16 8H10C8.89617 8 8 8.89617 8 10C8 11.1038 8.89617 12 10 12H14C15.1038 12 16 12.8962 16 14C16 15.1038 15.1038 16 14 16H8',
-            'M4 3.00001C4 2.44809 4.44808 2.00001 5 2.00001C5.24762 1.99865 5.49048 2.06803 5.7 2.20001L6.633 2.80001C7.05982 3.07275 7.60618 3.07275 8.033 2.80001L8.967 2.20001C9.39382 1.92727 9.94018 1.92727 10.367 2.20001L11.3 2.80001C11.7268 3.07275 12.2732 3.07275 12.7 2.80001L13.633 2.20001C14.0598 1.92727 14.6062 1.92727 15.033 2.20001L15.967 2.80001C16.3938 3.07275 16.9402 3.07275 17.367 2.80001L18.3 2.20001C18.5095 2.06803 18.7524 1.99865 19 2.00001C19.5519 2.00001 20 2.44809 20 3.00001V21C20 21.5519 19.5519 22 19 22C18.7524 22.0014 18.5095 21.932 18.3 21.8L17.367 21.2C16.9402 20.9273 16.3938 20.9273 15.967 21.2L15.033 21.8C14.6062 22.0727 14.0598 22.0727 13.633 21.8L12.7 21.2C12.2732 20.9273 11.7268 20.9273 11.3 21.2L10.367 21.8C9.94018 22.0727 9.39382 22.0727 8.967 21.8L8.033 21.2C7.60618 20.9273 7.05982 20.9273 6.633 21.2L5.7 21.8C5.49048 21.932 5.24762 22.0014 5 22C4.44808 22 4 21.5519 4 21L4 3.00001',
-        ],
-        certificate: [
-            'M15.477 12.89L16.992 21.416C17.0268 21.6216 16.9303 21.8272 16.7499 21.9318C16.5696 22.0365 16.3433 22.0182 16.182 21.886L12.602 19.199C12.2471 18.9338 11.76 18.9338 11.405 19.199L7.81902 21.885C7.65791 22.017 7.43189 22.0352 7.25168 21.9309C7.07147 21.8265 6.9748 21.6214 7.00902 21.416L8.52302 12.89',
-            'M6 8C6 11.3115 8.68851 14 12 14C15.3115 14 18 11.3115 18 8C18 4.68851 15.3115 2 12 2C8.68851 2 6 4.68851 6 8H6',
-        ],
-        library: ['M16 6L20 20', 'M12 6V20', 'M8 8V20', 'M4 4V20'],
-        notifications: [
-            'M10.2679 21C10.6252 21.6188 11.2854 21.9999 11.9999 21.9999C12.7144 21.9999 13.3747 21.6188 13.7319 21',
-            'M3.26202 15.326C2.99511 15.6185 2.92598 16.041 3.08573 16.4034C3.24548 16.7658 3.60401 16.9997 4.00002 17H20C20.396 17.0001 20.7547 16.7666 20.9149 16.4045C21.0751 16.0424 21.0065 15.6199 20.74 15.327C19.41 13.956 18 12.499 18 8C18 4.68851 15.3115 2 12 2C8.68853 2 6.00002 4.68851 6.00002 8C6.00002 12.499 4.58902 13.956 3.26202 15.326',
-        ],
-        calendar: [
-            'M16 14V16.2L17.6 17.2',
-            'M16 2V6',
-            'M21 7.5V6C21 4.89617 20.1038 4 19 4H5C3.89617 4 3 4.89617 3 6V20C3 21.1038 3.89617 22 5 22H8.5',
-            'M3 10H8',
-            'M8 2V6',
-            'M10 16C10 19.3115 12.6885 22 16 22C19.3115 22 22 19.3115 22 16C22 12.6885 19.3115 10 16 10C12.6885 10 10 12.6885 10 16V16',
-        ],
+    // Icons from the design live in one sprite shared with the member area
+    // (public/portal/img/icons.svg), drawn in currentColor with the stroke set here.
+    function use(name) {
+        return h('use', { href: data.icons + '#' + name })
     }
-
-    var BILLING = 'M22 6V18C22 18.55 21.8042 19.0208 21.4125 19.4125C21.0208 19.8042 20.55 20 20 20H4C3.45 20 2.97917 19.8042 2.5875 19.4125C2.19583 19.0208 2 18.55 2 18V6C2 5.45 2.19583 4.97917 2.5875 4.5875C2.97917 4.19583 3.45 4 4 4H20C20.55 4 21.0208 4.19583 21.4125 4.5875C21.8042 4.97917 22 5.45 22 6ZM4 8H20V6H4V8ZM4 12V18H20V12H4Z'
-
-    var COLLAPSE = ['M3.75 5.25H14.25C15.0779 5.25 15.75 5.92213 15.75 6.75V17.25C15.75 18.0779 15.0779 18.75 14.25 18.75H3.75C2.92213 18.75 2.25 18.0779 2.25 17.25V6.75C2.25 5.92213 2.92213 5.25 3.75 5.25V5.25', 'M6.75 5.25V18.75', 'M12 14.25L9.75 12L12 9.75']
 
     function svg(className, viewBox, children, strokeWidth) {
         return h('svg', {
@@ -112,11 +72,7 @@
     }
 
     function icon(name) {
-        if (name === 'billing') {
-            return svg('ppx-sidebar__svg', '0 0 24 24', [h('path', { d: BILLING, fill: 'currentColor', stroke: 'none' })])
-        }
-
-        return svg('ppx-sidebar__svg', '0 0 24 24', (ICONS[name] || ICONS.dashboard).map(function (d) { return h('path', { d: d }) }))
+        return svg('ppx-sidebar__svg', '0 0 24 24', [use(name || 'dashboard')])
     }
 
     // Star and swooshes from the design (the sign-in artwork); ids differ per screen so
@@ -164,7 +120,7 @@
 
         return h('section', { class: 'ppx-renewal', 'aria-label': 'Renewal due' }, [
             h('div', { class: 'ppx-renewal__head' }, [
-                h('span', { class: 'ppx-renewal__icon' }, [svg('ppx-renewal__svg', '0 0 24 24', ICONS.calendar.map(function (d) { return h('path', { d: d }) }))]),
+                h('span', { class: 'ppx-renewal__icon' }, [svg('ppx-renewal__svg', '0 0 24 24', [use('calendar')])]),
                 h('strong', { class: 'ppx-renewal__title' }, 'Renewal due'),
             ]),
             h('p', { class: 'ppx-renewal__text' }, renewsIn(renewal.days)),
@@ -315,7 +271,7 @@
                         'aria-expanded': vm.collapsed ? 'false' : 'true',
                         'aria-controls': 'ppx-sidebar-' + vm.screen,
                         onClick: vm.toggle,
-                    }, [svg('ppx-sidebar__collapse-svg', '0 0 18 24', COLLAPSE.map(function (d) { return h('path', { d: d }) }), '1.5')]) : null,
+                    }, [svg('ppx-sidebar__collapse-svg', '0 0 18 24', [use('collapse')], '1.5')]) : null,
                 ]),
                 h('div', { class: 'ppx-sidebar__menu' }, vm.blocks()),
                 h('div', { class: 'ppx-sidebar__bottom' }, [renewalCard(), desktop ? person() : null]),

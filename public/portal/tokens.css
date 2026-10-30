@@ -1,0 +1,99 @@
+/*
+ * ProPerx design tokens (docs/specs/member-area.md, section 1) and the self-hosted fonts
+ * (public/portal/fonts, SIL Open Font License; the CSP allows no external hosts). Loaded by
+ * the sign-in pages, the Nova sidebar and the member area before their own stylesheets.
+ *
+ * Values are the ones the screens use today, including the hand-tuned variants of the
+ * sign-in page (e.g. its brand panel navy and button yellow), so moving onto the tokens
+ * changes nothing visually.
+ */
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/poppins-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/poppins-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/poppins-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/open-sans-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/open-sans-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/open-sans-latin-600-normal.woff2') format('woff2'); }
+
+:root {
+    /* Fonts */
+    --ppx-heading: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --ppx-body: 'Open Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    /* Brand */
+    --ppx-navy: #0a2d4b;               /* sidebar, dark text on yellow */
+    --ppx-navy-panel: #0c2a4b;         /* sign-in brand panel */
+    --ppx-navy-ink: #143a63;           /* text on the yellow "Member portal" badge */
+    --ppx-navy-700: #0f3b66;           /* hero cards, gradient start */
+    --ppx-navy-500: #16528f;           /* hero cards, gradient end; secondary button */
+    --ppx-blue: #14508c;               /* links, active tab, checkbox, selected chip */
+    --ppx-blue-focus: #1f4f8f;         /* focus outlines and input focus border */
+    --ppx-blue-50: #e4edf7;            /* selected rows, info boxes */
+    --ppx-yellow: #ffd24d;             /* active menu item, primary buttons */
+    --ppx-yellow-signin: #fad250;      /* sign-in button */
+    --ppx-yellow-badge: #fbd24e;       /* sign-in "Member portal" badge */
+    --ppx-yellow-hover: #f6c731;
+    --ppx-green: #4e9a2c;              /* card title bar, success icons */
+    --ppx-green-50: #eaf4e1;
+    --ppx-green-700: #3f7d22;
+    --ppx-danger: #b42318;             /* form errors */
+
+    /* Neutrals */
+    --ppx-ink: #1c2b3a;                /* headings, labels, values */
+    --ppx-ink-deep: #14243a;           /* sign-in body text and inputs */
+    --ppx-text: #2a3340;               /* body text */
+    --ppx-muted: #5f7185;              /* subtitles, captions */
+    --ppx-muted-alt: #5d6b7e;          /* password reveal hover */
+    --ppx-subtle: #9aa7b4;             /* icons in inputs, divider text, placeholders */
+    --ppx-subtle-alt: #9aa4b2;
+    --ppx-border: #cdd6e0;             /* inputs, outline buttons */
+    --ppx-border-hover: #b9c2cf;
+    --ppx-line: #e2e8f0;               /* dividers, card borders */
+    --ppx-hover: #f8fafc;              /* hover background of light buttons */
+    --ppx-surface: #ffffff;
+    --ppx-page: #eef2f7;               /* member area page background */
+    --ppx-table-head: #f6f8fb;
+
+    /* Status badges */
+    --ppx-badge-success-bg: var(--ppx-green-50);  --ppx-badge-success-fg: var(--ppx-green-700);
+    --ppx-badge-warning-bg: #fff3cf;              --ppx-badge-warning-fg: #9a6700;
+    --ppx-badge-danger-bg: #fde8e8;               --ppx-badge-danger-fg: #c0362c;
+    --ppx-badge-neutral-bg: #eef1f5;              --ppx-badge-neutral-fg: var(--ppx-muted);
+
+    /* Sidebar (public/portal/sidebar.css) */
+    --ppx-sidebar-width: 248px;
+    --ppx-sidebar-collapsed-width: 76px;
+    --ppx-sidebar-bg: var(--ppx-navy);
+    --ppx-sidebar-text: #b4c4d6;
+    --ppx-sidebar-icon: #6f8db0;
+    --ppx-sidebar-icon-hover: #9fb3cb;
+    --ppx-sidebar-active: var(--ppx-yellow);
+    --ppx-sidebar-ink: var(--ppx-navy);
+    --ppx-renewal-bg: #17518a;
+    --ppx-renewal-text: #d6e2f0;
+    --ppx-avatar-bg: #1f4468;
+
+    /* Layout */
+    --ppx-header-height: 62px;
+    --ppx-content-max: 1120px;
+
+    /* Radii */
+    --ppx-radius-sm: 6px;
+    --ppx-radius: 10px;
+    --ppx-radius-input: 12px;
+    --ppx-radius-lg: 14px;
+
+    /* Shadows */
+    --ppx-shadow-card: 0 1px 2px rgba(16, 42, 75, 0.04);
+    --ppx-shadow-hero: 0 8px 24px rgba(15, 59, 102, 0.25);
+    --ppx-shadow-signin-button: 0 8px 20px 0 rgba(20, 80, 140, 0.28);
+    --ppx-shadow-menu: 0 12px 32px rgba(16, 42, 75, 0.16);
+
+    /* Spacing */
+    --ppx-space-1: 4px;
+    --ppx-space-2: 8px;
+    --ppx-space-3: 12px;
+    --ppx-space-4: 16px;
+    --ppx-space-5: 20px;
+    --ppx-space-6: 24px;
+    --ppx-space-8: 32px;
+}

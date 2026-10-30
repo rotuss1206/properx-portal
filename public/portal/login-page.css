@@ -1,28 +1,10 @@
 /*
  * ProPerx sign-in page (markup: public/portal/login-page.js, loaded by
- * resources/views/vendor/nova/partials/meta.blade.php). Fonts are self-hosted in
- * public/portal/fonts (SIL Open Font License): the CSP allows no external hosts.
+ * resources/views/vendor/nova/partials/meta.blade.php). Colours, fonts and radii come from
+ * public/portal/tokens.css, loaded first (it also declares the self-hosted fonts).
  */
-@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/poppins-latin-500-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/poppins-latin-600-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/poppins-latin-700-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/open-sans-latin-400-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/open-sans-latin-500-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Open Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/open-sans-latin-600-normal.woff2') format('woff2'); }
 
 .ppx-login {
-    --ppx-navy: #0c2a4b;
-    --ppx-ink: #14243a;
-    --ppx-muted: #5d6b7e;
-    --ppx-border: #d5dbe4;
-    --ppx-link: #1f4f8f;
-    --ppx-yellow: #fbd24e;
-    --ppx-yellow-hover: #f6c731;
-    --ppx-green: #4e9a2c;
-    --ppx-danger: #b42318;
-    --ppx-heading: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --ppx-body: 'Open Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-
     /* Desktop: the two panel parts stack into one navy column, the form fills the rest. */
     display: grid;
     grid-template-areas: 'top main' 'bottom main';
@@ -30,7 +12,7 @@
     grid-template-rows: 1fr 1fr;
     min-height: 100vh;
     background: #fff;
-    color: var(--ppx-ink);
+    color: var(--ppx-ink-deep);
     font-family: var(--ppx-body);
     font-weight: 400;
 }
@@ -42,7 +24,7 @@
     display: flex;
     flex-direction: column;
     padding: 0 48px;
-    background: var(--ppx-navy);
+    background: var(--ppx-navy-panel);
     color: #fff;
 }
 
@@ -74,7 +56,7 @@
     padding: 6px 12px;
     border-radius: 6px;
     background: #fff;
-    color: var(--ppx-navy);
+    color: var(--ppx-navy-panel);
 }
 
 .ppx-login__logo-image { display: block; width: auto; height: 60px; }
@@ -86,7 +68,7 @@
     max-width: 360px;
     margin: 0;
     font-family: var(--ppx-heading);
-    color: #FFF;
+    color: #fff;
     font-size: 31px;
     font-style: normal;
     font-weight: 700;
@@ -124,8 +106,8 @@
     margin-top: auto;
     padding: 4px 9px;
     border-radius: 3px;
-    background: var(--ppx-yellow);
-    color: #143A63;
+    background: var(--ppx-yellow-badge);
+    color: var(--ppx-navy-ink);
     font-family: var(--ppx-heading);
     font-size: 11px;
     font-weight: 700;
@@ -148,7 +130,7 @@
 .ppx-login__title {
     margin: 0 0 6px;
     font-family: var(--ppx-heading);
-    color: #1C2B3A;
+    color: var(--ppx-ink);
     font-family: Poppins;
     font-size: 26px;
     font-style: normal;
@@ -158,7 +140,7 @@
 
 .ppx-login__subtitle { 
     margin: 0 0 28px;
-    color: #5F7185;
+    color: var(--ppx-muted);
     font-size: 14px;
     font-style: normal;
     font-weight: 400;
@@ -172,7 +154,7 @@
 .ppx-login__label {
     margin-bottom: 7px;
     display: block;
-    color: #1C2B3A;
+    color: var(--ppx-ink);
     font-family: "Open Sans";
     font-size: 13px;
     font-style: normal;
@@ -185,17 +167,17 @@
     width: 100%;
     height: 46px;
     padding: 12.5px 14px;
-    border-radius: 12px;
-    border: 1px solid #CDD6E0;
-    background: #FFF;
-    color: var(--ppx-ink);
+    border-radius: var(--ppx-radius-input);
+    border: 1px solid var(--ppx-border);
+    background: var(--ppx-surface);
+    color: var(--ppx-ink-deep);
     font-family: var(--ppx-body);
     font-size: 14px;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .ppx-login__input:focus {
-    border-color: var(--ppx-link);
+    border-color: var(--ppx-blue-focus);
     outline: none;
     box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.18);
 }
@@ -222,12 +204,12 @@
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: #9aa7b4;
+    color: var(--ppx-subtle);
     cursor: pointer;
     transform: translateY(-50%);
 }
 
-.ppx-login__reveal:hover { color: var(--ppx-muted); }
+.ppx-login__reveal:hover { color: var(--ppx-muted-alt); }
 
 .ppx-login__reveal .ppx-login__icon { width: 20px; height: 20px; }
 
@@ -250,7 +232,7 @@
     .ppx-login__eye-slash { transition: none; }
 }
 
-.ppx-login__link { color: #14508C; font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.ppx-login__link { color: var(--ppx-blue); font-size: 12.5px; font-weight: 600; text-decoration: none; }
 
 .ppx-login__link--plain { font-size: inherit; font-weight: 500; }
 
@@ -261,10 +243,10 @@
     margin-top: 4px;
     border: 0;
     padding: 1px 6px;
-    border-radius: 12px;
-    background: #FAD250;
-    box-shadow: 0 8px 20px 0 rgba(20, 80, 140, 0.28);
-    color: #0A2D4B;
+    border-radius: var(--ppx-radius-input);
+    background: var(--ppx-yellow-signin);
+    box-shadow: var(--ppx-shadow-signin-button);
+    color: var(--ppx-navy);
     font-family: var(--ppx-heading);
     font-size: 15px;
     font-weight: 600;
@@ -282,12 +264,12 @@
     align-self: flex-start;
     gap: 10px;
     margin-top: -4px;
-    color: var(--ppx-ink);
+    color: var(--ppx-ink-deep);
     font-size: 13px;
     cursor: pointer;
 }
 .ppx-login__remember span{
-    color: #2A3340;
+    color: var(--ppx-text);
     font-size: 13.5px;
     font-style: normal;
     font-weight: 400;
@@ -301,7 +283,7 @@
     width: 20px;
     height: 20px;
     margin: 0;
-    border: 1px solid #14508c;
+    border: 1px solid var(--ppx-blue);
     border-radius: 4px;
     background: #fff center / 20px 24px no-repeat border-box;
     cursor: pointer;
@@ -310,7 +292,7 @@
 }
 
 .ppx-login__checkbox:checked {
-    background-color: #14508c;
+    background-color: var(--ppx-blue);
     background-image: url('img/checkbox-check.svg');
 }
 
@@ -319,11 +301,11 @@
     align-items: center;
     gap: 14px;
     margin: 22px 0;
-    color: #9aa4b2;
+    color: var(--ppx-subtle-alt);
     font-size: 12px;
 }
 .ppx-login__divider span{
-    color: #9AA7B4;
+    color: var(--ppx-subtle);
     font-size: 12px;
     font-style: normal;
     font-weight: 400;
@@ -331,7 +313,7 @@
 }
 
 .ppx-login__divider::before,
-.ppx-login__divider::after { flex: 1; height: 1px; background: #E2E8F0; content: ''; }
+.ppx-login__divider::after { flex: 1; height: 1px; background: var(--ppx-line); content: ''; }
 
 .ppx-login__sso {
     display: flex;
@@ -340,10 +322,10 @@
     gap: 10px;
     width: 100%;
     height: 46px;
-    border: 1px solid #CDD6E0;
-    border-radius: 12px;
+    border: 1px solid var(--ppx-border);
+    border-radius: var(--ppx-radius-input);
     background: #fff;
-    color: var(--ppx-ink);
+    color: var(--ppx-ink-deep);
     font-family: var(--ppx-heading);
     font-size: 14px;
     font-weight: 600;
@@ -351,24 +333,24 @@
     transition: border-color 0.15s, background-color 0.15s;
 }
 
-.ppx-login__sso:hover { border-color: #b9c2cf; background: #f8fafc; }
+.ppx-login__sso:hover { border-color: var(--ppx-border-hover); background: var(--ppx-hover); }
 
-.ppx-login__sso .ppx-login__icon { width: 20px; height: 20px; color: #14508c; }
+.ppx-login__sso .ppx-login__icon { width: 20px; height: 20px; color: var(--ppx-blue); }
 
 .ppx-login__sso:focus-visible,
 .ppx-login__checkbox:focus-visible {
-    outline: 2px solid var(--ppx-link);
+    outline: 2px solid var(--ppx-blue-focus);
     outline-offset: 2px;
 }
 
-.ppx-login__help { margin: 30px 0 0; color: #5F7185; font-size: 13px; text-align: center; }
+.ppx-login__help { margin: 30px 0 0; color: var(--ppx-muted); font-size: 13px; text-align: center; }
 
 .ppx-login__back { margin: 24px 0 0; font-size: 13px; text-align: center; }
 
 .ppx-login__reveal:focus-visible,
 .ppx-login__submit:focus-visible,
 .ppx-login__link:focus-visible {
-    outline: 2px solid var(--ppx-link);
+    outline: 2px solid var(--ppx-blue-focus);
     outline-offset: 2px;
 }
 

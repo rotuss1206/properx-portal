@@ -14,12 +14,13 @@ use Illuminate\Support\Str;
 final class PortalSidebar
 {
     /**
-     * @return array{logo: string, user: array{initials: string, name: string, caption: ?string}|null, renewal: array{days: int, paymentUrl: ?string}|null}
+     * @return array{logo: string, icons: string, user: array{initials: string, name: string, caption: ?string}|null, renewal: array{days: int, paymentUrl: ?string}|null}
      */
     public static function for(?User $user): array
     {
         return [
             'logo' => asset('portal/img/logo-portal.png'),
+            'icons' => PortalAsset::url('img/icons.svg'),
             'user' => $user ? self::person($user) : null,
             'renewal' => RenewalNotice::for($user),
         ];
