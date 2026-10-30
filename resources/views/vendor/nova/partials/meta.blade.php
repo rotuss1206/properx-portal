@@ -11,4 +11,5 @@
     <script src="{{ \App\Support\PortalAsset::url('login-page.js') }}" defer{!! $nonce !!}></script>
 @else
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('sidebar.css') }}"{!! $nonce !!}>
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('header.css') }}"{!! $nonce !!}>
 @endif

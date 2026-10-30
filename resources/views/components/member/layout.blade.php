@@ -14,6 +14,7 @@
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('sidebar.css') }}">
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('header.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('member.css') }}">
     {{-- Not deferred: applies the remembered collapsed state before the first paint. --}}
     <script src="{{ \App\Support\PortalAsset::url('member.js') }}" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>

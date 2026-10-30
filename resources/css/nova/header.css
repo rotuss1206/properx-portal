@@ -1,0 +1,153 @@
+/*
+ * Nova's header made to match the member area's (shared styles: public/portal/header.css;
+ * components swapped by resources/js/nova/header.js). Applies only while html.ppx-nova-header
+ * is set, so Nova's own header stays if the script does not run. Selectors follow Nova 5
+ * MainHeader markup: recheck after Nova upgrades.
+ */
+
+.ppx-nova-header #nova > div:first-child > header {
+    /* Sticky above the content, as in the member area (the account menu opens over the page). */
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    gap: 16px;
+    height: var(--ppx-header-height);
+    padding: 0 28px;
+    border-bottom: 1px solid var(--ppx-line);
+    background: var(--ppx-surface);
+    box-shadow: none;
+    /* Same text base as .ppx-header in public/portal/header.css (Nova's body is 500). */
+    font-family: var(--ppx-body);
+    font-weight: 400;
+    line-height: 20px;
+}
+
+/* The logo lives in the sidebar (and the mobile drawer). */
+.ppx-nova-header #nova > div:first-child > header > [class*="lg:w-60"] { display: none; }
+
+/* Mobile menu button (Nova's), drawn like the member area's. */
+.ppx-nova-header #nova > div:first-child > header > button:first-child {
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--ppx-border);
+    border-radius: var(--ppx-radius);
+    background: var(--ppx-surface);
+    color: var(--ppx-muted);
+}
+
+.ppx-nova-header #nova > div:first-child > header > button:first-child:hover { border-color: var(--ppx-border-hover); background: var(--ppx-hover); }
+
+.ppx-nova-header #nova > div:first-child > header > [class*="flex-1"] {
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 0;
+}
+
+/* Right-hand group: bell and avatar (Nova hides the avatar below md; the design keeps it). */
+.ppx-nova-header #nova > div:first-child > header .isolate { gap: 14px; padding-left: 0; }
+
+.ppx-nova-header #nova > div:first-child > header .isolate > div.hidden { display: flex; margin-left: 0; }
+
+/* Title, date and search (PortalHeaderMain in place of Nova's GlobalSearch). */
+
+.ppx-header__main {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.ppx-header__extras { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+
+/* Nova's search, drawn as the design's search field. */
+.ppx-header__nova-search { width: 210px; }
+
+.ppx-header__nova-search > div { height: auto; max-width: none; }
+
+.ppx-header__nova-search input {
+    height: 40px !important;
+    padding-left: 40px !important;
+    border: 1px solid var(--ppx-border) !important;
+    border-radius: var(--ppx-radius) !important;
+    background: var(--ppx-surface) !important;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-body);
+    font-size: 14px;
+}
+
+.ppx-header__nova-search input::placeholder { color: var(--ppx-subtle); }
+
+.ppx-header__nova-search input:focus {
+    border-color: var(--ppx-blue-focus) !important;
+    box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.18) !important;
+}
+
+.ppx-header__nova-search svg { top: 10px !important; margin-left: 10px !important; color: var(--ppx-subtle) !important; }
+
+/* Nova's notification bell: the design's button and bell, the shared unread marker. */
+.ppx-nova-header [dusk="notifications-dropdown"] {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--ppx-border);
+    border-radius: var(--ppx-radius);
+    background: var(--ppx-surface);
+    color: var(--ppx-muted);
+}
+
+.ppx-nova-header [dusk="notifications-dropdown"]:hover { border-color: var(--ppx-border-hover); background: var(--ppx-hover); }
+
+.ppx-nova-header [dusk="notifications-dropdown"]:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 2px; }
+
+/* Nova's heroicons give way to the design's glyphs (mask rules: public/portal/header.css). */
+.ppx-nova-header [dusk="notifications-dropdown"] svg,
+.ppx-nova-header #nova > div:first-child > header > button:first-child svg { display: none; }
+
+.ppx-nova-header [dusk="notifications-dropdown"]::before,
+.ppx-nova-header #nova > div:first-child > header > button:first-child::before { content: ''; }
+
+/* Unread marker: same as .ppx-header__dot / .ppx-header__count in public/portal/header.css. */
+.ppx-nova-header [dusk="notifications-dropdown"] span[class*="rounded-full"] {
+    top: 6px;
+    right: 6px;
+    left: auto;
+    width: 10px;
+    min-width: 0;
+    height: 10px;
+    padding: 0;
+    border: 2px solid var(--ppx-surface);
+    background: var(--ppx-green);
+}
+
+.ppx-nova-header [dusk="notifications-dropdown"] span[class*="min-w-"] {
+    top: -6px;
+    right: -6px;
+    width: auto;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    color: #fff;
+    font-family: var(--ppx-body);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+@media (max-width: 1023px) {
+    .ppx-nova-header #nova > div:first-child > header { padding: 0 16px; }
+
+    .ppx-header__nova-search { display: none; }
+}
+
+@media (max-width: 600px) {
+    .ppx-nova-header #nova > div:first-child > header { gap: 10px; }
+}

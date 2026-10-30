@@ -306,14 +306,15 @@
         }
     }
 
-    // Nova registers its components after the booting callbacks run: swap MainMenu as it is registered.
+    // Nova registers its components after the booting callbacks run: swap MainMenu as it is
+    // registered. The wrapper stays in place and passes everything else on, so other scripts
+    // (resources/js/nova/header.js) can wrap app.component the same way.
     Nova.booting(function (app) {
         var register = app.component
 
         app.component = function (name, component) {
             if (arguments.length > 1 && name === 'MainMenu' && component && !replaced) {
                 replaced = true
-                app.component = register
 
                 return register.call(app, name, withFallback(component))
             }

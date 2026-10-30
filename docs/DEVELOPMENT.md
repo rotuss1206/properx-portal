@@ -216,7 +216,12 @@ The left column of every signed-in Nova page is the ProPerx sidebar:
 - "Renewal due" card: `App\Support\RenewalNotice` (members only, paid period ends within 90 days; agency people
   follow the agency and only the principal sees it). "Renew now" opens `PAYMENT_PORTAL_URL`.
 
-**After every Nova upgrade, check the sidebar** (it depends on Nova's internal structure):
+The header is shared with the member area too: `resources/js/nova/header.js` swaps Nova's `GlobalSearch` (page
+title, date, Nova's search for staff), `UserMenu` (Profile, Security, Sign out) and `ThemeDropdown` (removed);
+`resources/css/nova/header.css` restyles the header and Nova's bell (only while `html.ppx-nova-header` is set);
+shared styles in `public/portal/header.css`, data from `App\Support\PortalHeader`. If it fails, Nova's header returns.
+
+**After every Nova upgrade, check the sidebar and the header** (they depend on Nova's internal structure):
 
 1. The component is still registered as `MainMenu`, and the store getters `mainMenu` / `mainMenuShown` and the
    mutation `toggleMainMenu` still exist (`resources/js/store` in Nova).
@@ -225,9 +230,13 @@ The left column of every signed-in Nova page is the ProPerx sidebar:
    `resources/css/nova/sidebar.css` rely on these classes.
 3. Panels still carry `dusk="<slug>-panel"` (Certificate and Notifications scroll to `membership-certificate-panel` and
    `notification-preferences-panel`).
-4. Sign in as `member01@properx.test`, a staff account and on a phone width: the sidebar, the active item, collapse,
-   the mobile drawer and the Renewal due card all work, and the browser console shows no
-   "ProPerx sidebar failed" message. If it fails, Nova's menu shows instead, so nothing breaks while it is fixed.
+4. Header: `GlobalSearch`, `UserMenu` and `ThemeDropdown` are still global components rendered by
+   `layouts/MainHeader.vue`, the bell button still has `dusk="notifications-dropdown"`, the store action `logout`
+   still exists, and pages still set their title through Inertia's `<Head>` ("<title> - <app name>").
+5. Sign in as `member01@properx.test`, a staff account and on a phone width: the sidebar, the active item, collapse,
+   the mobile drawer, the Renewal due card, the header title, search (staff), bell and account menu all work, and
+   the browser console shows no "ProPerx sidebar failed" or "ProPerx header failed" message. If either fails, Nova's
+   own menu or header shows instead, so nothing breaks while it is fixed.
 
 ## Member area (/member)
 

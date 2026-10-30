@@ -8,6 +8,7 @@ use App\Nova\Dashboards\Main;
 use App\Nova\Dashboards\MyMembership;
 use App\Nova\Menu\SidebarMenu;
 use App\Support\MembershipBanner;
+use App\Support\PortalHeader;
 use App\Support\PortalSidebar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -56,6 +57,13 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             Nova::provideToScript(['portalSidebar' => PortalSidebar::for($event->request->user())]);
             Nova::script('portal-sidebar', resource_path('js/nova/sidebar.js'));
             Nova::style('portal-sidebar', resource_path('css/nova/sidebar.css'));
+
+            // Shared header (same look as the member area); Nova's own header stays the fallback.
+            if ($user = $event->request->user()) {
+                Nova::provideToScript(['portalHeader' => PortalHeader::for($user, 'nova')]);
+            }
+            Nova::script('portal-header', resource_path('js/nova/header.js'));
+            Nova::style('portal-header', resource_path('css/nova/header.css'));
 
             // Branded sign-in page (public/portal, loaded by the vendor/nova/partials/meta view).
             Nova::provideToScript(['loginPage' => ['supportUrl' => config('portal.brand.support_url') ?: null]]);
