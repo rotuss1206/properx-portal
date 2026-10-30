@@ -87,6 +87,32 @@ class PortalHeaderTest extends TestCase
         $this->assertTrue(PortalHeader::for($member, 'member')['search']);
     }
 
+    public function test_nova_stays_in_the_light_theme(): void
+    {
+        $html = $this->actingAs($this->staff(Role::ExecutiveDirector))->get('/nova/dashboards/main')->assertOk()->getContent();
+
+        // Stored before Nova's own head script reads localStorage.novaTheme.
+        $this->assertLessThan(strpos($html, 'localStorage.novaTheme'), strpos($html, 'portal/light-theme.js?v='));
+        $this->assertStringContainsString("setItem('novaTheme', 'light')", file_get_contents(public_path('portal/light-theme.js')));
+        $this->assertStringContainsString("classList.remove('dark')", file_get_contents(resource_path('js/nova/header.js')));
+    }
+
+    public function test_novas_search_says_search_and_keeps_its_shortcut(): void
+    {
+        $translations = $this->actingAs($this->staff(Role::ExecutiveDirector))->get('/nova/dashboards/main')->assertOk()
+            ->viewData('page')['props']['novaConfig']['translations'];
+
+        // Same key, so Nova's "/" shortcut and search component stay as they are.
+        $this->assertSame('Search', $translations['Press / to search']);
+    }
+
+    public function test_the_mobile_drawer_drops_novas_user_block_only_with_the_portal_header(): void
+    {
+        $css = file_get_contents(resource_path('css/nova/header.css'));
+
+        $this->assertStringContainsString('.ppx-nova-header .ppx-drawer .mt-auto { display: none; }', $css);
+    }
+
     public function test_the_header_script_keeps_novas_header_as_the_fallback(): void
     {
         $js = file_get_contents(resource_path('js/nova/header.js'));

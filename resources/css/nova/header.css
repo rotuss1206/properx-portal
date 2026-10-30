@@ -142,6 +142,9 @@
     line-height: 16px;
 }
 
+/* The mobile drawer's own user block (name, User Security, Logout) repeats the avatar menu. */
+.ppx-nova-header .ppx-drawer .mt-auto { display: none; }
+
 @media (max-width: 1023px) {
     .ppx-nova-header #nova > div:first-child > header { padding: 0 16px; }
 

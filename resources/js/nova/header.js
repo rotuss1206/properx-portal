@@ -29,6 +29,10 @@
 
     shell(true)
 
+    // Light theme only (no theme switcher): public/portal/light-theme.js stores the choice
+    // before Nova reads it; this covers browsers where storage is blocked.
+    root.classList.remove('dark')
+
     function icon(name, className) {
         return h('svg', {
             class: className,

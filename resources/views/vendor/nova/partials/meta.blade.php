@@ -5,6 +5,8 @@
     serves tool scripts and styles to signed-in users only.
 --}}
 @php($nonce = \Laravel\Nova\Nova::cspNonceAttribute())
+{{-- Before Nova's theme script below in its layout: light theme only (no theme switcher). --}}
+<script src="{{ \App\Support\PortalAsset::url('light-theme.js') }}"{!! $nonce !!}></script>
 <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}"{!! $nonce !!}>
 @if (\Laravel\Nova\Nova::user(request()) === null)
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('login-page.css') }}"{!! $nonce !!}>
