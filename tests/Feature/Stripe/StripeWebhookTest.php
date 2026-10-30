@@ -328,6 +328,37 @@ class StripeWebhookTest extends TestCase
         $this->assertTrue($profile->fresh()->paid_through_at->equalTo($periodEnd));
     }
 
+    public function test_paid_invoices_keep_amount_currency_and_plan_for_the_activity(): void
+    {
+        $profile = $this->memberWithCustomer(status: PaymentStatus::PastDue);
+
+        $this->send($this->event('invoice.paid', [
+            'customer' => 'cus_123',
+            'amount_paid' => 19900,
+            'currency' => 'usd',
+            'lines' => ['object' => 'list', 'data' => [
+                ['object' => 'line_item', 'description' => '1 × Annual membership', 'price' => ['object' => 'price', 'nickname' => 'Annual membership'], 'period' => ['start' => now()->getTimestamp(), 'end' => now()->addYear()->getTimestamp()]],
+            ]],
+        ], id: 'evt_paid_amount'))->assertOk();
+
+        $event = StripeEvent::query()->findOrFail('evt_paid_amount');
+        $this->assertSame(19900, $event->amount);
+        $this->assertSame('USD', $event->currency);
+        $this->assertSame('Annual membership', $event->plan_name);
+
+        // The status change is audited with from/to (enum values, no PHI).
+        $this->assertSame(['from' => 'past_due', 'to' => 'active'], AuditLog::query()->where('action', 'payment_status_changed')->where('resource_id', $profile->id)->sole()->details);
+    }
+
+    public function test_other_events_store_no_payment_details(): void
+    {
+        $this->memberWithCustomer();
+
+        $this->send($this->event('invoice.payment_failed', ['customer' => 'cus_123', 'amount_paid' => 0, 'currency' => 'usd'], id: 'evt_failed'))->assertOk();
+
+        $this->assertNull(StripeEvent::query()->findOrFail('evt_failed')->amount);
+    }
+
     public function test_the_paid_period_only_moves_forward(): void
     {
         $profile = $this->memberWithCustomer();

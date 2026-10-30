@@ -11,6 +11,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Stripe\Event;
 
 /**
@@ -50,7 +51,7 @@ class StripeWebhookHandler
 
                 [$outcome, $profile] = $this->apply($event, $serviceAccount);
 
-                $record->update(['outcome' => $outcome, 'member_profile_id' => $profile?->getKey()]);
+                $record->update(['outcome' => $outcome, 'member_profile_id' => $profile?->getKey()] + $this->paymentDetails($event));
                 AuditLog::record('stripe_event_processed', $profile, $serviceAccount);
 
                 return $outcome;
@@ -111,11 +112,12 @@ class StripeWebhookHandler
             return [$extended ? 'updated' : 'unchanged', $profile];
         }
 
+        $from = $profile->payment_status;
         $profile->payment_status = $status;
         $profile->payment_status_updated_at = $occurredAt; // grace period counts from the change
         $profile->save();
 
-        AuditLog::record('payment_status_changed', $profile, $serviceAccount);
+        AuditLog::record('payment_status_changed', $profile, $serviceAccount, ['from' => $from?->value, 'to' => $status->value]);
 
         return ['updated', $profile];
     }
@@ -132,6 +134,30 @@ class StripeWebhookHandler
             'invoice.payment_failed' => PaymentStatus::PastDue,
             default => null,
         };
+    }
+
+    /**
+     * Amount (cents), currency and plan name of a paid invoice, for the member's activity.
+     * The plan is the first line's price nickname, else the line description. Not PHI.
+     *
+     * @return array{amount?: int, currency?: string, plan_name?: string|null}
+     */
+    private function paymentDetails(Event $event): array
+    {
+        if ($event->type !== 'invoice.paid') {
+            return [];
+        }
+
+        $object = $event->data->object;
+        $amount = $object->amount_paid ?? $object->total ?? null;
+        $line = ($object->lines->data ?? [])[0] ?? null;
+        $plan = $line?->price?->nickname ?? $line?->description ?? null;
+
+        return array_filter([
+            'amount' => is_int($amount) ? $amount : null,
+            'currency' => is_string($object->currency ?? null) ? strtoupper($object->currency) : null,
+            'plan_name' => is_string($plan) && $plan !== '' ? Str::limit($plan, 117) : null,
+        ], fn ($value) => $value !== null);
     }
 
     /**

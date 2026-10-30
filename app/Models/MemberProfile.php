@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AgencyRole;
 use App\Enums\InviteStatus;
 use App\Enums\LicenseStatus;
+use App\Enums\LicenseVerification;
 use App\Enums\MemberStatus;
 use App\Enums\MemberType;
 use App\Enums\PaymentStatus;
@@ -26,7 +27,7 @@ use LogicException;
 #[Fillable([
     'first_name', 'last_name', 'phone', 'address', 'firm_name', 'npn',
     'license_number', 'license_state', 'license_type', 'license_expires_at',
-    'agency_id', 'agency_role', 'person_type', 'invite_status', 'status',
+    'agency_id', 'agency_role', 'person_type', 'invite_status', 'status', 'license_verification',
 ])]
 #[ObservedBy(MemberProfileObserver::class)]
 class MemberProfile extends Model
@@ -87,6 +88,13 @@ class MemberProfile extends Model
             } elseif ($profile->isDirty(['license_expires_at', 'person_type']) || $profile->license_status === null) {
                 $profile->license_status = LicenseStatus::fromExpiryDate($profile->license_expires_at);
             }
+
+            // Licensed people wait for staff's verification; employees hold no license.
+            if ($profile->isAgencyEmployee()) {
+                $profile->license_verification = null;
+            } else {
+                $profile->license_verification ??= LicenseVerification::PendingReview;
+            }
         });
     }
 
@@ -112,6 +120,7 @@ class MemberProfile extends Model
             'payment_status_updated_at' => 'datetime',
             'payment_event_at' => 'datetime',
             'paid_through_at' => 'datetime',
+            'license_verification' => LicenseVerification::class,
             // Contact details of members and agency principals.
             'phone' => 'encrypted',
             'address' => 'encrypted',

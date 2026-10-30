@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['original_filename', 'mime_type', 'size', 'uploaded_at', 'verification_status', 'admin_notes'])]
+#[Fillable(['original_filename', 'mime_type', 'size', 'document_type', 'uploaded_at', 'verification_status', 'admin_notes'])]
 #[Hidden(['stored_filename'])]
 #[ObservedBy(DocumentObserver::class)]
 class LicenseDocument extends Model implements DownloadableDocument

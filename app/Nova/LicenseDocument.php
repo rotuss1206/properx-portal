@@ -97,6 +97,11 @@ class LicenseDocument extends Resource
             Text::make('File Name', 'original_filename')
                 ->exceptOnForms(),
 
+            // Chosen by the member when uploading in the member area.
+            Text::make('Document Type', fn () => config('portal.member_area.license_document_types')[$this->resource->document_type] ?? null)
+                ->exceptOnForms()
+                ->hideFromIndex(),
+
             Text::make('Type', 'mime_type')->onlyOnDetail(),
 
             Text::make('Size', fn () => Number::fileSize($this->resource->size))->exceptOnForms(),

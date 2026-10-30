@@ -18,6 +18,13 @@ Schedule::command('app:check-license-expirations')
     ->withoutOverlapping(5)
     ->onOneServer();
 
+// In-app "renewal due" notices for the member area, once per paid period (<= 30 days ahead).
+Schedule::command('app:send-renewal-notices')
+    ->dailyAt('07:00')
+    ->timezone(config('portal.schedule_timezone'))
+    ->withoutOverlapping(5)
+    ->onOneServer();
+
 // Unfinished agency enrollments are kept for portal.registration.draft_days after their last save.
 Schedule::command('model:prune', ['--model' => [AgencyRegistrationDraft::class]])
     ->dailyAt('01:30')

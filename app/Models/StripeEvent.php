@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * A processed Stripe webhook event (idempotency record).
  */
-#[Fillable(['id', 'type', 'member_profile_id', 'outcome'])]
+#[Fillable(['id', 'type', 'member_profile_id', 'outcome', 'amount', 'currency', 'plan_name'])]
 #[WithoutIncrementing]
 class StripeEvent extends Model
 {

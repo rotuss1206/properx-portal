@@ -4,6 +4,7 @@ namespace App\Nova;
 
 use App\Enums\AgencyRole;
 use App\Enums\LicenseStatus;
+use App\Enums\LicenseVerification;
 use App\Enums\MemberStatus;
 use App\Enums\MemberType;
 use App\Enums\NotificationCategory;
@@ -203,6 +204,17 @@ class MemberProfile extends Resource
                 ->options(UsStates::ALL)
                 ->displayUsingLabels()
                 ->rules('nullable', 'size:2')
+                ->filterable(),
+
+            // Staff verify NPN and resident state; members see the outcome (member area dashboard).
+            // Agency employees hold no license.
+            Select::make('License Verification', 'license_verification')
+                ->options(collect(LicenseVerification::cases())->mapWithKeys(fn (LicenseVerification $case) => [$case->value => $case->label()])->all())
+                ->displayUsingLabels()
+                ->rules('nullable', Rule::enum(LicenseVerification::class))
+                ->readonly(fn (NovaRequest $request) => ! static::viewerIsStaff($request))
+                ->canSee(fn () => ! $this->resource->isAgencyEmployee())
+                ->hideFromIndex()
                 ->filterable(),
 
             self::individualLicenseOnly(Select::make('License Type')

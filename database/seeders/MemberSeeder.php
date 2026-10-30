@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\DeliveryStatus;
+use App\Enums\LicenseVerification;
 use App\Enums\NotificationCategory;
 use App\Enums\PaymentStatus;
 use App\Enums\ReminderType;
@@ -11,8 +12,12 @@ use App\Enums\VerificationStatus;
 use App\Models\AuditLog;
 use App\Models\LicenseDocument;
 use App\Models\MemberProfile;
+use App\Models\StripeEvent;
 use App\Models\TaxDocument;
 use App\Models\User;
+use App\Notifications\Member\LicenseDocumentReviewed;
+use App\Notifications\Member\RenewalDue;
+use App\Notifications\Member\TaxDocumentAvailable;
 use Carbon\CarbonInterface;
 use Database\Seeders\Support\DemoPeople;
 use Illuminate\Database\Seeder;
@@ -58,7 +63,9 @@ class MemberSeeder extends Seeder
             ]);
 
             if (! $created) {
-                $this->setPaidThrough($profile, $index); // added later: fill it in for existing members too
+                // Added later: filled in for existing members too (only what is missing).
+                $this->setPaidThrough($profile, $index);
+                $this->memberAreaDemo($user, $profile->refresh(), $index);
 
                 continue; // History was seeded with the member.
             }
@@ -70,6 +77,83 @@ class MemberSeeder extends Seeder
             $this->taxDocuments($user, $index);
             $this->reminderHistory($user, $profile);
             $this->auditHistory($user, $index);
+            $this->memberAreaDemo($user, $profile->refresh(), $index);
+        }
+    }
+
+    /**
+     * Member area dashboard data for member01-member05 (docs/specs/member-area.md, stage 2):
+     * license verification, in-app notifications, activity and paid invoices. Fills only what
+     * is missing, so it also completes members seeded before.
+     */
+    private function memberAreaDemo(User $user, MemberProfile $profile, int $index): void
+    {
+        if ($index > 5) {
+            return;
+        }
+
+        // member01 verified, member03 needs attention, the rest pending review.
+        $verification = [1 => LicenseVerification::Verified, 3 => LicenseVerification::NeedsAttention][$index] ?? null;
+
+        if ($verification && $profile->license_verification === LicenseVerification::PendingReview) {
+            $profile->forceFill(['license_verification' => $verification])->saveQuietly();
+        }
+
+        $licenseDocument = LicenseDocument::query()->whereBelongsTo($user)->oldest('id')->first();
+
+        if (! AuditLog::query()->where('user_id', $user->getKey())->where('action', 'certificate_generated')->exists()) {
+            foreach (['document_uploaded' => 21, 'document_downloaded' => 9, 'certificate_generated' => 5, 'login' => 1] as $action => $daysAgo) {
+                $resource = match ($action) {
+                    'certificate_generated' => $profile,
+                    'document_uploaded', 'document_downloaded' => $licenseDocument,
+                    default => null,
+                };
+
+                (new AuditLog)->forceFill([
+                    'user_id' => $user->getKey(),
+                    'action' => $action,
+                    'resource_type' => $resource?->getMorphClass(),
+                    'resource_id' => $resource?->getKey(),
+                    'ip_address' => '203.0.113.'.($index % 250 + 1),
+                    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) DemoBrowser/1.0',
+                    'created_at' => now()->subDays($daysAgo),
+                ])->save();
+            }
+        }
+
+        // Paid invoices (amounts and plan as stored from invoice.paid), one per year.
+        if ($profile->paid_through_at !== null && $profile->stripe_customer_id !== null) {
+            foreach ([0 => 19900, 1 => 17900] as $yearsBack => $amount) {
+                $paidAt = $profile->paid_through_at->copy()->subYears($yearsBack + 1);
+
+                if ($paidAt->isFuture()) {
+                    continue;
+                }
+
+                StripeEvent::query()->firstOrCreate(
+                    ['id' => sprintf('evt_demo_m%02d_%d', $index, $yearsBack)],
+                    ['type' => 'invoice.paid', 'member_profile_id' => $profile->getKey(), 'outcome' => 'updated', 'amount' => $amount, 'currency' => 'USD', 'plan_name' => 'Annual membership'],
+                )->forceFill(['created_at' => $paidAt])->save();
+            }
+        }
+
+        if ($user->notifications()->exists()) {
+            return;
+        }
+
+        $taxDocument = TaxDocument::query()->whereBelongsTo($user)->oldest('id')->first();
+        $notices = array_filter([
+            [$profile->paid_through_at ? new RenewalDue($profile->paid_through_at->toDateString()) : null, 4, false],
+            [$taxDocument ? new TaxDocumentAvailable($taxDocument->getKey()) : null, 7, true],
+            [$licenseDocument ? new LicenseDocumentReviewed($licenseDocument->getKey(), VerificationStatus::Approved) : null, 2, false],
+        ], fn (array $notice) => $notice[0] !== null);
+
+        foreach ($notices as [$notification, $daysAgo, $read]) {
+            $user->notify($notification);
+            $user->notifications()->latest()->first()?->forceFill([
+                'created_at' => now()->subDays($daysAgo),
+                'read_at' => $read ? now()->subDays($daysAgo - 1) : null,
+            ])->save();
         }
     }
 
