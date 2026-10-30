@@ -1,6 +1,6 @@
 # Member area (`/member`): plan
 
-Status: **stage 0, plan only.** The new member area replaces Nova for the Member role. Nova stays the
+Status: **stage 0, plan only; the open questions are decided (section 8).** The new member area replaces Nova for the Member role. Nova stays the
 staff panel. Mockups: `docs/design/*.jpg`; icons: `docs/design/icons/*.svg` and the icons of the Nova
 sidebar (`resources/js/nova/sidebar.js`). Built with Blade and Livewire 4 like `/join/agency`, under
 `/member/*`, behind `MEMBER_AREA_ENABLED` (off by default).
@@ -51,7 +51,7 @@ and the member area; the existing files then use the variables instead of their 
   /* Status badges (dot + text on a tint) */
   --ppx-badge-success-bg: var(--ppx-green-50);   --ppx-badge-success-fg: var(--ppx-green-700);   /* Approved, Available, Ready, Current, Paid, Enrolled, Validated */
   --ppx-badge-warning-bg: #fff3cf;               --ppx-badge-warning-fg: #9a6700;                /* Pending, Expiring soon (license card) */
-  --ppx-badge-danger-bg:  #fde8e8;               --ppx-badge-danger-fg:  #c0362c;                /* Expiring (document), Rejected, Past due, Expired */
+  --ppx-badge-danger-bg:  #fde8e8;               --ppx-badge-danger-fg:  #c0362c;                /* Rejected, Past due, Expired */
   --ppx-badge-neutral-bg: #eef1f5;               --ppx-badge-neutral-fg: var(--ppx-muted);       /* Available (benefit not enrolled) */
 
   /* Sidebar (already in sidebar.css; kept as aliases) */
@@ -125,7 +125,7 @@ icons from one SVG sprite.
 |---|---|
 | `layout` | Sidebar (left), header, main column, optional right column (`<x-slot:aside>`). |
 | `sidebar` | Same markup and classes as the Nova sidebar (`ppx-sidebar__*`): logo, collapse (same `localStorage` key `ppx-sidebar-collapsed`), "MENU", items, Renewal due card (`App\Support\RenewalNotice`), person (`App\Support\PortalSidebar`). The `.ppx-sidebar` styles move from `resources/css/nova/sidebar.css` into `public/portal/sidebar.css`, shared by Nova and the area; Nova keeps only its layout overrides. Items come from `App\Member\MemberMenu` (same order and visibility rules as `SidebarMenu::memberItems`, one source for both). |
-| `header` | Page title or breadcrumb ("License documents / Upload document"), today's date (`PORTAL_SCHEDULE_TIMEZONE`), search, bell with unread count (opens the notifications panel), avatar menu (Profile, Security, Sign out). |
+| `header` | Page title or breadcrumb ("License documents / Upload document"), today's date (`PORTAL_SCHEDULE_TIMEZONE`), bell with unread count (opens the notifications panel), avatar menu (Profile, Security, Sign out). Search is not shown for now (`member_area.header_search = false`); its scope is decided later. |
 | `icon` | `<svg><use href="/portal/img/icons.svg#name"/></svg>`, `currentColor`. One sprite (`public/portal/img/icons.svg`) built from the Nova sidebar paths and `docs/design/icons`; the Nova sidebar switches to the same sprite, so the paths live in one place. |
 | `card` | White, `--ppx-radius-lg`, title with the 3 px green bar on the left, optional header action (link "View all", outline button "Edit"), optional footer. Variants: `hero` (navy gradient, white text), `info` (`--ppx-blue-50`). |
 | `kv-list` | Label / value rows of the profile and the document panel. |
@@ -156,7 +156,7 @@ Greeting "Good morning, {first_name}" (time of day in `PORTAL_SCHEDULE_TIMEZONE`
 
 | Block | Data | Notes |
 |---|---|---|
-| Membership (hero) | `MemberProfile::payment_status` (Active / Past due / Canceled / Unknown), "Renews {paid_through_at}" (agency people: the agency's `paid_through_at`) | **"Founding member" badge: no source for individuals** (only `agencies.rate_type`). Default: agency people → agency `rate_type = founding`; individuals → hidden until a source exists (question 1). |
+| Membership (hero) | `MemberProfile::payment_status` (Active / Past due / Canceled / Unknown), "Renews {paid_through_at}" (agency people: the agency's `paid_through_at`) | "Founding member" badge: agency people → agency `rate_type = founding`; individuals → hidden (no source; `member_area.founding_badge_individuals = false` for later). |
 | License | `license_expires_at`, `license_status` (Current / Expiring / Expired) | Agency employees: card replaced by "Not required for your role". |
 | CE credits | — | **Not our data** (out of scope, Spec). Hidden: `portal.member_area.ce_credits = false`. |
 | Membership timeline | Joined = `users.created_at` (or the agency's enrollment date); Renewed = last `invoice.paid` matched to the member (`stripe_events`); Today; Next renewal = `paid_through_at`. Cycle label from the period. | Hidden while `paid_through_at` is null. |
@@ -176,7 +176,7 @@ Certificate. "Benefits" chip and rows: no source, hidden.
 | Membership certificate generated / downloaded | `audit_logs` (`certificate_generated`, `certificate_downloaded`) |
 | License reminder sent | `reminder_logs` (sent only) |
 | Tax document available | `tax_documents.uploaded_at` |
-| Membership payment processed | `stripe_events` (`invoice.paid`, outcome updated/unchanged, linked profile) — **amount and plan are not stored**; shown without them, or from the Stripe API on stage 6 (question 4) |
+| Membership payment processed ("Annual plan · $199.00") | `stripe_events` (`invoice.paid` linked to the profile) with **amount, currency and plan name stored from the event** (new nullable columns, not PHI); no Stripe API calls |
 | Profile updated, password changed, two-factor enabled | `audit_logs` (`profile_updated` with field names, `password_changed`, `mfa_enrolled`) |
 
 "Export log" = CSV of the same list (no IP addresses; own data only; audited as `activity_exported`).
@@ -189,57 +189,62 @@ optional URL). Statuses ("Enrolled", "Pending") are **not our data**: hidden beh
 
 ### Notifications feed (bell, dashboard right column, `/member/notifications` top)
 
-**We have no in-app notifications today** (emails only; no `notifications` table). Default plan:
-Laravel's database notification channel (new `notifications` table, expand-only), written next to the
-existing emails and on new events: license document approved / rejected, new tax document, license
-reminder, renewal due (90/30/7 days, from `paid_through_at`). Payload holds ids and enum values only,
-no PHI; texts are rendered at display time. Unread count in the bell; "mark all read". Question 2.
+**Decided:** Laravel's standard database notification channel (new `notifications` table with
+`read_at`, expand-only), written next to the existing emails and on new events: license document
+approved / rejected, new tax document, license reminder, renewal due (90/30/7 days, from
+`paid_through_at`). Payload holds ids and enum values only, no PHI; texts are rendered at display
+time; emails stay PHI-free as today. Unread count in the bell; "mark all read" sets `read_at`.
 
 ### `/member/profile`
 
 | Card | Fields | Source / editing |
 |---|---|---|
 | Banner | Initials, full name, "Licensed insurance agent · {firm}", Member #{member_number}, payment status, Founding badge | `PortalSidebar`, `MemberProfile` |
-| Contact information | Full name, email, phone, mailing address | `first_name`, `last_name`, `users.email`, `phone`, `address` (one text field today; shown on two lines if it contains a line break). Edit inline (Livewire), same rules as the Nova `MemberProfile` resource; **email is read-only** (it is the login; change via staff), question 6. |
+| Contact information | Full name, email, phone, mailing address | `first_name`, `last_name`, `users.email`, `phone`, `address` (one text field today; shown on two lines if it contains a line break). Edit inline (Livewire), same rules as the Nova `MemberProfile` resource; **email is read-only** (it is the login; staff change it). |
 | Business details | Agency name, role, business type, NPN | Individuals: `firm_name`, NPN editable as in Nova. Agency people: the agency's legal name, `agency_role` / `person_type`, agency type, read-only (staff change them). |
 | License information | Number, type, resident state, expiration + status badge | Individuals: `license_*` fields. Agency people: **NPN + resident state + verification status only** (Agency spec 3.5; license number, type, expiry hidden, columns kept). |
 | Security | Password (last changed), two-factor (Enabled), recovery codes (n of 8 remaining), "Manage" | Last change = latest `password_changed` audit entry; two-factor from Fortify columns; remaining codes = count of the decrypted list. "Manage" opens Nova's `/nova/user-security` (Fortify endpoints already work for members) until an own page is built (stage 8 option). |
 
 Every save is audited by `MemberProfileObserver` (field names only), exactly as from Nova.
 
-### `/member/billing` (individual members only)
+### `/member/billing` (individual members and agency principals)
+
+Whose subscription: an individual member → their own Stripe customer
+(`member_profiles.stripe_customer_id`); an **agency principal → the agency's** Stripe customer and
+subscription (`agencies.stripe_customer_id` / `stripe_subscription_id`). Other agency people get no
+Billing page or menu item (404).
 
 | Block | Source |
 |---|---|
-| Current plan (name, price, interval, Next payment, Billing cycle, Member since) | **Stripe API**: the customer's active subscription (price nickname or product name, `unit_amount`, `recurring.interval`, items' `current_period_end`), `customer.created` or `users.created_at`. |
+| Current plan (name, price, interval, Next payment, Billing cycle, Member since) | **Stripe API**: the active subscription (price nickname or product name, `unit_amount`, `recurring.interval`, items' `current_period_end`), `customer.created` or `users.created_at`. Principal: plan = the agency's tier and rate type, plus **number of people** (subscription item quantity, or `agencies.headcount`) and the per-person rate. |
 | Payment method (brand, last 4, expiry) | Stripe API: the customer's default payment method. "Update" → Stripe Customer Portal session. |
-| Invoice history (number, date, amount, status, PDF) | Stripe API: invoices of the customer (last 12). "PDF" opens Stripe's `invoice_pdf` link in a new tab. "Download all" is dropped (it would mean fetching and zipping Stripe files): question 5. |
+| Invoice history (number, date, amount, status, PDF) | Stripe API: invoices of the customer (last 12). "PDF" opens Stripe's `invoice_pdf` link in a new tab. No "Download all": the card header links **"View all in Stripe"** to a Customer Portal session. |
 | Auto-renewal | Subscription `cancel_at_period_end`; "Manage renewal" → Customer Portal session. |
 
 Needs a new secret `STRIPE_SECRET` (restricted key: read customers, subscriptions, invoices, payment
 methods; write billing portal sessions). Nothing from Stripe is stored or cached (section 6). Without a
-Stripe customer: an empty state with the `PAYMENT_PORTAL_URL` link. Agency people: no Billing page or
-menu item (the principal pays the agency invoice; question 3 about the principal).
+Stripe customer (e.g. an agency before the agency Stripe work links its customer): an empty state with
+the `PAYMENT_PORTAL_URL` link.
 
 ### `/member/license-documents` and `/member/license-documents/upload` (individual members only)
 
-List (mockup "Documents Management"): own license documents with search (in PHP over the member's own
-few documents: `original_filename` is encrypted, no SQL search), status badge (`verification_status`;
-"Expiring" when the document's expiry date is within 60 days), updated date, side panel with status,
-type, state, expiry, uploaded, size and format, Download (existing signed download route), Replace
-(upload a new document linked as a replacement) and Delete (only while pending, as `LicenseDocumentPolicy`
-allows). The mockup's chips Tax / Certificates / Benefits belong to the dashboard Documents tab; this
-page lists license documents only (question 7).
+List (mockup "Documents Management"): **license documents only** (the Tax / Certificate chips live in
+the dashboard Documents tab), search in PHP over the member's own few documents (`original_filename`
+is encrypted, no SQL search), status badge (`verification_status`: Approved / Pending / Rejected; no
+"Expiring", documents carry no expiry date), document type, uploaded date, side panel with status,
+type, the profile's resident state, uploaded, size and format, Download (existing signed download
+route), Replace (upload a new document) and Delete (only while pending, as `LicenseDocumentPolicy`
+allows).
 
 Preview: images inline through the signed download route; **PDF preview is not possible** while the
 app sends `X-Frame-Options: DENY` (no iframes) — a file icon is shown instead.
 
 Upload (mockup "Container"): drop zone, uploaded-files list with progress, rejected files (wrong type,
-over 10 MB) shown with the reason, document details form, Save. **The upload page asks for data we do
-not store**: document type, license number, issue date, expiration date per document. Default plan:
-new nullable columns on `license_documents` (`document_type` enum resident / non-resident / E&O proof /
-other, `license_number` encrypted, `issued_on`, `expires_on`; expand-only), filled by the member and
-checked by staff in review; the profile's license fields stay as they are (question 8).
+over 10 MB) shown with the reason, document details, Save. **Document details = document type only**:
+Resident license / Non-resident license / Other (new nullable column `license_documents.document_type`,
+expand-only; existing rows stay empty and show "—"). License number, issue and expiration dates are
+**not collected** (current rules: NPN and resident state only); the mockup's fields are dropped. An
+approved document never changes the profile.
 
 "Your documents are secure" box: text from config; the line "Automatically scanned for malware on
 upload" and the per-file "scanned for viruses" / "Validated" marks only when
@@ -248,26 +253,26 @@ platform's claim, so the default text says "Encrypted in transit and at rest".
 
 ### `/member/certificate`
 
-Options card: membership term (the current paid period only; past terms are not reissued), "Include
-member ID", "Include join date" (both on by default), **no QR toggle** (always printed), **format PDF
-only** (no PNG option shown). Live preview: the certificate rendered as HTML in the page (same Blade
+Options card: "Include member ID", "Include join date" (both on by default), **no membership term
+selector** (only the current paid period exists; past periods are not reissued), **no QR toggle**
+(always printed), **format PDF only** (no PNG option shown). Live preview: the certificate rendered as HTML in the page (same Blade
 partial as the PDF, scaled), updated by Livewire when options change. "Generate & download" → the
 existing `certificates.open` → signed `certificates.download` flow, with the options as part of the
 cache key (cached PDF per option set, 24 h, as today). Unavailable (expired license, incomplete
 profile, restricted membership): the card shows the reason from `CertificateUnavailableException`.
 
 New certificate design (`Certificate.jpg`): navy and gold double frame with corner marks, client logo,
-"CERTIFICATE OF MEMBERSHIP", name in serif italic, text with the term, Member ID / Member since / Valid
+"CERTIFICATE OF MEMBERSHIP", name in serif italic, the statement, Member ID / Member since / Valid
 through, signature line(s) with the official seal, verification line with the URL and certificate
 code; QR code added next to the verification line (the mockup shows none). Data:
 
 | Printed | Source |
 |---|---|
-| Name | `first_name last_name` (no middle initial stored; question 9) |
+| Name | `first_name last_name` (no middle name or initial) |
 | Member ID | `member_number` (`PPX-M…`) |
 | Member since | `users.created_at` (month and year) |
-| Valid through | `paid_through_at` (assumption 4.1); fallback while no Stripe date: `license_expires_at` as today |
-| Term text | "for the membership term ending {Valid through}" (yearly from the payment date, not a calendar year) |
+| Valid through | `paid_through_at` (default 4.1); fallback while no Stripe date: `license_expires_at` as today |
+| Statement | "…is a recognized member in good standing of ProPerx Alliance, entitled to all rights, benefits, and privileges of membership. **Membership valid through Mar 12, 2027.**" (date = Valid through). No "2026 membership term" wording. |
 | Signatures | Executive Director name and title from config; optional second signatory (config), off by default |
 | Verification | `route('certificates.verify', certificate_code)`, QR as data URI |
 
@@ -304,11 +309,14 @@ announcements), saved to `notification_settings` with the same policy as the Nov
 | 4.2 | Member ID in our format (`PPX-M000005`), shown as stored. | — (format lives in `MemberProfile::formatMemberNumber`) |
 | 4.3 | Second signature off. | `member_area.certificate.second_signatory = null` or `['name' => …, 'title' => …]`; first signatory `member_area.certificate.signatory` (name, title, optional image) |
 | 4.4 | Certificate PDF only (no PNG: no image renderer in the container); QR always printed. | — |
-| 4.5 | Agency people: license = NPN + state + verification status; no license upload, no Billing. Individuals: fields from current data. | `member_area.agency_people.license_upload = false`, `member_area.agency_people.billing = false` |
+| 4.5 | Agency people: license = NPN + state + verification status; no license upload; Billing only for the principal (the agency's subscription). Individuals: fields from current data. | `member_area.agency_people.license_upload = false`, `member_area.agency_people.principal_billing = true` |
 | 4.6 | No "scanned for malware" wording until scanning exists. | `member_area.malware_scan = false` |
 | 4.7 | CE credits and benefit statuses hidden. | `member_area.ce_credits = false`, `member_area.benefit_statuses = false`; catalogue `member_area.benefits = [...]` |
-| 4.8 | Billing from the Stripe API; card update and renewal management in the Stripe Customer Portal. | `STRIPE_SECRET`, optional `STRIPE_BILLING_PORTAL_CONFIGURATION`, return URL `/member/billing` |
+| 4.8 | Billing from the Stripe API; card update, renewal management and the full invoice list in the Stripe Customer Portal. | `STRIPE_SECRET`, optional `STRIPE_BILLING_PORTAL_CONFIGURATION`, return URL `/member/billing` |
 | 4.9 | The area is off. | `member_area.enabled = env('MEMBER_AREA_ENABLED', false)` |
+| 4.10 | "Founding member" badge hidden for individual members (shown for agency people of a founding-rate agency). | `member_area.founding_badge_individuals = false` |
+| 4.11 | Header search hidden. | `member_area.header_search = false` |
+| 4.12 | License upload asks only for the document type. | `member_area.license_document_types` (resident, non-resident, other) |
 
 ---
 
@@ -356,15 +364,17 @@ announcements), saved to `notification_settings` with the same policy as the Nov
   that keeps the page usable; the platform's 120 s limit does not apply to web requests but the page
   must not hang. Rate: one subscription + one payment method + one invoice list call per page view.
 - **KEENEY platform**: new env/secrets (`MEMBER_AREA_ENABLED`, `STRIPE_SECRET`) through Key Vault;
-  migrations expand-only (`notifications` table, new `license_documents` columns); the pipeline runs
+  migrations expand-only (`notifications` table, `license_documents.document_type`, payment details on
+  `stripe_events`); the pipeline runs
   only `migrate`; fonts (TTF for dompdf, woff2 for the browser) are files in the repo; `/livewire/*` must
   pass the ingress; sessions stay platform-owned (15 minutes): long upload forms must survive a
   session timeout gracefully (redirect to sign-in, keep nothing unencrypted).
 - **Two member UIs during the switch**: until stage 8 both Nova and `/member` must enforce the same
   rules (restricted membership, agency people, own records); shared logic goes into services/policies,
   not into Nova resources.
-- **Data gaps** (section 8, questions): Founding badge for individuals, payment amounts, in-app
-  notifications, license document metadata, middle initial.
+- **Data gaps** (decided in section 8): Founding badge for individuals hidden; payment amounts stored
+  from `invoice.paid`; in-app notifications as database notifications; only the document type on
+  uploads; no middle name.
 
 ---
 
@@ -385,6 +395,7 @@ Each stage: tests, Pint, commit, push; the area stays behind `MEMBER_AREA_ENABLE
 **2. Dashboard**
 - `app/Livewire/Member/Dashboard.php` (tabs), `resources/views/livewire/member/dashboard/{overview,documents,activity,benefits}.blade.php`
 - `app/Member/ActivityFeed.php` (audit_logs, reminder_logs, tax documents, stripe_events), `app/Http/Controllers/Member/ActivityExportController.php`
+- Migration `add_payment_details_to_stripe_events_table` (`amount` in cents, `currency`, `plan_name`; expand), filled by `StripeWebhookHandler` from `invoice.paid` (total, currency, line price nickname or product name)
 - Notifications: migration `create_notifications_table`, `app/Notifications/Member/*` (database channel), `app/Livewire/Member/NotificationsPanel.php`
 - Tests: `DashboardTest`, `ActivityFeedTest` (own events only, no PHI), `NotificationsPanelTest`
 
@@ -394,7 +405,7 @@ Each stage: tests, Pint, commit, push; the area stays behind `MEMBER_AREA_ENABLE
 - Tests: `ProfileTest` (edit and audit, agency people read-only, email read-only, other member's data unreachable)
 
 **4. License documents + upload**
-- Migration `add_details_to_license_documents_table` (expand), `LicenseDocument` casts, Nova resource shows the new fields to reviewers
+- Migration `add_document_type_to_license_documents_table` (expand), `App\Enums\LicenseDocumentType`, `LicenseDocument` cast, Nova resource shows the type to reviewers
 - `app/Livewire/Member/LicenseDocuments.php`, `app/Http/Controllers/Member/LicenseDocumentUploadController.php`, `public/portal/upload.js`
 - `resources/views/livewire/member/license-documents.blade.php`, `resources/views/member/license-documents/upload.blade.php`
 - Tests: `LicenseDocumentsTest` (list, search, panel, delete only pending, replace), `LicenseUploadTest` (types, 10 MB, sniffed MIME, encryption, audit, agency people refused, restricted members refused)
@@ -407,10 +418,10 @@ Each stage: tests, Pint, commit, push; the area stays behind `MEMBER_AREA_ENABLE
 
 **6. Billing**
 - `composer.json` (no new package: `stripe/stripe-php` is installed), `config/services.php` (`stripe.secret`, portal configuration), `.env.example`
-- `app/Services/Stripe/BillingSummary.php` (read-only API calls, DTOs without customer PII), `app/Http/Controllers/Member/BillingPortalController.php`
+- `app/Services/Stripe/BillingSummary.php` (read-only API calls, DTOs without customer PII; the member's or, for a principal, the agency's customer), `app/Http/Controllers/Member/BillingPortalController.php`
 - `app/Livewire/Member/Billing.php`, `resources/views/livewire/member/billing.blade.php`
 - `SecurityHeaders` (`form-action` only if needed)
-- Tests: `BillingTest` with a faked Stripe client (plan, card, invoices, portal redirect, no customer, API error, agency people 404, nothing logged or cached)
+- Tests: `BillingTest` with a faked Stripe client (plan, card, invoices, "View all in Stripe" and portal redirects, principal sees the agency's plan and people, other agency people 404, no customer, API error, nothing logged or cached)
 
 **7. Tax documents, library, notifications**
 - `app/Livewire/Member/{TaxDocuments,Library,Notifications}.php` and views
@@ -425,28 +436,18 @@ Each stage: tests, Pint, commit, push; the area stays behind `MEMBER_AREA_ENABLE
 
 ---
 
-## 8. Open questions
+## 8. Decisions
 
-1. **Founding member badge for individual members**: we only know it for agencies (`rate_type`). Use
-   "first payment before 2027-01-01 Eastern" (from the Stripe price / first invoice), a staff-set flag on
-   the profile, or hide it for individuals?
-2. **In-app notifications**: build them (database channel, new table) as planned, or show only the
-   computed items (renewal due, last document decision) without read/unread state?
-3. **Billing for agency principals**: hidden like for the other agency people until the agency Stripe
-   work, or show the agency's subscription to the principal?
-4. **Payment amounts in Activity** ("Annual plan · $199.00"): fetch from the Stripe API when the tab is
-   opened, or store amount and plan name from `invoice.paid` (not PHI) in `stripe_events`?
-5. **"Download all" invoices**: drop it (each invoice has its own PDF link), or link to the Stripe
-   Customer Portal's invoice list?
-6. **Email change by the member**: read-only (staff change it) as planned, or allow with
-   re-verification?
-7. **License documents page**: license documents only (plan), or the unified list with Tax /
-   Certificates chips as in the mockup?
-8. **Upload metadata** (document type, license number, issue and expiration dates per document): add
-   the columns as planned? Should an approved resident license update the profile's license fields?
-9. **Middle initial** on the certificate ("Jordan A. Mercer"): add an optional middle name field, or
-   first and last name only?
-10. **Header search**: what should it search (own documents and the library, as planned), and is it
-    needed on stage 1 or later?
-11. **Certificate wording** "for the 2026 membership term": with yearly terms from the payment date,
-    is "term ending Mar 12, 2027" acceptable, or does the client want calendar-year wording?
+| # | Question | Decision |
+|---|---|---|
+| 1 | "Founding member" badge for individual members | Hidden; `member_area.founding_badge_individuals` for later. Agency people of a founding-rate agency show it. |
+| 2 | In-app notifications | Laravel's standard database channel (`notifications` table, `read_at`). No PHI in notifications or emails. |
+| 3 | Billing for agency principals | Shown: the agency's subscription (plan, number of people, next payment, invoices, Customer Portal). Hidden for the other agency people. |
+| 4 | Payment amounts in Activity | Amount, currency and plan name stored from `invoice.paid` (not PHI); no Stripe API calls for Activity. |
+| 5 | "Download all" invoices | Dropped; "View all in Stripe" opens the Customer Portal. |
+| 6 | Email in the profile | Read-only. |
+| 7 | License documents page | License documents only; Tax / Certificate filters in the dashboard Documents tab. |
+| 8 | Upload metadata | Document type only (resident license / non-resident license / other); no license number or dates (current rules: NPN and state only). An approved document does not change the profile. |
+| 9 | Middle name on the certificate | Not added; first and last name. |
+| 10 | Header search | Not shown on the first stages (`member_area.header_search = false`); revisited later. |
+| 11 | Certificate wording | "Membership valid through Mar 12, 2027" (date = `paid_through_at`); no "2026 membership term". |

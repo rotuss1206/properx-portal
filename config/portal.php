@@ -52,6 +52,63 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Member area (/member) — docs/specs/member-area.md
+    |--------------------------------------------------------------------------
+    |
+    | The Blade + Livewire area that replaces Nova for the Member role. Off until it is
+    | finished; members keep using Nova meanwhile. Each default below is one line to change.
+    |
+    */
+
+    'member_area' => [
+        'enabled' => (bool) env('MEMBER_AREA_ENABLED', false),
+
+        // Header search: its scope is decided later.
+        'header_search' => false,
+
+        // "Founding member" badge for individual members: no data source yet (agency people
+        // of a founding-rate agency show it).
+        'founding_badge_individuals' => false,
+
+        // Not portal data (CE tracking is out of scope; benefit enrollment is not recorded).
+        'ce_credits' => false,
+        'benefit_statuses' => false,
+
+        // Benefits tab: ['title' => ..., 'description' => ..., 'icon' => ..., 'url' => ...] per
+        // benefit, filled in when the client provides the catalogue.
+        'benefits' => [],
+
+        // "Scanned for malware" wording only once uploads are scanned.
+        'malware_scan' => false,
+
+        // The license upload asks only for the document type (no license number or dates).
+        'license_document_types' => [
+            'resident' => 'Resident license',
+            'non_resident' => 'Non-resident license',
+            'other' => 'Other',
+        ],
+
+        'agency_people' => [
+            // Agency people hold NPN + resident state only; no license document uploads.
+            'license_upload' => false,
+            // The principal sees the agency's subscription; other agency people see no Billing.
+            'principal_billing' => true,
+        ],
+
+        'certificate' => [
+            // "Membership valid through": paid_through ("paid_through_at", yearly from the
+            // payment date) or license_expiry (today's rule). Falls back to the license
+            // expiry while there is no Stripe date.
+            'valid_through' => 'paid_through',
+            // First signature: name null = the longest-serving Executive Director, as today.
+            'signatory' => ['name' => null, 'title' => 'Executive Director'],
+            // Optional second signature, e.g. ['name' => 'R. Alvarez', 'title' => 'Membership Secretary'].
+            'second_signatory' => null,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Document encryption and uploads
     |--------------------------------------------------------------------------
     |
