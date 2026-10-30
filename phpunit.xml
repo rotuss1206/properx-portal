@@ -35,6 +35,9 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="NOVA_REQUIRE_2FA" value="true"/>
+        <!-- Platform defaults, whatever the local .env turns on: tests enable features themselves. -->
+        <env name="MEMBER_AREA_ENABLED" value="false"/>
+        <env name="AGENCY_ENROLLMENT_ENABLED" value="false"/>
         <env name="AZURITE_CONNECTION_STRING" value=""/>
         <env name="BLIND_INDEX_KEY" value="base64:dGVzdC1ibGluZC1pbmRleC1rZXktZm9yLXBocHVuaXQ="/>
     </php>

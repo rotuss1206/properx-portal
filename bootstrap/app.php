@@ -2,7 +2,9 @@
 
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\DisableRememberMe;
+use App\Http\Middleware\EnsureMemberArea;
 use App\Http\Middleware\SecurityHeaders;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::group([], base_path('routes/health.php'));
             Route::middleware('throttle:120,1')->group(base_path('routes/machine.php'));
+            Route::group([], base_path('routes/member.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -29,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             DisableRememberMe::class,
         ]);
+
+        // The member area answers 404 while it is off, before "auth" could redirect to sign-in.
+        $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: EnsureMemberArea::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // The default message embeds the query bindings (emails, NPNs, ...). Log the SQL with

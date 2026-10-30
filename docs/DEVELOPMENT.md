@@ -206,10 +206,12 @@ The left column of every signed-in Nova page is the ProPerx sidebar:
 - Items and access: `App\Nova\Menu\SidebarMenu` (`Nova::mainMenu`), per role, each item behind Nova's resource
   authorization or the profile policy. A new Nova resource must be added there to appear in the sidebar.
   "Billing" stays hidden until `PORTAL_BILLING_PATH` names its page.
-- Drawing: `resources/js/nova/sidebar.js` + `resources/css/nova/sidebar.css` (served by `Nova::script` / `Nova::style`,
-  signed-in users only). The script replaces Nova's `MainMenu` component with one built from render functions (the
-  CSP has no `unsafe-eval`); it hides nothing itself. If it does not load or throws, Nova's own menu renders and the
-  layout overrides switch off (`html.ppx-shell` is removed).
+- Drawing: `resources/js/nova/sidebar.js` + `resources/css/nova/sidebar.css` (Nova layout rules; served by
+  `Nova::script` / `Nova::style`, signed-in users only). The sidebar's own styles (`public/portal/sidebar.css`), the
+  icons (`public/portal/img/icons.svg`) and the design tokens (`public/portal/tokens.css`) are shared with the member
+  area; Nova gets them from `resources/views/vendor/nova/partials/meta.blade.php`. The script replaces Nova's
+  `MainMenu` component with one built from render functions (the CSP has no `unsafe-eval`); it hides nothing itself.
+  If it does not load or throws, Nova's own menu renders and the layout overrides switch off (`html.ppx-shell` is removed).
 - The collapsed state is kept in `localStorage` (`ppx-sidebar-collapsed`) of that browser only.
 - "Renewal due" card: `App\Support\RenewalNotice` (members only, paid period ends within 90 days; agency people
   follow the agency and only the principal sees it). "Renew now" opens `PAYMENT_PORTAL_URL`.
@@ -220,12 +222,33 @@ The left column of every signed-in Nova page is the ProPerx sidebar:
    mutation `toggleMainMenu` still exist (`resources/js/store` in Nova).
 2. `layouts/AppLayout.vue` still wraps the desktop menu in a `lg:absolute … w-60` column and the content in `lg:ml-60`,
    and `layouts/MainHeader.vue` still has the `lg:w-60` logo block and the `max-w-xxs` mobile drawer: the selectors in
-   `sidebar.css` rely on these classes.
+   `resources/css/nova/sidebar.css` rely on these classes.
 3. Panels still carry `dusk="<slug>-panel"` (Certificate and Notifications scroll to `membership-certificate-panel` and
    `notification-preferences-panel`).
 4. Sign in as `member01@properx.test`, a staff account and on a phone width: the sidebar, the active item, collapse,
    the mobile drawer and the Renewal due card all work, and the browser console shows no
    "ProPerx sidebar failed" message. If it fails, Nova's menu shows instead, so nothing breaks while it is fixed.
+
+## Member area (/member)
+
+The new member area (plan: `docs/specs/member-area.md`) is Blade (later Livewire) under `/member`, separate from
+Nova. Stage 1 is the skeleton: layout, sidebar, header and "Coming soon" pages.
+
+- Switch: `MEMBER_AREA_ENABLED=true` in `.env`, then `php artisan config:clear`. Off (the default and the platform
+  setting until it is finished), `/member` answers 404 and members use Nova as before. `phpunit.xml` pins it off; tests
+  turn it on themselves.
+- With it on: sign in at https://properx-portal.local/nova/login as `member01@properx.test` (password `password`)
+  and you land on https://properx-portal.local/member. Members opening a Nova page are sent there too, except User
+  Security (password, two-factor) and signing out, which stay Nova's. Staff (`director@properx.test`) still land in
+  Nova, and `/member` sends them back to it.
+- Access: `routes/member.php`, middleware `EnsureMemberArea` (404 while off, staff to Nova, Member role only; it runs
+  before `auth`, see `bootstrap/app.php`) and `RequireTwoFactor`. Nova's side: `SendMembersToMemberArea` in
+  `nova.api_middleware`.
+- Menu: `App\Member\MemberMenu` (agency people see no License documents; only the principal sees Billing). The sidebar
+  reuses the Nova sidebar's classes (`public/portal/sidebar.css`) and the Renewal due card and person from
+  `App\Support\PortalSidebar`.
+- Files: `resources/views/components/member/*` (layout, sidebar, header, icon), `public/portal/member.css` and
+  `member.js` (collapse, mobile drawer, account menu; DOM APIs only, loaded with the CSP nonce).
 
 ## Syncing to the KEENEY repository
 

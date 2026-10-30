@@ -1,6 +1,6 @@
 # Member area (`/member`): plan
 
-Status: **stage 0, plan only; the open questions are decided (section 8).** The new member area replaces Nova for the Member role. Nova stays the
+Status: **stage 1 (skeleton) done; stages 2-8 to do. Decisions: section 8.** The new member area replaces Nova for the Member role. Nova stays the
 staff panel. Mockups: `docs/design/*.jpg`; icons: `docs/design/icons/*.svg` and the icons of the Nova
 sidebar (`resources/js/nova/sidebar.js`). Built with Blade and Livewire 4 like `/join/agency`, under
 `/member/*`, behind `MEMBER_AREA_ENABLED` (off by default).

@@ -129,5 +129,6 @@ Production values are App Service settings and Key Vault references (root `READM
 | `INDIVIDUAL_MEMBERSHIP_URL` | Individual application on the marketing site ("Just me" on `/join/agency`) |
 | `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
 | `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |
+| `MEMBER_AREA_ENABLED` | `true` opens the new member area at `/member` and sends members there from Nova (User Security and sign-out stay in Nova). Off by default while it is being built; members then use Nova |
 | `AZURE_CLIENT_ID` | Client ID of a user-assigned managed identity, if one is used |
 | `NOVA_LICENSE_KEY` | Nova licence key |

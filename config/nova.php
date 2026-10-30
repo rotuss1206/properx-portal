@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureNovaDashboardIsAvailable;
 use App\Http\Middleware\RequireTwoFactor;
+use App\Http\Middleware\SendMembersToMemberArea;
 use Illuminate\Http\Middleware\CheckResponseForModifications;
 use Laravel\Nova\Actions\ActionResource;
 use Laravel\Nova\Http\Middleware\Authenticate;
@@ -112,6 +113,7 @@ return [
         // \Laravel\Nova\Http\Middleware\EnsureEmailIsVerified::class,
         Authorize::class,
         RequireTwoFactor::class,
+        SendMembersToMemberArea::class,
         EnsureNovaDashboardIsAvailable::class,
     ],
 
