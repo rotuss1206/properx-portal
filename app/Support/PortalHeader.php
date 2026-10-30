@@ -16,7 +16,7 @@ final class PortalHeader
 {
     /**
      * @param  'member'|'nova'  $area
-     * @return array{date: string, dateIso: string, initials: string, name: string, profileUrl: ?string, securityUrl: string, search: bool, icons: string}
+     * @return array{date: string, dateIso: string, initials: string, name: string, profileUrl: ?string, securityUrl: string, search: bool, icons: string, unread: int}
      */
     public static function for(User $user, string $area): array
     {
@@ -34,6 +34,8 @@ final class PortalHeader
                 ? (bool) config('portal.member_area.header_search')
                 : $user->isStaff(),
             'icons' => PortalAsset::url('img/icons.svg'),
+            // Member area bell (database notifications); Nova's bell counts Nova's own.
+            'unread' => $area === 'member' ? $user->unreadNotifications()->count() : 0,
         ];
     }
 

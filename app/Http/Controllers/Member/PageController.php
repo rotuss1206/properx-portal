@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Member\MemberMenu;
+use App\Member\NotificationFeed;
+use App\Member\Overview;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -14,21 +16,39 @@ use Illuminate\Http\Request;
  */
 class PageController extends Controller
 {
+    /**
+     * The dashboard: tabs (App\Livewire\Member\Dashboard) and the right column. Notifications
+     * shown here count as read from now on (the panel still marks them as new this time).
+     */
     public function dashboard(Request $request): View
     {
-        $profile = $request->user()->memberProfile;
-        $hour = (int) now(config('portal.schedule_timezone'))->format('G');
+        $user = $request->user();
+        $overview = Overview::for($user);
+        $notifications = NotificationFeed::latest($user);
+
+        NotificationFeed::markRead($user, $notifications);
 
         return view('member.dashboard', [
             'page' => 'dashboard',
             'title' => MemberMenu::label('dashboard'),
-            'greeting' => match (true) {
-                $hour < 12 => 'Good morning',
-                $hour < 18 => 'Good afternoon',
-                default => 'Good evening',
-            },
-            'firstName' => $profile?->first_name ?? $request->user()->name,
+            // The server's guess (portal time zone); public/portal/member.js switches it to the
+            // visitor's own time of day.
+            'greeting' => self::greeting((int) now(config('portal.schedule_timezone'))->format('G')),
+            'firstName' => $overview->profile()?->first_name ?? $user->name,
+            'agency' => $overview->agency(),
+            'notifications' => $notifications,
+            'canUpload' => $overview->canUpload(),
+            'documentTypes' => config('portal.member_area.license_document_types'),
         ]);
+    }
+
+    public static function greeting(int $hour): string
+    {
+        return match (true) {
+            $hour < 12 => 'Good morning',
+            $hour < 18 => 'Good afternoon',
+            default => 'Good evening',
+        };
     }
 
     public function placeholder(Request $request, string $page): View

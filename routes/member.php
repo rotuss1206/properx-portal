@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Member\DocumentDownloadController;
+use App\Http\Controllers\Member\LicenseDocumentUploadController;
 use App\Http\Controllers\Member\PageController;
 use App\Http\Middleware\EnsureMemberArea;
 use App\Http\Middleware\RequireTwoFactor;
@@ -8,8 +10,8 @@ use Illuminate\Support\Facades\Route;
 
 /*
  * Member area (docs/specs/member-area.md): Members only, behind MEMBER_AREA_ENABLED,
- * two-factor authentication as in Nova. Stage 1: the dashboard and the other pages are
- * placeholders.
+ * two-factor authentication as in Nova. Stage 2: the dashboard (with the license upload and
+ * document downloads); the other pages are placeholders.
  */
 Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class])
     ->prefix('member')
@@ -22,4 +24,13 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
                 Route::get($page, [PageController::class, 'placeholder'])->name($page)->defaults('page', $page);
             }
         }
+
+        Route::post('license-documents', [LicenseDocumentUploadController::class, 'store'])
+            ->middleware('throttle:20,1')
+            ->name('license-documents.store');
+
+        Route::get('documents/{type}/{document}', DocumentDownloadController::class)
+            ->whereIn('type', ['license', 'tax'])
+            ->whereNumber('document')
+            ->name('documents.download');
     });

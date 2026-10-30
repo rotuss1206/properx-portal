@@ -1,6 +1,6 @@
 # Member area (`/member`): plan
 
-Status: **stage 1 (skeleton) done; stages 2-8 to do. Decisions: section 8.** The new member area replaces Nova for the Member role. Nova stays the
+Status: **stages 1 (skeleton) and 2 (dashboard) done; stages 3-8 to do. Decisions: section 8.** Stage 2 notes: the License card became "License verification" (`member_profiles.license_verification`, NPN and state, no expiry date) and CE credits became a Certificate card; the timeline's "Renewed" is one year before `paid_through_at` (no period start is stored); no Export log. The new member area replaces Nova for the Member role. Nova stays the
 staff panel. Mockups: `docs/design/*.jpg`; icons: `docs/design/icons/*.svg` and the icons of the Nova
 sidebar (`resources/js/nova/sidebar.js`). Built with Blade and Livewire 4 like `/join/agency`, under
 `/member/*`, behind `MEMBER_AREA_ENABLED` (off by default).

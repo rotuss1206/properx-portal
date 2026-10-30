@@ -240,8 +240,15 @@ shared styles in `public/portal/header.css`, data from `App\Support\PortalHeader
 
 ## Member area (/member)
 
-The new member area (plan: `docs/specs/member-area.md`) is Blade (later Livewire) under `/member`, separate from
-Nova. Stage 1 is the skeleton: layout, sidebar, header and "Coming soon" pages.
+The new member area (plan: `docs/specs/member-area.md`) is Blade and Livewire 4 under `/member`, separate from
+Nova. Done: the skeleton (stage 1) and the dashboard (stage 2: Overview, Documents, Activity tabs, notifications,
+license upload); the other pages still say "Coming soon".
+
+Demo data for the dashboard (DemoSeeder, member01-member05, filled in for existing data too): license verification
+(member01 verified, member03 needs attention), in-app notifications, sign-ins, a certificate and downloads in the
+activity, and two paid invoices per year with amounts. Notifications are marked read when the dashboard shows them; to
+see the bell count again, run `php artisan tinker --execute "DB::table('notifications')->update(['read_at' => null]);"`.
+Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
 
 - Switch: `MEMBER_AREA_ENABLED=true` in `.env`, then `php artisan config:clear`. Off (the default and the platform
   setting until it is finished), `/member` answers 404 and members use Nova as before. `phpunit.xml` pins it off; tests

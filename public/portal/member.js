@@ -27,6 +27,14 @@
     root.classList.toggle('ppx-sidebar-collapsed', readCollapsed())
 
     document.addEventListener('DOMContentLoaded', function () {
+        // Greeting by the visitor's own time of day (the server can only guess the time zone).
+        var greeting = document.querySelector('[data-ppx-greeting]')
+
+        if (greeting) {
+            var hour = new Date().getHours()
+            greeting.textContent = hour < 12 ? 'Good morning' : (hour < 18 ? 'Good afternoon' : 'Good evening')
+        }
+
         var collapse = document.querySelector('[data-ppx-collapse]')
         var openButton = document.querySelector('[data-ppx-drawer-open]')
         var sidebar = document.getElementById('ppx-sidebar')

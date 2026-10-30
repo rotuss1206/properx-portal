@@ -1,8 +1,8 @@
 @props(['title'])
 {{--
     The ProPerx header (public/portal/header.css), the same as in Nova (resources/js/nova/header.js):
-    data from App\Support\PortalHeader. The bell links to Notifications until the unread count
-    arrives (stage 2; it will use .ppx-header__dot / .ppx-header__count like Nova's bell).
+    data from App\Support\PortalHeader. The bell shows the unread count (.ppx-header__count, the same look as Nova's bell) and leads to the
+    dashboard's Notifications panel, which marks them as read.
 --}}
 @php($header = \App\Support\PortalHeader::for(auth()->user(), 'member'))
 <header class="ppx-header">
@@ -23,8 +23,11 @@
             </label>
         @endif
 
-        <a class="ppx-header__button ppx-header__bell" href="{{ route('member.notifications') }}" aria-label="Notifications">
+        <a class="ppx-header__button ppx-header__bell" href="{{ route('member.dashboard') }}#ppx-notifications" aria-label="Notifications{{ $header['unread'] ? ', '.$header['unread'].' new' : '' }}">
             <span class="ppx-header__glyph ppx-header__glyph--bell" aria-hidden="true"></span>
+            @if ($header['unread'])
+                <span class="ppx-header__count" aria-hidden="true">{{ $header['unread'] > 99 ? '99+' : $header['unread'] }}</span>
+            @endif
         </a>
 
         <div class="ppx-header__account">

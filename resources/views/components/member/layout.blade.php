@@ -15,9 +15,11 @@
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('sidebar.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('header.css') }}">
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('components.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('member.css') }}">
     {{-- Not deferred: applies the remembered collapsed state before the first paint. --}}
     <script src="{{ \App\Support\PortalAsset::url('member.js') }}" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
+    @livewireStyles
 </head>
 <body class="ppx-member">
     <a class="ppx-skip-link" href="#ppx-content">Skip to content</a>
@@ -34,5 +36,8 @@
             {{ $slot }}
         </main>
     </div>
+
+    {{-- CSP-safe Livewire build from Livewire's own route, with the request's nonce. --}}
+    @livewireScripts
 </body>
 </html>
