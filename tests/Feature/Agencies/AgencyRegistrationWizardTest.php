@@ -51,6 +51,8 @@ class AgencyRegistrationWizardTest extends TestCase
     {
         parent::setUp();
 
+        config(['portal.registration.enabled' => true]);
+
         // Before the founding cutoff (2027-01-01 00:00 Eastern).
         $this->travelTo(CarbonImmutable::parse('2026-11-02 10:00', 'America/New_York'));
     }
@@ -94,6 +96,7 @@ class AgencyRegistrationWizardTest extends TestCase
 
     public function test_the_page_is_public_and_works_with_the_strict_csp(): void
     {
+        // Enabled in setUp (AGENCY_ENROLLMENT_ENABLED=true).
         $response = $this->get('/join/agency')->assertOk();
 
         $csp = $response->headers->get('Content-Security-Policy');
@@ -106,6 +109,21 @@ class AgencyRegistrationWizardTest extends TestCase
         $response->assertSee('Who is joining?');
         $response->assertSee('1. Membership type');
         $response->assertSee('6. Review &amp; payment', false);
+    }
+
+    public function test_the_wizard_is_a_404_while_enrollment_is_off(): void
+    {
+        config(['portal.registration.enabled' => false]);
+
+        $this->get('/join/agency')->assertNotFound()->assertDontSee('Who is joining?');
+
+        Livewire::test(Wizard::class)->assertStatus(404);
+
+        // A page opened before enrollment was switched off: its next round trip is refused too.
+        config(['portal.registration.enabled' => true]);
+        $wizard = Livewire::test(Wizard::class)->assertOk();
+        config(['portal.registration.enabled' => false]);
+        $wizard->call('next')->assertStatus(404);
     }
 
     public function test_page_loads_and_livewire_round_trips_are_rate_limited(): void

@@ -141,6 +141,8 @@ return [
     */
 
     'registration' => [
+        // Off (404) unless enabled: screens 5-6 are still placeholders.
+        'enabled' => (bool) env('AGENCY_ENROLLMENT_ENABLED', false),
         'individual_url' => env('INDIVIDUAL_MEMBERSHIP_URL'),
         'draft_days' => 30,
         // Per IP: page loads, and Livewire round trips (every "Continue", "Back", blurred field).

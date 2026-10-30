@@ -56,6 +56,15 @@ class Wizard extends Component
 
     public PrincipalForm $principal;
 
+    /**
+     * Every request, the page and each Livewire round trip: a 404 while enrollment is off
+     * (AGENCY_ENROLLMENT_ENABLED).
+     */
+    public function boot(): void
+    {
+        abort_unless(config('portal.registration.enabled'), 404);
+    }
+
     public function mount(Request $request): void
     {
         $draft = $this->draft();

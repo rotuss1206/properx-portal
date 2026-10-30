@@ -89,7 +89,8 @@ application log. Every account must enrol in 2FA on first login unless `NOVA_REQ
 
 ## Agency enrollment (/join/agency)
 
-Public wizard, no login: https://properx-portal.local/join/agency. Useful links:
+Public wizard, no login: https://properx-portal.local/join/agency. It answers 404 unless
+`AGENCY_ENROLLMENT_ENABLED=true` (set it in the local `.env`; off on the platform until screens 5-6 exist). Useful links:
 
 | Link | Opens |
 |---|---|

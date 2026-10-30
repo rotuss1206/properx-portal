@@ -77,6 +77,31 @@ Reference data (roles, permissions, the API Service system account) ships as mig
 same data and is safe everywhere. `DemoSeeder` refuses to run unless `DEMO_SEED_ALLOWED=true`, which
 is never set on the platform.
 
+## Staff accounts and the Executive Director
+
+The Executive Director creates the other staff accounts in Nova (Administration → Staff) with the
+Membership Coordinator or Compliance Specialist role. Nobody types a password for them: the new
+account gets an email with a single-use link to set its password (Nova's password reset page), then
+sets up two-factor authentication on first login. If the email does not arrive, use "Forgot your
+password?" or `php artisan app:password-link <email>`.
+
+The Executive Director role is never assigned, changed or removed in Nova (the form does not offer it
+and the server rejects it). It is managed on the server only:
+
+```bash
+php artisan app:assign-executive-director jane@example.com --name="Jane Doe"   # creates the account if needed
+php artisan app:assign-executive-director jane@example.com --revoke            # takes the role away
+```
+
+- Without an account for the email, it is created with a random unknown password (`--name` required)
+  and the set-password email is sent; an existing staff account is promoted (its other role is replaced).
+  Member and API Service accounts are refused.
+- `--revoke` leaves the account without a role, so it can no longer sign in; the last Executive Director
+  cannot be revoked (assign another one first). Executive Director accounts cannot be deleted in Nova.
+- It asks for confirmation; `--force` skips the question (for scripted use). Every run that changes
+  something is audited (`executive_director_assigned` / `executive_director_revoked`, plus `role_changed`).
+  No password is printed.
+
 ## Tests
 
 ```bash
@@ -100,6 +125,9 @@ Production values are App Service settings and Key Vault references (root `READM
 | `API_SERVICE_KEY` | API key for external callers of `/api/service/*` (later `/api/intake/*`); `php artisan app:api-key:rotate`, quarterly. Not needed by the Stripe webhook |
 | `STRIPE_WEBHOOK_SECRET`, `PAYMENT_PORTAL_URL`, `PAYMENT_GRACE_DAYS` | Stripe membership payment status |
 | `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise) |
+| `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default while its last screens are being built. Livewire uses `/livewire/*` routes, which the ingress must pass through |
 | `INDIVIDUAL_MEMBERSHIP_URL` | Individual application on the marketing site ("Just me" on `/join/agency`) |
+| `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
+| `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |
 | `AZURE_CLIENT_ID` | Client ID of a user-assigned managed identity, if one is used |
 | `NOVA_LICENSE_KEY` | Nova licence key |
