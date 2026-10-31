@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Member\MemberMenu;
-use App\Member\NotificationFeed;
 use App\Member\Overview;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -17,16 +16,13 @@ use Illuminate\Http\Request;
 class PageController extends Controller
 {
     /**
-     * The dashboard: tabs (App\Livewire\Member\Dashboard) and the right column. Notifications
-     * shown here count as read from now on (the panel still marks them as new this time).
+     * The dashboard: tabs (App\Livewire\Member\Dashboard); the notifications panel (open by
+     * default here) carries the license upload for individual members.
      */
     public function dashboard(Request $request): View
     {
         $user = $request->user();
         $overview = Overview::for($user);
-        $notifications = NotificationFeed::latest($user);
-
-        NotificationFeed::markRead($user, $notifications);
 
         return view('member.dashboard', [
             'page' => 'dashboard',
@@ -36,7 +32,6 @@ class PageController extends Controller
             'greeting' => self::greeting((int) now(config('portal.schedule_timezone'))->format('G')),
             'firstName' => $overview->profile()?->first_name ?? $user->name,
             'agency' => $overview->agency(),
-            'notifications' => $notifications,
             'canUpload' => $overview->canUpload(),
             'documentTypes' => config('portal.member_area.license_document_types'),
         ]);

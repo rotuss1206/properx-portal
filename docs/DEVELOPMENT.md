@@ -253,7 +253,7 @@ license upload); the other pages still say "Coming soon".
 
 Demo data for the dashboard (DemoSeeder, member01-member05, filled in for existing data too): license verification
 (member01 verified, member03 needs attention), in-app notifications, sign-ins, a certificate and downloads in the
-activity, and two paid invoices per year with amounts. Notifications are marked read when the dashboard shows them; to
+activity, and two paid invoices per year with amounts. Notifications stay unread until opened or "Mark all read"; to
 see the bell count again, run `php artisan tinker --execute "DB::table('notifications')->update(['read_at' => null]);"`.
 Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
 
@@ -270,8 +270,14 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
 - Menu: `App\Member\MemberMenu` (agency people see no License documents; only the principal sees Billing). The sidebar
   reuses the Nova sidebar's classes (`public/portal/sidebar.css`) and the Renewal due card and person from
   `App\Support\PortalSidebar`.
-- Files: `resources/views/components/member/*` (layout, sidebar, header, icon), `public/portal/member.css` and
+- Files: `resources/views/components/member/*` (layout, sidebar, header, icon, notify-panel), `public/portal/member.css` and
   `member.js` (collapse, mobile drawer, account menu; DOM APIs only, loaded with the CSP nonce).
+- Notifications panel: `public/portal/notify.js` + `notify.css`, shared with Nova (loaded by
+  `resources/views/vendor/nova/partials/meta.blade.php`; Nova's panel is drawn by `resources/js/nova/header.js` from Nova's
+  notifications store). Push column at >= 1280 px (remembered in `localStorage` key `ppx-notify-open:<context>`, contexts
+  `member-dashboard` (open by default), `member`, `nova`), overlay at 1024-1279 px, full screen below (Esc, ✕, backdrop and
+  the back button close it; focus stays inside). To reset the remembered state: `localStorage.removeItem('ppx-notify-open:member-dashboard')`.
+  Recheck the Nova part after Nova upgrades (component `NotificationCenter`, store module `nova/notifications`).
 
 ## Syncing to the KEENEY repository
 

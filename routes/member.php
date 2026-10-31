@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Member\DocumentDownloadController;
 use App\Http\Controllers\Member\LicenseDocumentUploadController;
+use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\Member\PageController;
 use App\Http\Middleware\EnsureMemberArea;
 use App\Http\Middleware\RequireTwoFactor;
@@ -28,6 +29,12 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
         Route::post('license-documents', [LicenseDocumentUploadController::class, 'store'])
             ->middleware('throttle:20,1')
             ->name('license-documents.store');
+
+        Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+
+        Route::get('notifications/{notification}', [NotificationController::class, 'open'])
+            ->whereUuid('notification')
+            ->name('notifications.open');
 
         Route::get('documents/{type}/{document}', DocumentDownloadController::class)
             ->whereIn('type', ['license', 'tax'])

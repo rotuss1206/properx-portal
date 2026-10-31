@@ -20,7 +20,7 @@ final class NotificationFeed
     /**
      * @return Collection<int, array{id: string, title: string, at: CarbonInterface, unread: bool, url: ?string}>
      */
-    public static function latest(User $user, int $limit = 5): Collection
+    public static function latest(User $user, int $limit = 10): Collection
     {
         return $user->notifications()->latest()->limit($limit)->get()
             ->map(fn (DatabaseNotification $notification) => self::describe($notification))
@@ -34,17 +34,16 @@ final class NotificationFeed
     }
 
     /**
-     * "Marked as read when opened": the panel shows them, then they count as read.
-     *
-     * @param  Collection<int, array{id: string, unread: bool}>  $items
+     * Where a notification leads (its link marks it read first, NotificationController::open).
      */
-    public static function markRead(User $user, Collection $items): void
+    public static function target(DatabaseNotification $notification): ?string
     {
-        $ids = $items->where('unread', true)->pluck('id');
-
-        if ($ids->isNotEmpty()) {
-            $user->unreadNotifications()->whereIn('id', $ids)->update(['read_at' => now()]);
-        }
+        return match ($notification->type) {
+            TaxDocumentAvailable::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
+            LicenseDocumentReviewed::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'license']),
+            RenewalDue::class => route('member.dashboard'),
+            default => null,
+        };
     }
 
     /**
@@ -67,18 +66,12 @@ final class NotificationFeed
             return null;
         }
 
-        $url = match ($notification->type) {
-            TaxDocumentAvailable::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
-            LicenseDocumentReviewed::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'license']),
-            default => null,
-        };
-
         return [
             'id' => $notification->getKey(),
             'title' => $title,
             'at' => $notification->created_at,
             'unread' => $notification->read_at === null,
-            'url' => $url,
+            'url' => route('member.notifications.open', $notification->getKey()),
         ];
     }
 

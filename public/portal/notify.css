@@ -1,0 +1,249 @@
+/*
+ * The notifications panel (right column of the mockups): member area
+ * (resources/views/components/member/notify-panel.blade.php) and Nova (resources/js/nova/header.js,
+ * Nova's layout rules in resources/css/nova/header.css). Behaviour: public/portal/notify.js.
+ * State: html[data-ppx-notify="open|closed"]; transitions only once html.ppx-notify-ready is set.
+ *   >= 1280 px    a full-height column; the page beside it shrinks (no overlap);
+ *   1024-1279 px  over the page with a backdrop;
+ *   < 1024 px     full screen, sliding in from the right.
+ */
+
+:root { --ppx-notify-width: 320px; }
+
+/* The announced count (visually hidden): pinned, so it never lengthens the page. */
+.ppx-notify-live { position: fixed; top: 0; left: 0; }
+
+.ppx-notify {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: var(--ppx-banner-height, 0px);
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    width: var(--ppx-notify-width);
+    border-left: 1px solid var(--ppx-line);
+    background: var(--ppx-surface);
+    color: var(--ppx-text);
+    font-family: var(--ppx-body);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    transform: translateX(100%);
+    visibility: hidden;
+}
+
+html[data-ppx-notify="open"] .ppx-notify { transform: none; visibility: visible; }
+
+.ppx-notify-ready .ppx-notify { transition: transform 0.22s ease, visibility 0s linear 0.22s; }
+
+.ppx-notify-ready[data-ppx-notify="open"] .ppx-notify { transition: transform 0.22s ease, visibility 0s; }
+
+.ppx-notify__header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 10px;
+    height: var(--ppx-header-height);
+    padding: 0 20px;
+}
+
+.ppx-notify__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    outline: none;
+}
+
+.ppx-notify__count {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--ppx-yellow);
+    color: var(--ppx-navy);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.ppx-notify__count[hidden] { display: none; }
+
+.ppx-notify__close {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-right: -6px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ppx-muted);
+    cursor: pointer;
+}
+
+.ppx-notify__close:hover { background: var(--ppx-page); color: var(--ppx-ink); }
+
+.ppx-notify__close-svg { width: 20px; height: 20px; }
+
+/* Scrolls only when the content is taller than the panel; no bar otherwise. */
+.ppx-notify__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 20px 24px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.ppx-notify__section { display: grid; gap: 12px; }
+
+.ppx-notify__section + .ppx-notify__section { margin-top: 28px; }
+
+.ppx-notify__list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+
+.ppx-notify__item { position: relative; border-radius: var(--ppx-radius); }
+
+.ppx-notify__item.is-unread { background: #f3f6fa; }
+
+.ppx-notify__link {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    padding: 9px 30px 9px 12px;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.ppx-notify__link:hover { background: var(--ppx-hover); }
+
+.ppx-notify__item.is-unread .ppx-notify__link:hover { background: #ebf0f6; }
+
+.ppx-notify__item-title {
+    overflow-wrap: anywhere;
+    color: var(--ppx-ink);
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.ppx-notify__time { color: var(--ppx-subtle); font-size: 12px; }
+
+.ppx-notify__dot {
+    position: absolute;
+    top: 15px;
+    right: 13px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ppx-green);
+    pointer-events: none;
+}
+
+.ppx-notify__actions { display: flex; justify-content: flex-end; margin: 0; }
+
+.ppx-notify__actions[hidden] { display: none; }
+
+.ppx-notify__read-all {
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ppx-blue);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ppx-notify__read-all:hover { text-decoration: underline; }
+
+.ppx-notify__close:focus-visible,
+.ppx-notify__link:focus-visible,
+.ppx-notify__read-all:focus-visible {
+    outline: 2px solid var(--ppx-blue-focus);
+    outline-offset: -2px;
+}
+
+.ppx-notify__empty { display: grid; justify-items: center; gap: 6px; padding: 28px 8px; text-align: center; }
+
+.ppx-notify__empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 4px;
+    border-radius: 12px;
+    background: var(--ppx-page);
+    color: var(--ppx-muted);
+}
+
+.ppx-notify__empty-svg { width: 22px; height: 22px; }
+
+.ppx-notify__empty-title { margin: 0; color: var(--ppx-ink); font-weight: 600; }
+
+.ppx-notify__empty-text { margin: 0; color: var(--ppx-muted); font-size: 13px; }
+
+/* Backdrop: overlay mode only. */
+.ppx-notify-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    display: none;
+    background: rgba(10, 45, 75, 0.45);
+}
+
+/* Push mode: the page beside the column shrinks (member area; Nova: resources/css/nova/header.css). */
+@media (min-width: 1280px) {
+    body.ppx-member .ppx-member__main { transition: margin-left 0.2s ease, margin-right 0.22s ease; }
+
+    html[data-ppx-notify="open"] body.ppx-member .ppx-member__main { margin-right: var(--ppx-notify-width); }
+}
+
+/* Overlay and full-screen modes are modal: the page underneath does not scroll. */
+html.ppx-notify-modal,
+html.ppx-notify-modal body { overflow: hidden; }
+
+html.ppx-notify-modal body { padding-right: var(--ppx-scrollbar-gap, 0px); }
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+    html[data-ppx-notify="open"] .ppx-notify-backdrop { display: block; }
+
+    .ppx-notify { box-shadow: var(--ppx-shadow-menu); }
+}
+
+@media (max-width: 1023px) {
+    .ppx-notify { width: 100%; border-left: 0; }
+
+    .ppx-notify__header { padding: 0 16px; border-bottom: 1px solid var(--ppx-line); }
+
+    .ppx-notify__body { padding: 16px 16px 24px; }
+
+    .ppx-notify__close { margin-right: -4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ppx-notify-ready .ppx-notify,
+    .ppx-notify-ready[data-ppx-notify="open"] .ppx-notify,
+    body.ppx-member .ppx-member__main { transition: none; }
+}

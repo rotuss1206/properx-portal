@@ -145,6 +145,21 @@
 /* The mobile drawer's own user block (name, User Security, Logout) repeats the avatar menu. */
 .ppx-nova-header .ppx-drawer .mt-auto { display: none; }
 
+/* The notifications panel (public/portal/notify.css) as a column beside the page: header and
+   content shrink. Only while our panel is drawn (html.ppx-nova-notify, set by header.js). */
+@media (min-width: 1280px) {
+    .ppx-nova-notify #nova [dusk="content"] > [class*="lg:ml-60"],
+    .ppx-nova-notify #nova > div:first-child > header { transition: margin-left 0.2s ease, margin-right 0.22s ease; }
+
+    .ppx-nova-notify[data-ppx-notify="open"] #nova [dusk="content"] > [class*="lg:ml-60"],
+    .ppx-nova-notify[data-ppx-notify="open"] #nova > div:first-child > header { margin-right: var(--ppx-notify-width); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ppx-nova-notify #nova [dusk="content"] > [class*="lg:ml-60"],
+    .ppx-nova-notify #nova > div:first-child > header { transition: none; }
+}
+
 @media (max-width: 1023px) {
     .ppx-nova-header #nova > div:first-child > header { padding: 0 16px; }
 

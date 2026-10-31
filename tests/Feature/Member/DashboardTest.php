@@ -279,23 +279,6 @@ class DashboardTest extends TestCase
         $this->assertSame(2, $soon->notifications()->count());
     }
 
-    public function test_the_bell_counts_unread_notifications_and_the_dashboard_marks_them_read(): void
-    {
-        $member = $this->member();
-        $member->notify(new RenewalDue(today()->addDays(12)->toDateString()));
-        $member->notify(new TaxDocumentAvailable(1));
-
-        $this->actingAs($member)->get('/member/profile')->assertSee('<span class="ppx-header__count" aria-hidden="true">2</span>', false);
-
-        $this->get('/member')->assertOk()
-            ->assertSee('Renewal reminder — 12 days')
-            ->assertSee('New tax document available')
-            ->assertSee('ppx-notifications__item is-unread', false);
-
-        $this->assertSame(0, $member->unreadNotifications()->count());
-        $this->get('/member/profile')->assertDontSee('ppx-header__count', false);
-    }
-
     // Upload
 
     private function pdf(string $name = 'license.pdf'): UploadedFile

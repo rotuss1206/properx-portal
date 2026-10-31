@@ -202,6 +202,11 @@ approved / rejected, new tax document, license reminder, renewal due (90/30/7 da
 `paid_through_at`). Payload holds ids and enum values only, no PHI; texts are rendered at display
 time; emails stay PHI-free as today. Unread count in the bell; "mark all read" sets `read_at`.
 
+**Built (stage 2 follow-up):** the right column is a global panel opened by the bell on every member page and in
+Nova (staff see Nova's own notifications there): a pushed column at >= 1280 px, an overlay at 1024-1279 px, a
+full-screen sheet below. Open by default on the dashboard only; nothing is marked read by showing it (opening one or
+"Mark all read" does). The license upload sits under the notifications on the dashboard, for individual members only.
+
 ### `/member/profile`
 
 | Card | Fields | Source / editing |
@@ -403,8 +408,8 @@ Each stage: tests, Pint, commit, push; the area stays behind `MEMBER_AREA_ENABLE
 - `app/Livewire/Member/Dashboard.php` (tabs), `resources/views/livewire/member/dashboard/{overview,documents,activity,benefits}.blade.php`
 - `app/Member/ActivityFeed.php` (audit_logs, reminder_logs, tax documents, stripe_events), `app/Http/Controllers/Member/ActivityExportController.php`
 - Migration `add_payment_details_to_stripe_events_table` (`amount` in cents, `currency`, `plan_name`; expand), filled by `StripeWebhookHandler` from `invoice.paid` (total, currency, line price nickname or product name)
-- Notifications: migration `create_notifications_table`, `app/Notifications/Member/*` (database channel), `app/Livewire/Member/NotificationsPanel.php`
-- Tests: `DashboardTest`, `ActivityFeedTest` (own events only, no PHI), `NotificationsPanelTest`
+- Notifications: migration `create_notifications_table`, `app/Notifications/Member/*` (database channel), `resources/views/components/member/notify-panel.blade.php` + `public/portal/notify.js`
+- Tests: `DashboardTest`, `ActivityFeedTest` (own events only, no PHI), `NotificationPanelTest`
 
 **3. Profile**
 - `app/Livewire/Member/Profile.php` + form objects (`ContactForm`, `BusinessForm`, `LicenseForm`), validation shared with `App\Nova\MemberProfile` (rules extracted to `App\Member\ProfileRules`)

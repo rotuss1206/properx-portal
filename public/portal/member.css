@@ -118,16 +118,9 @@ body.ppx-member {
     font-weight: 600;
 }
 
-/* Dashboard: main column and the right column (notifications, upload) */
+/* Dashboard: one column; notifications and the upload live in the panel (public/portal/notify.css). */
 
-.ppx-dash {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    align-items: start;
-    gap: 24px;
-}
-
-.ppx-dash__main { display: grid; gap: 20px; min-width: 0; }
+.ppx-dash { display: grid; gap: 20px; min-width: 0; }
 
 .ppx-dash__tabs { display: grid; gap: 20px; min-width: 0; }
 
@@ -135,8 +128,6 @@ body.ppx-member {
 
 /* The grid gap spaces the cards here. */
 .ppx-dash__tabs > .ppx-card + .ppx-card { margin-top: 0; }
-
-.ppx-dash__aside { display: grid; gap: 20px; }
 
 .ppx-agency-line {
     display: flex;
@@ -408,50 +399,6 @@ body.ppx-member {
 
 .ppx-benefit__text { margin: 0 0 10px; color: var(--ppx-muted); font-size: 13px; }
 
-/* Right column panels */
-
-.ppx-panel { display: grid; gap: 12px; }
-
-.ppx-panel__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-
-.ppx-panel__title { margin: 0; color: var(--ppx-ink); font-family: var(--ppx-heading); font-size: 16px; font-weight: 600; }
-
-.ppx-panel__count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: var(--ppx-yellow);
-    color: var(--ppx-navy);
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.ppx-panel__empty { margin: 0; color: var(--ppx-muted); font-size: 13px; }
-
-.ppx-notifications { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-
-.ppx-notifications__item {
-    position: relative;
-    display: grid;
-    gap: 2px;
-    padding: 10px 28px 10px 12px;
-    border-radius: var(--ppx-radius);
-}
-
-.ppx-notifications__item.is-unread { background: var(--ppx-surface); box-shadow: var(--ppx-shadow-card); }
-
-.ppx-notifications__title { color: var(--ppx-ink) !important; font-size: 13.5px; font-weight: 600; text-decoration: none; }
-
-a.ppx-notifications__title:hover { text-decoration: underline; }
-
-.ppx-notifications__time { color: var(--ppx-subtle); font-size: 12px; }
-
-.ppx-notifications__dot { position: absolute; top: 14px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--ppx-green); }
-
 /* Upload drop zone */
 
 .ppx-dropzone {
@@ -499,12 +446,6 @@ a.ppx-notifications__title:hover { text-decoration: underline; }
 .ppx-dropzone__submit { width: 100%; }
 
 /* Tablets and phones */
-
-@media (max-width: 1180px) {
-    .ppx-dash { grid-template-columns: minmax(0, 1fr); }
-
-    .ppx-dash__aside { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
-}
 
 @media (max-width: 1023px) {
     .ppx-member__content { padding: 20px 16px 32px; }

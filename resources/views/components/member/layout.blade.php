@@ -1,8 +1,9 @@
-@props(['page', 'title'])
+@props(['page', 'title', 'notifyOpen' => false, 'notifyExtra' => null])
 {{--
     Member area layout (docs/specs/member-area.md): sidebar, header, content. Styles:
     public/portal/tokens.css, sidebar.css (shared with Nova) and member.css; behaviour:
-    public/portal/member.js (collapse, mobile drawer, account menu), loaded with the CSP nonce.
+    public/portal/member.js (collapse, mobile drawer, account menu) and notify.js (the
+    notifications panel, open by default where notifyOpen is set), loaded with the CSP nonce.
 --}}
 <!DOCTYPE html>
 <html lang="en">
@@ -17,8 +18,10 @@
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('header.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('components.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('member.css') }}">
-    {{-- Not deferred: applies the remembered collapsed state before the first paint. --}}
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('notify.css') }}">
+    {{-- Not deferred: apply the remembered sidebar and panel state before the first paint. --}}
     <script src="{{ \App\Support\PortalAsset::url('member.js') }}" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
+    <script src="{{ \App\Support\PortalAsset::url('notify.js') }}" data-context="{{ $notifyOpen ? 'member-dashboard' : 'member' }}" data-default="{{ $notifyOpen ? 'open' : 'closed' }}" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
     @livewireStyles
 </head>
 <body class="ppx-member">
@@ -36,6 +39,8 @@
             {{ $slot }}
         </main>
     </div>
+
+    <x-member.notify-panel :extra="$notifyExtra" />
 
     {{-- CSP-safe Livewire build from Livewire's own route, with the request's nonce. --}}
     @livewireScripts

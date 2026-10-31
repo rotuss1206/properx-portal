@@ -6,11 +6,14 @@
  *   - GlobalSearch -> page title (from the document title Nova sets for every page), date,
  *     and Nova's own search for staff, restyled;
  *   - UserMenu     -> avatar with Profile, Security and Sign out;
- *   - ThemeDropdown -> nothing (not in the design).
- * Nova's notification bell stays; resources/css/nova/header.css restyles it. Render
- * functions only (no unsafe-eval). If a swapped component throws, Nova's original renders
- * and html.ppx-nova-header is removed, so Nova's header comes back. Depends on Nova 5
- * internals (component names, MainHeader markup): recheck after Nova upgrades.
+ *   - ThemeDropdown -> nothing (not in the design);
+ *   - NotificationCenter -> the member area's bell and notifications panel (public/portal/
+ *     notify.js opens it, notify.css styles it) with Nova's own notifications.
+ * Render functions only (no unsafe-eval). If a swapped component throws, Nova's original
+ * renders and html.ppx-nova-header is removed, so Nova's header comes back (for the panel
+ * only html.ppx-nova-notify, so Nova's own notification center returns). Depends on Nova 5
+ * internals (component names, MainHeader markup, the notifications store): recheck after
+ * Nova upgrades.
  */
 (function () {
     var Vue = window.Vue
@@ -178,10 +181,163 @@
 
     var Nothing = { name: 'PortalNoThemeDropdown', render: function () { return null } }
 
+    // The member area's notifications panel (public/portal/notify.js + notify.css) with Nova's
+    // own notifications (store module nova/notifications, nova_notifications table). notify.js
+    // opens and closes it (bell, ✕, backdrop, Esc, back button); this draws it.
+    function notifyLayout(on) {
+        root.classList.toggle('ppx-nova-notify', on)
+
+        if (!on) {
+            root.classList.remove('ppx-notify-modal')
+        }
+    }
+
+    var NotificationPanel = {
+        name: 'PortalNotificationCenter',
+        inheritAttrs: false,
+
+        data: function () {
+            return { open: window.PortalNotify.isOpen() }
+        },
+
+        computed: {
+            notifications: function () {
+                return this.$store.getters['nova/notifications'] || []
+            },
+
+            unread: function () {
+                return Number(this.$store.getters['nova/unreadNotifications']) || 0
+            },
+        },
+
+        created: function () {
+            this.$store.dispatch('nova/fetchNotifications')
+        },
+
+        mounted: function () {
+            var vm = this
+
+            this.onChange = function (event) { vm.open = event.detail.open }
+            this.onRefresh = function () { vm.$store.dispatch('nova/fetchNotifications') }
+
+            document.addEventListener('ppx-notify:change', this.onChange)
+            Nova.$on('refresh-notifications', this.onRefresh)
+            notifyLayout(true)
+            this.open = window.PortalNotify.isOpen()
+        },
+
+        beforeUnmount: function () {
+            document.removeEventListener('ppx-notify:change', this.onChange)
+            Nova.$off('refresh-notifications', this.onRefresh)
+            notifyLayout(false)
+        },
+
+        methods: {
+            // As Nova's own panel does: mark it read, then follow its link (the modal modes close first).
+            choose: function (notification) {
+                if (!notification.read_at) {
+                    this.$store.dispatch('nova/markNotificationAsRead', notification.id)
+                }
+
+                if (!notification.actionUrl) {
+                    return
+                }
+
+                var go = function () {
+                    Nova.visit(notification.actionUrl, { openInNewTab: notification.openInNewTab || false })
+                }
+
+                if (window.PortalNotify.mode() === 'push' || notification.openInNewTab) {
+                    go()
+                } else {
+                    window.PortalNotify.close().then(go)
+                }
+            },
+
+            readAll: function () {
+                this.$store.dispatch('nova/markAllNotificationsAsRead')
+            },
+        },
+
+        render: function () {
+            var vm = this
+            var unread = vm.unread
+            var count = unread > 99 ? '99+' : String(unread)
+
+            var items = vm.notifications.map(function (notification) {
+                var isUnread = !notification.read_at
+
+                return h('li', { key: notification.id, class: ['ppx-notify__item', isUnread ? 'is-unread' : null] }, [
+                    h('button', { type: 'button', class: 'ppx-notify__link', onClick: function () { vm.choose(notification) } }, [
+                        h('span', { class: 'ppx-notify__item-title' }, notification.message),
+                        h('span', { class: 'ppx-notify__time', title: notification.created_at }, notification.created_at_friendly),
+                    ]),
+                    isUnread ? h('span', { class: 'ppx-notify__dot' }, [h('span', { class: 'ppx-visually-hidden' }, 'Unread')]) : null,
+                ])
+            })
+
+            var list = items.length
+                ? [
+                    h('ul', { class: 'ppx-notify__list' }, items),
+                    unread ? h('div', { class: 'ppx-notify__actions' }, [
+                        h('button', { type: 'button', class: 'ppx-notify__read-all', onClick: vm.readAll }, 'Mark all read'),
+                    ]) : null,
+                ]
+                : [h('div', { class: 'ppx-notify__empty' }, [
+                    h('span', { class: 'ppx-notify__empty-icon' }, [icon('bell', 'ppx-notify__empty-svg')]),
+                    h('p', { class: 'ppx-notify__empty-title' }, 'You are all caught up'),
+                    h('p', { class: 'ppx-notify__empty-text' }, 'New notifications appear here.'),
+                ])]
+
+            return [
+                h('button', {
+                    type: 'button',
+                    class: 'ppx-header__button ppx-header__bell',
+                    'data-ppx-notify-toggle': '',
+                    'aria-controls': 'ppx-notify',
+                    'aria-expanded': vm.open ? 'true' : 'false',
+                    'aria-label': unread ? 'Notifications, ' + unread + ' unread' : 'Notifications',
+                }, [
+                    h('span', { class: 'ppx-header__glyph ppx-header__glyph--bell', 'aria-hidden': 'true' }),
+                    unread ? h('span', { class: 'ppx-header__count', 'aria-hidden': 'true' }, count) : null,
+                ]),
+                h('p', { class: 'ppx-visually-hidden ppx-notify-live', 'aria-live': 'polite' }, unread ? unread + ' unread notifications' : 'No unread notifications'),
+                h(Vue.Teleport, { to: 'body' }, [
+                    h('div', { class: 'ppx-notify-backdrop', 'data-ppx-notify-close': '' }),
+                    h('aside', {
+                        id: 'ppx-notify',
+                        class: 'ppx-notify',
+                        'aria-labelledby': 'ppx-notify-title',
+                        role: vm.open && window.PortalNotify.mode() !== 'push' ? 'dialog' : null,
+                        'aria-modal': vm.open && window.PortalNotify.mode() !== 'push' ? 'true' : null,
+                    }, [
+                        h('div', { class: 'ppx-notify__header' }, [
+                            h('h2', { class: 'ppx-notify__title', id: 'ppx-notify-title', tabindex: '-1', 'data-ppx-notify-title': '' }, 'Notifications'),
+                            unread ? h('span', { class: 'ppx-notify__count', 'aria-hidden': 'true' }, count) : null,
+                            h('button', { type: 'button', class: 'ppx-notify__close', 'data-ppx-notify-close': '', 'aria-label': 'Close notifications' }, [
+                                icon('close', 'ppx-notify__close-svg'),
+                            ]),
+                        ]),
+                        h('div', { class: 'ppx-notify__body' }, [
+                            h('section', { class: 'ppx-notify__section', 'aria-label': 'Recent notifications' }, list),
+                        ]),
+                    ]),
+                ]),
+            ]
+        },
+    }
+
     var replacements = {
         GlobalSearch: function (original) { return headerMain(original) },
         UserMenu: function () { return AccountMenu },
         ThemeDropdown: function () { return Nothing },
+        // Without public/portal/notify.js Nova's own notification center stays.
+        NotificationCenter: function (original) { return window.PortalNotify ? NotificationPanel : original },
+    }
+
+    // What a failing component takes back with it: the whole header, or only the panel.
+    var fallbacks = {
+        NotificationCenter: function () { notifyLayout(false) },
     }
 
     var replaced = {}
@@ -198,8 +354,14 @@
             errorCaptured: function (error) {
                 if (!this.failed) {
                     this.failed = true
-                    shell(false)
-                    console.error('ProPerx header failed; showing the Nova header.', error && error.name)
+
+                    if (fallbacks[name]) {
+                        fallbacks[name]()
+                    } else {
+                        shell(false)
+                    }
+
+                    console.error('ProPerx ' + name + ' failed; showing Nova\'s own.', error && error.name)
                 }
 
                 return false
