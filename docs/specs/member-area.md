@@ -10,6 +10,13 @@ Billing, License documents (`Documents Management.jpg`), Upload (`Container.jpg`
 (`Certificate Generate.jpg`) and the certificate itself (`Certificate.jpg`). **No mockups** for Tax
 documents, Compliance library and Notifications: they are composed from the shared components below.
 
+**Rule: the whole interface, the member area and Nova, ends up looking like the mockups
+(`docs/design/*.jpg`).** Deviations only where we deliberately replaced data (License verification, a
+Certificate card instead of CE credits, Benefits and search hidden), and then in content, never in style.
+Every stage: screenshots at 1440 / 1100 / 390 px, also with classic (always visible) scrollbars as on
+Windows; the mockup side by side; fixes until they match. The report lists the screenshot paths and the
+differences that remain, each with its reason.
+
 ---
 
 ## 1. Design tokens

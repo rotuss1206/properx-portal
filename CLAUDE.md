@@ -55,6 +55,10 @@ SSO with external identity providers, member-to-member messaging, events and cal
 - Logs and email bodies carry no PHI: IDs only, never emails, names or NPNs. Exception messages may hold member data, so log `$e::class`; `QueryException` is reported without bindings (`bootstrap/app.php`).
 - Sensitive fields are stored encrypted. MFA secret and recovery codes: Fortify's `two_factor_*` columns (Fortify encrypts recovery codes rather than hashing them as Spec 3.3 asks; known deviation).
 
+## Design rule
+
+The whole interface, the member area and Nova, must end up looking like the mockups `docs/design/*.jpg`. Deviate only where data was deliberately replaced (License verification, Certificate instead of CE credits, Benefits and search hidden), and then in content, never in style. Every stage: screenshots at 1440 / 1100 / 390 px, also with classic (always visible) scrollbars as on Windows, compared side by side with the mockup, fixed until they match; the report lists the screenshot paths and the remaining differences with their reasons ([docs/specs/member-area.md](docs/specs/member-area.md)).
+
 ## Access and Nova
 
 - Branding: name "ProPerx Alliance", placeholder text logo `resources/images/logo.svg`, navy primary palette in `config/nova.php` (`brand`), footer `resources/views/nova/footer.blade.php`. Replace the logo and signature placeholders when the client provides artwork.
