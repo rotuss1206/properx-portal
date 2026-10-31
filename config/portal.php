@@ -86,9 +86,18 @@ return [
         'ce_credits' => false,
         'benefit_statuses' => false,
 
-        // Benefits tab: ['title' => ..., 'description' => ..., 'icon' => ..., 'url' => ...] per
-        // benefit, filled in when the client provides the catalogue.
-        'benefits' => [],
+        // Benefits tab (dashboard): one card per benefit, in this order; an empty list hides the
+        // tab. 'icon' is a symbol of public/portal/img/icons.svg; 'url' (optional) adds a
+        // "Learn more" link. Every card says "Available" (enrollment is not recorded, see
+        // benefit_statuses). Texts from the mockup until the client provides the catalogue.
+        'benefits' => [
+            ['title' => 'Group health insurance', 'description' => 'Nationwide PPO group health plan — effective January 1, 2027.', 'icon' => 'benefit-health', 'url' => null],
+            ['title' => 'Group dental', 'description' => 'Annual coverage from $2,000 to $5,000 at group rates.', 'icon' => 'benefit-dental', 'url' => null],
+            ['title' => 'Group vision', 'description' => 'Comprehensive vision benefit at negotiated group rates.', 'icon' => 'benefit-vision', 'url' => null],
+            ['title' => 'Group pet insurance', 'description' => 'Save up to 40% on pet insurance for your whole family.', 'icon' => 'benefit-pet', 'url' => null],
+            ['title' => 'CRM for agents', 'description' => 'A purpose-built CRM with a member discount, included.', 'icon' => 'benefit-crm', 'url' => null],
+            ['title' => 'Business discounts', 'description' => 'VOIP, payroll, office supply and print savings.', 'icon' => 'benefit-discounts', 'url' => null],
+        ],
 
         // "Scanned for malware" wording only once uploads are scanned.
         'malware_scan' => false,

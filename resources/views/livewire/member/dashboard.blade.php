@@ -114,7 +114,11 @@
         <div class="ppx-benefits">
             @foreach ($benefits as $benefit)
                 <section class="ppx-benefit">
-                    <span class="ppx-stat__icon"><x-member.icon :name="$benefit['icon'] ?? 'badge-check'" class="ppx-stat__svg" /></span>
+                    <div class="ppx-benefit__top">
+                        <span class="ppx-benefit__icon"><x-member.icon :name="$benefit['icon'] ?? 'badge-check'" class="ppx-benefit__svg" /></span>
+                        {{-- Enrollment is not recorded (member_area.benefit_statuses), so every benefit is offered. --}}
+                        <x-ppx.badge variant="neutral" :dot="false">Available</x-ppx.badge>
+                    </div>
                     <h3 class="ppx-benefit__title">{{ $benefit['title'] }}</h3>
                     <p class="ppx-benefit__text">{{ $benefit['description'] ?? '' }}</p>
                     @if (! empty($benefit['url']))

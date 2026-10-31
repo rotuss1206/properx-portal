@@ -392,18 +392,39 @@ body.ppx-member {
 .ppx-benefits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 
 .ppx-benefit {
-    position: relative;
-    padding: 64px 20px 20px;
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    padding: 18px 18px 20px;
     border: 1px solid var(--ppx-line);
     border-radius: var(--ppx-radius-lg);
     background: var(--ppx-surface);
+    box-shadow: var(--ppx-shadow-card);
 }
 
-.ppx-benefit .ppx-stat__icon { right: auto; left: 20px; background: var(--ppx-blue-50); color: var(--ppx-navy-500); }
+.ppx-benefit__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 
-.ppx-benefit__title { margin: 0 0 6px; color: var(--ppx-ink); font-family: var(--ppx-heading); font-size: 15px; font-weight: 600; }
+.ppx-benefit__top .ppx-badge { margin-top: 10px; font-weight: 400; }
 
-.ppx-benefit__text { margin: 0 0 10px; color: var(--ppx-muted); font-size: 13px; }
+.ppx-benefit__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: var(--ppx-page);
+    color: var(--ppx-blue);
+}
+
+.ppx-benefit__svg { width: 24px; height: 24px; }
+
+.ppx-benefit__title { margin: 0; color: var(--ppx-ink); font-family: var(--ppx-heading); font-size: 15px; font-weight: 600; }
+
+.ppx-benefit__text { margin: 0; color: var(--ppx-muted); font-size: 13px; line-height: 18px; }
+
+.ppx-benefit .ppx-link { margin-top: 4px; justify-self: start; }
 
 /* Upload drop zone */
 

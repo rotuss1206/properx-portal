@@ -99,14 +99,27 @@ class DashboardTest extends TestCase
         $this->assertSame(LicenseVerification::PendingReview, $this->member()->memberProfile->license_verification);
     }
 
-    public function test_the_benefits_tab_waits_for_a_catalogue(): void
+    public function test_the_benefits_tab_shows_the_configured_catalogue_as_available(): void
     {
         $member = $this->member();
 
-        Livewire::actingAs($member)->test(Dashboard::class)->assertDontSee('Benefits');
+        $html = Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'benefits')
+            ->assertSeeInOrder(['Group health insurance', 'Group dental', 'Group vision', 'Group pet insurance', 'CRM for agents', 'Business discounts'])
+            ->assertSee('Nationwide PPO group health plan')
+            ->assertSee('benefit-pet', false)
+            ->assertDontSee('Enrolled')
+            ->assertDontSee('Pending')
+            ->html();
 
-        config(['portal.member_area.benefits' => [['title' => 'Group dental', 'description' => 'Annual coverage at group rates.']]]);
-        Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'benefits')->assertSee('Group dental');
+        $this->assertSame(6, substr_count($html, '>Available</span>'));
+
+        // The client edits the list in config/portal.php; an empty list hides the tab.
+        config(['portal.member_area.benefits' => [['title' => 'Travel discounts', 'description' => 'Hotels and car rentals.', 'icon' => 'benefit-discounts', 'url' => 'https://example.test/travel']]]);
+        Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'benefits')
+            ->assertSee('Travel discounts')->assertSee('Learn more')->assertDontSee('Group dental');
+
+        config(['portal.member_area.benefits' => []]);
+        Livewire::actingAs($member)->test(Dashboard::class)->assertDontSee('Benefits');
     }
 
     // Own data only
