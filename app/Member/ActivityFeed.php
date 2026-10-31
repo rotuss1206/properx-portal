@@ -16,7 +16,7 @@ use Illuminate\Support\Number;
 
 /**
  * The member's own activity (dashboard Activity tab), in plain words and without personal data:
- * what they did (sign-ins, uploads, downloads, certificates), staff's reviews of their license
+ * what they did (uploads, downloads, certificates; sign-ins and sign-outs are left out), staff's reviews of their license
  * documents, new tax documents, profile changes (section names only), membership status
  * changes and payments (amount, currency and plan stored from invoice.paid). Each line has an
  * icon on a coloured tile ("tone": green, yellow, blue, red) as in the mockup. Nothing from
@@ -25,7 +25,7 @@ use Illuminate\Support\Number;
 final class ActivityFeed
 {
     /** Done by the member. */
-    private const OWN_ACTIONS = ['login', 'document_uploaded', 'document_downloaded', 'certificate_generated', 'certificate_downloaded'];
+    private const OWN_ACTIONS = ['document_uploaded', 'document_downloaded', 'certificate_generated', 'certificate_downloaded'];
 
     /** Profile fields grouped as the profile page's cards. */
     private const PROFILE_SECTIONS = [
@@ -60,7 +60,7 @@ final class ActivityFeed
                 }
             })
             ->latest('id')
-            ->limit($limit * 3) // room for sign-ins folded into one per day
+            ->limit($limit * 2)
             ->get()
             ->map(fn (AuditLog $log) => self::describe($log, $licenseDocuments, $taxDocuments))
             ->filter();
@@ -83,30 +83,8 @@ final class ActivityFeed
         return $logs->concat($payments)
             ->sortByDesc(fn (array $item) => $item['at']->getTimestamp())
             ->values()
-            ->pipe(fn (Collection $items) => self::oneSignInPerDay($items))
             ->take($limit)
             ->values();
-    }
-
-    /**
-     * Several sign-ins on one day read as one line (the latest), so they do not crowd out the rest.
-     *
-     * @param  Collection<int, array{icon: string, tone: string, title: string, detail: ?string, at: CarbonInterface}>  $items
-     * @return Collection<int, array{icon: string, tone: string, title: string, detail: ?string, at: CarbonInterface}>
-     */
-    private static function oneSignInPerDay(Collection $items): Collection
-    {
-        $seen = [];
-
-        return $items->filter(function (array $item) use (&$seen) {
-            if ($item['title'] !== 'Signed in') {
-                return true;
-            }
-
-            $day = $item['at']->toDateString();
-
-            return ! isset($seen[$day]) && ($seen[$day] = true);
-        });
     }
 
     /**
@@ -125,7 +103,6 @@ final class ActivityFeed
         $taxCaption = $tax ? $tax->document_type.' · '.$tax->tax_year : null;
 
         $line = match ($log->action) {
-            'login' => ['profile', 'blue', 'Signed in', null],
             'profile_updated' => ['profile', 'blue', 'Profile updated', self::profileSections($log->details['fields'] ?? [])],
             'document_uploaded' => match (true) {
                 $tax !== null => ['tax', 'blue', 'Tax document available', $taxCaption],

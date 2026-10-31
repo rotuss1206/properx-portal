@@ -136,13 +136,15 @@ class DashboardTest extends TestCase
         $profile = $member->memberProfile;
 
         AuditLog::factory()->create(['user_id' => $member->id, 'action' => 'login']);
+        AuditLog::factory()->create(['user_id' => $member->id, 'action' => 'logout']);
         AuditLog::factory()->create(['user_id' => $other->id, 'action' => 'certificate_generated']);
         AuditLog::factory()->create(['user_id' => null, 'action' => 'payment_status_changed', 'resource_type' => $profile->getMorphClass(), 'resource_id' => $profile->id, 'details' => ['from' => 'past_due', 'to' => 'active']]);
         StripeEvent::create(['id' => 'evt_test_paid', 'type' => 'invoice.paid', 'member_profile_id' => $profile->id, 'outcome' => 'updated', 'amount' => 19900, 'currency' => 'USD', 'plan_name' => 'Annual membership']);
 
         Livewire::actingAs($member)->test(Dashboard::class)
             ->call('show', 'activity')
-            ->assertSee('Signed in')
+            ->assertDontSee('Signed in') // sign-ins and sign-outs are not shown
+            ->assertDontSee('Signed out')
             ->assertSee('Membership status updated')
             ->assertSee('Past due → Active')
             ->assertSee('Membership payment processed')
