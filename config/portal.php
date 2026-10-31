@@ -14,6 +14,18 @@ return [
 
     'documents_disk' => 'azure',
 
+    // When document storage (Azure Blob; Azurite locally) does not answer, downloads fail fast with
+    // "temporarily unavailable" instead of hanging: a short reachability probe runs first
+    // (App\Services\Documents\StorageHealth; its outcome is cached for a few seconds). The Blob
+    // client's own timeouts are on the azure disk in config/filesystems.php.
+    'storage' => [
+        'timeout' => (int) (env('DOCUMENTS_STORAGE_TIMEOUT') ?: 20),
+        'connect_timeout' => (int) (env('DOCUMENTS_STORAGE_CONNECT_TIMEOUT') ?: 5),
+        'probe_timeout' => 3,
+        'probe_retries' => 1,
+        'probe_cache_seconds' => 15,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Brand (emails)

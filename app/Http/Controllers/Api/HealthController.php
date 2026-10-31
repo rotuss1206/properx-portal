@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Documents\StorageHealth;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -29,7 +30,7 @@ class HealthController extends Controller
         return $this->respond(['status' => 'ok'], Response::HTTP_OK);
     }
 
-    public function ready(): JsonResponse
+    public function ready(StorageHealth $storage): JsonResponse
     {
         $checks = [
             'database' => $this->check('database', fn () => DB::select('select 1')),
@@ -44,7 +45,13 @@ class HealthController extends Controller
             'queue' => $this->check('queue', fn () => Queue::size()),
             // A round trip to the disk; the marker file need not exist, only the call must succeed
             // (the azure disk throws on connection or authorisation errors).
-            'storage' => $this->check('storage', function () {
+            // A quick reachability probe first, so a dead account fails within the probe's
+            // timeouts instead of the Blob client's long retries.
+            'storage' => $this->check('storage', function () use ($storage) {
+                if (! $storage->available()) {
+                    return false;
+                }
+
                 Storage::disk(config('portal.documents_disk'))->exists('.health');
 
                 return true;

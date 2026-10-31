@@ -31,6 +31,13 @@ Run alongside the web server:
 | Queue worker | `php artisan queue:work` | Reminder emails are queued |
 | Scheduler | `php artisan schedule:work` | Nightly `app:check-license-expirations` |
 
+**Keep Azurite running** (`npm run azurite`) whenever you download documents or certificates locally. Without it
+the portal answers within a few seconds with "temporarily unavailable" (503) instead of the file: a short
+reachability probe (`App\Services\Documents\StorageHealth`, result cached 15 s) runs before every download and in
+`/api/health`, because the Blob client's own retry policy (fixed inside the azure-oss package) would otherwise keep
+the request waiting until the gateway times out. Timeouts: `DOCUMENTS_STORAGE_TIMEOUT` (20 s) and
+`DOCUMENTS_STORAGE_CONNECT_TIMEOUT` (5 s).
+
 Mail: `MAIL_MAILER=log` locally (messages are written to the log). Production uses Azure Communication Services (`azure` mailer) with `KEENEY_ACS_CONNECTION_STRING`, `KEENEY_MAIL_FROM` and `KEENEY_MAIL_FROM_NAME` from the platform.
 
 2FA is mandatory for every Nova user (staff and members). It can be switched off locally with `NOVA_REQUIRE_2FA=false` (ignored outside `APP_ENV=local`).

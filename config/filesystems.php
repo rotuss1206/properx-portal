@@ -69,8 +69,9 @@ return [
             'driver' => 'azure-storage-blob',
             'container' => env('KEENEY_DOCUMENTS_CONTAINER', 'portal-documents'),
             'is_public_container' => false,
-            'timeout' => 30,
-            'connect_timeout' => 5,
+            // Short, so an unreachable account fails fast (config/portal.php "storage").
+            'timeout' => (int) (env('DOCUMENTS_STORAGE_TIMEOUT') ?: 20),
+            'connect_timeout' => (int) (env('DOCUMENTS_STORAGE_CONNECT_TIMEOUT') ?: 5),
             'throw' => true,
             'report' => false,
         ] + (filled(env('AZURITE_CONNECTION_STRING')) ? [
