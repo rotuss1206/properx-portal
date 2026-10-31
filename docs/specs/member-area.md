@@ -100,7 +100,7 @@ Latin), which covers every screen of the area. Missing:
   --ppx-sidebar-width: 248px;  --ppx-sidebar-collapsed-width: 76px;   /* as in sidebar.css */
   --ppx-header-height: 62px;
   --ppx-aside-width: 320px;                 /* right column on the dashboard (notifications, upload) */
-  --ppx-content-max: 1120px;
+  --ppx-content-max: 1440px;
 
   --ppx-radius-sm: 6px;    /* badges are pills: 999px */
   --ppx-radius: 10px;      /* inputs, buttons, menu items, chips */
