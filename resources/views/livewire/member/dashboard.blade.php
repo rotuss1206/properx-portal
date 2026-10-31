@@ -57,27 +57,22 @@
 
         @if ($timeline)
             <x-ppx.card title="Membership timeline">
-                <x-slot:action><span class="ppx-card__note">{{ ($timeline['renewed'] ?? $timeline['joined'])->format('Y') }} – {{ $timeline['next']->format('Y') }} cycle</span></x-slot:action>
-                <ol class="ppx-timeline">
-                    <li class="ppx-timeline__point is-done">
-                        <span class="ppx-timeline__label">Joined</span>
-                        <time class="ppx-timeline__date" datetime="{{ $timeline['joined']->toDateString() }}">{{ $timeline['joined']->format('M Y') }}</time>
-                    </li>
-                    @if ($timeline['renewed'])
-                        <li class="ppx-timeline__point is-done">
-                            <span class="ppx-timeline__label">Renewed</span>
-                            <time class="ppx-timeline__date" datetime="{{ $timeline['renewed']->toDateString() }}">{{ $timeline['renewed']->format('M Y') }}</time>
-                        </li>
-                    @endif
-                    <li class="ppx-timeline__point is-today" aria-current="date">
-                        <span class="ppx-timeline__label">Today</span>
-                        <time class="ppx-timeline__date" datetime="{{ $timeline['today']->toDateString() }}">{{ $timeline['today']->format('j M Y') }}</time>
-                    </li>
-                    <li class="ppx-timeline__point">
-                        <span class="ppx-timeline__label">Next renewal</span>
-                        <time class="ppx-timeline__date" datetime="{{ $timeline['next']->toDateString() }}">{{ $timeline['next']->format('j M Y') }}</time>
-                    </li>
-                </ol>
+                <x-slot:action><span class="ppx-card__note">{{ $timeline['cycle'] }} cycle</span></x-slot:action>
+                {{-- Points sit in proportion to their dates (ppx-l-* classes, 5 % steps, see App\Member\Overview::timeline). --}}
+                <div class="ppx-timeline">
+                    <div class="ppx-timeline__track" aria-hidden="true">
+                        <span class="ppx-timeline__done ppx-w-{{ $timeline['done'] }}"></span>
+                        <span class="ppx-timeline__current ppx-l-{{ $timeline['done'] }} ppx-w-{{ $timeline['today'] - $timeline['done'] }}"></span>
+                    </div>
+                    <ol class="ppx-timeline__points">
+                        @foreach ($timeline['points'] as $point)
+                            <li @class(['ppx-timeline__point', 'is-'.$point['state'], 'ppx-l-'.$point['pos'], 'is-start' => $point['pos'] === 0, 'is-end' => $point['pos'] === 100]) @if ($point['key'] === 'today') aria-current="date" @endif>
+                                <span class="ppx-timeline__label">{{ $point['label'] }}</span>
+                                <time class="ppx-timeline__date" datetime="{{ $point['date']->toDateString() }}">{{ $point['date']->format(in_array($point['key'], ['joined', 'renewed'], true) ? 'M Y' : 'j M Y') }}</time>
+                            </li>
+                        @endforeach
+                    </ol>
+                </div>
             </x-ppx.card>
         @endif
 
@@ -102,7 +97,7 @@
                 <ol class="ppx-activity">
                     @foreach ($activity as $item)
                         <li class="ppx-activity__item">
-                            <span class="ppx-activity__icon"><x-member.icon :name="$item['icon']" class="ppx-activity__svg" /></span>
+                            <span class="ppx-activity__icon ppx-activity__icon--{{ $item['tone'] }}"><x-member.icon :name="$item['icon']" class="ppx-activity__svg" /></span>
                             <span class="ppx-activity__text">
                                 <span class="ppx-activity__title">{{ $item['title'] }}</span>
                                 @if ($item['detail'])

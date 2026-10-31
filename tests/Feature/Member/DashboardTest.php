@@ -9,6 +9,7 @@ use App\Enums\PersonType;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Livewire\Member\Dashboard;
+use App\Member\Overview;
 use App\Models\AuditLog;
 use App\Models\LicenseDocument;
 use App\Models\StripeEvent;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\RenewalDue;
 use App\Notifications\Member\TaxDocumentAvailable;
+use App\Services\Certificates\CertificateGeneratorService;
 use Database\Seeders\Support\DemoFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -143,10 +145,90 @@ class DashboardTest extends TestCase
             ->assertSee('Signed in')
             ->assertSee('Membership status updated')
             ->assertSee('Past due → Active')
-            ->assertSee('Membership payment received')
+            ->assertSee('Membership payment processed')
             ->assertSee('Annual membership · $199.00')
             ->assertDontSee('Membership certificate generated') // the other member's
             ->assertDontSee($member->email);
+    }
+
+    public function test_the_timeline_places_points_by_date_with_room_for_labels(): void
+    {
+        $this->travelTo(now()->setDate(2026, 6, 24));
+        $member = $this->member();
+        $member->forceFill(['created_at' => now()->setDate(2019, 4, 1)])->save();
+        $member->memberProfile->forceFill(['paid_through_at' => now()->setDate(2027, 3, 12)])->save();
+
+        $timeline = Overview::for($member->fresh())->timeline();
+        $positions = array_column($timeline['points'], 'pos', 'key');
+
+        // Joined 2019 → renewed Mar 2026 → today Jun 2026 → next Mar 2027, the late points
+        // pushed apart so their labels do not overlap.
+        $this->assertSame(['joined', 'renewed', 'today', 'next'], array_keys($positions));
+        $this->assertSame(0, $positions['joined']);
+        $this->assertSame(100, $positions['next']);
+        $this->assertGreaterThanOrEqual(Overview::TIMELINE_MIN_GAP, $positions['today'] - $positions['renewed']);
+        $this->assertGreaterThanOrEqual(Overview::TIMELINE_MIN_GAP, $positions['next'] - $positions['today']);
+        $this->assertGreaterThan(40, $positions['renewed']); // most of the track is the years before
+        $this->assertSame(0, $positions['renewed'] % 5);
+        $this->assertSame('2026 – 2027', $timeline['cycle']);
+
+        $this->actingAs($member)->get('/member')
+            ->assertSee('ppx-timeline__point is-done ppx-l-'.$positions['renewed'], false)
+            ->assertSee('ppx-timeline__point is-next ppx-l-100 is-end', false);
+    }
+
+    public function test_document_rows_show_a_type_and_a_safe_caption(): void
+    {
+        $member = $this->member();
+        LicenseDocument::factory()->for($member)->create(['document_type' => 'resident', 'original_filename' => 'jane-doe-license-OH-4471.pdf', 'uploaded_at' => now()->setDate(2026, 10, 2)]);
+        TaxDocument::factory()->for($member)->create(['document_type' => '1099-NEC', 'tax_year' => 2025]);
+
+        Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'documents')
+            ->assertSee('Resident license')
+            ->assertSee('Uploaded Oct 2026')
+            ->assertSee('Tax year 2025')
+            ->assertSee(now()->year.' certificate')
+            ->assertDontSee('jane-doe-license')
+            ->assertDontSee((string) $member->memberProfile->license_number);
+    }
+
+    public function test_activity_shows_profile_changes_by_section_on_coloured_tiles(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+        AuditLog::factory()->create(['user_id' => $member->id, 'action' => 'profile_updated', 'resource_type' => $profile->getMorphClass(), 'resource_id' => $profile->id, 'details' => ['fields' => ['phone', 'address']]]);
+        AuditLog::factory()->create(['user_id' => $member->id, 'action' => 'certificate_generated', 'resource_type' => $profile->getMorphClass(), 'resource_id' => $profile->id]);
+
+        Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'activity')
+            ->assertSee('Profile updated')
+            ->assertSee('Contact information')
+            ->assertSee('ppx-activity__icon--blue', false)
+            ->assertSee('ppx-activity__icon--yellow', false)
+            ->assertDontSee((string) $profile->phone);
+    }
+
+    public function test_agency_people_get_a_certificate_without_license_data(): void
+    {
+        Storage::fake(config('portal.certificates.disk'));
+        $agency = $this->agency(2, ['paid_through_at' => today()->addMonths(8)]);
+        $employee = $agency->members()->where('user_id', '!=', $agency->principal_user_id)->first();
+        $employee->forceFill(['person_type' => PersonType::AgencyEmployee, 'npn' => null, 'license_expires_at' => null, 'license_number' => null])->save();
+        $employee->refresh();
+
+        $certificate = Overview::for($employee->user)->certificate();
+        $this->assertTrue($certificate['ready']);
+
+        $this->actingAs($employee->user)->get(CertificateGeneratorService::downloadUrl($employee))->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertSame(today()->addMonths(8)->toDateString(), CertificateGeneratorService::validThrough($employee)->toDateString());
+
+        $this->get(route('certificates.verify', $employee->certificate_code))->assertOk()
+            ->assertSee('Valid certificate')
+            ->assertSee(today()->addMonths(8)->toFormattedDateString());
+
+        // Individual members still need a license expiry date.
+        $individual = $this->member();
+        $individual->memberProfile->forceFill(['license_expires_at' => null])->save();
+        $this->assertFalse(Overview::for($individual->fresh())->certificate()['ready']);
     }
 
     // Notifications

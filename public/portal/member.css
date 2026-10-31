@@ -226,55 +226,116 @@ body.ppx-member {
 
 .ppx-stat__action { align-self: flex-start; margin-top: 12px; }
 
-/* Membership timeline */
+/* Membership timeline: points placed in proportion to their dates (left: N %, 5 % steps). */
 
-.ppx-timeline {
-    display: grid;
-    grid-auto-columns: minmax(0, 1fr);
-    grid-auto-flow: column;
-    margin: 0;
-    padding: 24px 22px 20px;
-    list-style: none;
-}
+.ppx-timeline { position: relative; height: 92px; margin: 0 26px; padding-top: 22px; }
 
-.ppx-timeline__point { position: relative; display: grid; gap: 2px; padding-top: 30px; }
-
-/* The line to the next point. */
-.ppx-timeline__point:not(:last-child)::after {
+.ppx-timeline__track {
     position: absolute;
-    top: 9px;
-    right: -10px;
-    left: 20px;
+    top: 31px;
+    right: 0;
+    left: 0;
     height: 4px;
     border-radius: 2px;
     background: var(--ppx-line);
-    content: '';
 }
 
-.ppx-timeline__point.is-done::after { background: var(--ppx-green); }
+.ppx-timeline__done,
+.ppx-timeline__current { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 2px; }
+
+.ppx-timeline__done { background: var(--ppx-green); }
+
+.ppx-timeline__current { background: var(--ppx-navy-500); }
+
+.ppx-timeline__points { position: absolute; inset: 22px 0 0; margin: 0; padding: 0; list-style: none; }
+
+.ppx-timeline__point {
+    position: absolute;
+    top: 0;
+    display: grid;
+    justify-items: center;
+    gap: 1px;
+    padding-top: 30px;
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
+}
+
+.ppx-timeline__point.is-start { justify-items: start; text-align: left; transform: none; }
+
+.ppx-timeline__point.is-end { justify-items: end; text-align: right; transform: translateX(-100%); }
 
 /* The dot. */
 .ppx-timeline__point::before {
     position: absolute;
     top: 0;
-    left: 0;
+    left: 50%;
     width: 22px;
     height: 22px;
     border: 3px solid var(--ppx-line);
     border-radius: 50%;
     background: var(--ppx-surface);
     content: '';
+    transform: translateX(-50%);
 }
+
+.ppx-timeline__point.is-start::before { left: 0; transform: none; }
+
+.ppx-timeline__point.is-end::before { right: 0; left: auto; transform: none; }
 
 .ppx-timeline__point.is-done::before { border-color: var(--ppx-green); background: var(--ppx-green); }
 
-.ppx-timeline__point.is-today::before { border-color: var(--ppx-yellow); background: var(--ppx-yellow); }
+.ppx-timeline__point.is-today::before { border-color: #fde68a; background: var(--ppx-yellow); box-shadow: 0 0 0 3px #fff7d6; }
 
 .ppx-timeline__label { color: var(--ppx-ink); font-size: 13px; font-weight: 600; }
 
 .ppx-timeline__point.is-today .ppx-timeline__label { color: var(--ppx-blue); }
 
 .ppx-timeline__date { color: var(--ppx-subtle); font-size: 12px; }
+
+.ppx-l-0 { left: 0%; }
+.ppx-l-5 { left: 5%; }
+.ppx-l-10 { left: 10%; }
+.ppx-l-15 { left: 15%; }
+.ppx-l-20 { left: 20%; }
+.ppx-l-25 { left: 25%; }
+.ppx-l-30 { left: 30%; }
+.ppx-l-35 { left: 35%; }
+.ppx-l-40 { left: 40%; }
+.ppx-l-45 { left: 45%; }
+.ppx-l-50 { left: 50%; }
+.ppx-l-55 { left: 55%; }
+.ppx-l-60 { left: 60%; }
+.ppx-l-65 { left: 65%; }
+.ppx-l-70 { left: 70%; }
+.ppx-l-75 { left: 75%; }
+.ppx-l-80 { left: 80%; }
+.ppx-l-85 { left: 85%; }
+.ppx-l-90 { left: 90%; }
+.ppx-l-95 { left: 95%; }
+.ppx-l-100 { left: 100%; }
+
+.ppx-w-0 { width: 0%; }
+.ppx-w-5 { width: 5%; }
+.ppx-w-10 { width: 10%; }
+.ppx-w-15 { width: 15%; }
+.ppx-w-20 { width: 20%; }
+.ppx-w-25 { width: 25%; }
+.ppx-w-30 { width: 30%; }
+.ppx-w-35 { width: 35%; }
+.ppx-w-40 { width: 40%; }
+.ppx-w-45 { width: 45%; }
+.ppx-w-50 { width: 50%; }
+.ppx-w-55 { width: 55%; }
+.ppx-w-60 { width: 60%; }
+.ppx-w-65 { width: 65%; }
+.ppx-w-70 { width: 70%; }
+.ppx-w-75 { width: 75%; }
+.ppx-w-80 { width: 80%; }
+.ppx-w-85 { width: 85%; }
+.ppx-w-90 { width: 90%; }
+.ppx-w-95 { width: 95%; }
+.ppx-w-100 { width: 100%; }
 
 /* Activity */
 
@@ -311,6 +372,15 @@ body.ppx-member {
 }
 
 .ppx-activity__svg { width: 20px; height: 20px; }
+
+/* Tile colours as in the mockup: green (approved, payments), yellow (certificate), blue (the rest), red (needs attention). */
+.ppx-activity__icon--green { background: var(--ppx-green-50); color: var(--ppx-green-700); }
+
+.ppx-activity__icon--yellow { background: var(--ppx-badge-warning-bg); color: var(--ppx-badge-warning-fg); }
+
+.ppx-activity__icon--blue { background: var(--ppx-blue-50); color: var(--ppx-navy-500); }
+
+.ppx-activity__icon--red { background: var(--ppx-badge-danger-bg); color: var(--ppx-badge-danger-fg); }
 
 .ppx-activity__text { display: grid; gap: 2px; min-width: 0; }
 
@@ -450,11 +520,39 @@ a.ppx-notifications__title:hover { text-decoration: underline; }
 @media (max-width: 600px) {
     .ppx-page-heading { font-size: 20px; }
 
-    .ppx-timeline { grid-auto-flow: row; gap: 14px; }
+    /* Phones: the timeline runs downwards; dates keep their order, not their proportions. */
+    .ppx-timeline { height: auto; margin: 0; padding: 20px 22px; }
 
-    .ppx-timeline__point { padding: 0 0 0 34px; }
+    .ppx-timeline__track { display: none; }
 
-    .ppx-timeline__point:not(:last-child)::after { top: 22px; right: auto; bottom: -14px; left: 9px; width: 4px; height: auto; }
+    .ppx-timeline__points { position: static; display: grid; gap: 14px; }
+
+    .ppx-timeline__point,
+    .ppx-timeline__point.is-start,
+    .ppx-timeline__point.is-end {
+        position: relative;
+        left: auto;
+        justify-items: start;
+        padding: 0 0 0 34px;
+        text-align: left;
+        transform: none;
+    }
+
+    .ppx-timeline__point::before,
+    .ppx-timeline__point.is-start::before,
+    .ppx-timeline__point.is-end::before { left: 0; right: auto; transform: none; }
+
+    .ppx-timeline__point:not(:last-child)::after {
+        position: absolute;
+        top: 22px;
+        bottom: -14px;
+        left: 9px;
+        width: 4px;
+        background: var(--ppx-line);
+        content: '';
+    }
+
+    .ppx-timeline__point.is-done:not(:last-child)::after { background: var(--ppx-green); }
 
     .ppx-activity__item { grid-template-columns: 36px minmax(0, 1fr); }
 

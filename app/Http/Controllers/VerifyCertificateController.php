@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\LicenseStatus;
 use App\Models\MemberProfile;
+use App\Services\Certificates\CertificateGeneratorService;
 use Illuminate\Contracts\View\View;
 
 /**
@@ -14,14 +15,18 @@ class VerifyCertificateController extends Controller
 {
     public function __invoke(string $code): View
     {
-        $profile = MemberProfile::with('user:id,created_at')
+        $profile = MemberProfile::with(['user:id,created_at', 'agency'])
             ->whereBlindIndex('certificate_code', $code) // the column itself is encrypted
             ->first();
 
+        // Individual members: through the license expiry; agency people: through the agency's paid
+        // period (CertificateGeneratorService::validThrough), which may not be known yet.
+        $validThrough = $profile ? CertificateGeneratorService::validThrough($profile) : null;
+
         $status = match (true) {
-            $profile === null, $profile->license_expires_at === null => 'invalid',
+            $profile === null, $profile->agency_id === null && $validThrough === null => 'invalid',
             $profile->hasRestrictedMembership() => 'inactive',
-            LicenseStatus::fromExpiryDate($profile->license_expires_at) === LicenseStatus::Expired => 'expired',
+            $validThrough !== null && LicenseStatus::fromExpiryDate($validThrough) === LicenseStatus::Expired => 'expired',
             default => 'valid',
         };
 
@@ -31,7 +36,7 @@ class VerifyCertificateController extends Controller
             'certificate' => $status === 'invalid' ? null : [
                 'name' => $profile->fullName(),
                 'valid_from' => $profile->user->created_at->toFormattedDateString(),
-                'valid_through' => $profile->license_expires_at->toFormattedDateString(),
+                'valid_through' => $validThrough?->toFormattedDateString(),
                 'code' => $profile->certificate_code,
             ],
         ]);

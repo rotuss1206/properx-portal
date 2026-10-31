@@ -142,10 +142,15 @@ final class Overview
         ];
     }
 
+    /** Smallest gap between two timeline points, in percent of the track, so labels never overlap. */
+    public const TIMELINE_MIN_GAP = 20;
+
     /**
-     * Joined, start of the current (yearly) period, today, next renewal. Null without a paid period.
+     * Joined, start of the current (yearly) period, today and next renewal, placed along the
+     * track in proportion to their dates (5 % steps, at least TIMELINE_MIN_GAP apart). Null
+     * without a paid period.
      *
-     * @return array{joined: CarbonInterface, renewed: ?CarbonInterface, today: CarbonInterface, next: CarbonInterface, progress: int}|null
+     * @return array{points: list<array{key: string, label: string, date: CarbonInterface, pos: int, state: string}>, done: int, today: int, cycle: string}|null
      */
     public function timeline(): ?array
     {
@@ -157,12 +162,57 @@ final class Overview
 
         $joined = $this->user->created_at;
         $renewed = $next->copy()->subYear();
-        $renewed = $renewed->greaterThan($joined) ? $renewed : null;
-        $start = $renewed ?? $joined;
-        $span = max(1, $start->diffInSeconds($next));
-        $progress = (int) round(min(1, max(0, $start->diffInSeconds(now(), false) / $span)) * 100);
+        $today = now();
 
-        return ['joined' => $joined, 'renewed' => $renewed, 'today' => now(), 'next' => $next, 'progress' => $progress];
+        $points = array_values(array_filter([
+            ['key' => 'joined', 'label' => 'Joined', 'date' => $joined, 'state' => 'done'],
+            $renewed->greaterThan($joined) && $renewed->lessThan($today)
+                ? ['key' => 'renewed', 'label' => 'Renewed', 'date' => $renewed, 'state' => 'done'] : null,
+            ['key' => 'today', 'label' => 'Today', 'date' => $today, 'state' => 'today'],
+            ['key' => 'next', 'label' => 'Next renewal', 'date' => $next, 'state' => 'next'],
+        ]));
+
+        $span = max(1, $joined->diffInSeconds($next));
+        $positions = array_map(fn (array $point) => 100 * max(0, $joined->diffInSeconds($point['date'], false)) / $span, $points);
+        $positions = self::spread($positions, self::TIMELINE_MIN_GAP);
+
+        foreach ($points as $i => $point) {
+            $points[$i]['pos'] = $positions[$i];
+        }
+
+        $todayPos = collect($points)->firstWhere('key', 'today')['pos'];
+        $renewedPos = collect($points)->firstWhere('key', 'renewed')['pos'] ?? 0;
+
+        return [
+            'points' => $points,
+            'done' => $renewedPos,
+            'today' => $todayPos,
+            'cycle' => ($renewed->greaterThan($joined) ? $renewed : $joined)->format('Y').' – '.$next->format('Y'),
+        ];
+    }
+
+    /**
+     * First point at 0, last at 100, the others in order with at least $gap between them,
+     * rounded to 5 % steps (the CSS has a class per step).
+     *
+     * @param  list<float>  $positions
+     * @return list<int>
+     */
+    private static function spread(array $positions, int $gap): array
+    {
+        $last = count($positions) - 1;
+        $positions[0] = 0;
+        $positions[$last] = 100;
+
+        for ($i = 1; $i < $last; $i++) {
+            $positions[$i] = max($positions[$i], $positions[$i - 1] + $gap);
+        }
+
+        for ($i = $last - 1; $i > 0; $i--) {
+            $positions[$i] = min($positions[$i], $positions[$i + 1] - $gap);
+        }
+
+        return array_map(fn (float $position) => (int) (round($position / 5) * 5), $positions);
     }
 
     /**

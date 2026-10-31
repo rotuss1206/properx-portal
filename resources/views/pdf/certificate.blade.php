@@ -47,7 +47,9 @@
         <table class="details">
             <tr><td class="label">Member ID</td><td class="value">{{ $memberId }}</td></tr>
             <tr><td class="label">Valid from</td><td class="value">{{ \Illuminate\Support\Carbon::parse($validFrom)->toFormattedDateString() }}</td></tr>
-            <tr><td class="label">Valid through</td><td class="value">{{ \Illuminate\Support\Carbon::parse($validThrough)->toFormattedDateString() }}</td></tr>
+            @if ($validThrough)
+                <tr><td class="label">Valid through</td><td class="value">{{ \Illuminate\Support\Carbon::parse($validThrough)->toFormattedDateString() }}</td></tr>
+            @endif
             <tr><td class="label">Issued</td><td class="value">{{ $issuedAt->toFormattedDateString() }}</td></tr>
         </table>
 

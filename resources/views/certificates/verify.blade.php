@@ -19,7 +19,9 @@
         <dl>
             <dt>Member</dt><dd>{{ $certificate['name'] }}</dd>
             <dt>Valid from</dt><dd>{{ $certificate['valid_from'] }}</dd>
-            <dt>Valid through</dt><dd>{{ $certificate['valid_through'] }}</dd>
+            @if ($certificate['valid_through'])
+                <dt>Valid through</dt><dd>{{ $certificate['valid_through'] }}</dd>
+            @endif
             <dt>Certificate no.</dt><dd>{{ $certificate['code'] }}</dd>
         </dl>
     @else

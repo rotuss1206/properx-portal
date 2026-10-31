@@ -41,7 +41,7 @@ final class DocumentList
                     'kind' => 'license',
                     'icon' => 'license',
                     'name' => $types[$document->document_type] ?? 'License document',
-                    'detail' => 'Uploaded '.$document->uploaded_at?->toFormattedDateString(),
+                    'detail' => 'Uploaded '.$document->uploaded_at?->format('M Y'),
                     'type' => 'License',
                     'status' => $status,
                     'variant' => $variant,
@@ -80,9 +80,7 @@ final class DocumentList
                 'kind' => 'certificate',
                 'icon' => 'certificate',
                 'name' => 'Membership certificate',
-                'detail' => $certificate['ready'] && $certificate['validThrough']
-                    ? 'Valid through '.$certificate['validThrough']->toFormattedDateString()
-                    : 'Not available',
+                'detail' => $certificate['ready'] ? now()->year.' certificate' : 'Not available',
                 'type' => 'Certificate',
                 'status' => $certificate['ready'] ? 'Ready' : 'Unavailable',
                 'variant' => $certificate['ready'] ? 'success' : 'neutral',

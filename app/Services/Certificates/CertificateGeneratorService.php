@@ -11,6 +11,7 @@ use App\Models\User;
 use BaconQrCode\Renderer\GDLibRenderer;
 use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +29,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 3;
+    private const TEMPLATE_VERSION = 4;
 
     /**
      * @var array<string, string> attribute => human-readable name
@@ -45,7 +46,13 @@ class CertificateGeneratorService
      */
     public function assertEligible(MemberProfile $profile): void
     {
-        $missing = collect(self::REQUIRED_FIELDS)
+        // Agency people hold NPN and resident state only (Agency spec 3.5), employees not even
+        // that: their certificate needs no license data.
+        $required = $profile->agency_id !== null
+            ? array_diff_key(self::REQUIRED_FIELDS, ['license_expires_at' => true])
+            : self::REQUIRED_FIELDS;
+
+        $missing = collect($required)
             ->filter(fn (string $label, string $attribute) => blank($profile->{$attribute}))
             ->values()
             ->all();
@@ -60,9 +67,19 @@ class CertificateGeneratorService
         }
 
         // Check the date itself too, in case the nightly status update has not run yet.
-        if (LicenseStatus::fromExpiryDate($profile->license_expires_at) === LicenseStatus::Expired) {
+        if ($profile->agency_id === null && LicenseStatus::fromExpiryDate($profile->license_expires_at) === LicenseStatus::Expired) {
             throw CertificateUnavailableException::licenseExpired($profile->license_expires_at);
         }
+    }
+
+    /**
+     * "Valid through" on the certificate and the public check: the license expiry for
+     * individual members; for agency people the end of the agency's paid period (null while
+     * the agency has none yet, then the line is left out).
+     */
+    public static function validThrough(MemberProfile $profile): ?CarbonInterface
+    {
+        return $profile->agency_id !== null ? $profile->agency?->paid_through_at : $profile->license_expires_at;
     }
 
     /**
@@ -132,9 +149,9 @@ class CertificateGeneratorService
             'memberName' => $profile->fullName(),
             'firmName' => $profile->firm_name,
             'memberId' => self::formatMemberId($profile),
-            // Membership validity: from joining the Alliance until the license expiry date.
+            // Membership validity: from joining the Alliance; through see validThrough().
             'validFrom' => $profile->user->created_at->toDateString(),
-            'validThrough' => $profile->license_expires_at->toDateString(),
+            'validThrough' => self::validThrough($profile)?->toDateString(),
             'certificateCode' => $profile->certificate_code,
             'signatoryName' => $signatory?->name ?? 'Executive Director',
             'verificationUrl' => route('certificates.verify', $profile->certificate_code),

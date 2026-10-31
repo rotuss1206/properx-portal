@@ -102,7 +102,7 @@ The whole interface, the member area and Nova, must end up looking like the mock
   - Bump `TEMPLATE_VERSION` after changing the template.
   - `config/dompdf.php` is hardened: `enable_remote`, `enable_php`, `enable_javascript` off, only `data://` and `file://`, chroot `resources/views/pdf`. Fonts (`pdf/fonts`) and the signature image (`pdf/images/signature-placeholder.png`, replace with the real one) must live inside the chroot; QR codes are data URIs; the font cache is `storage/framework/cache/dompdf-fonts` (the only writable storage paths in the container are `storage/app`, `storage/framework/*`, `storage/logs`, `bootstrap/cache`; the service creates the directory before rendering).
 - Certificates are downloaded only through the `certificates.download` route (policy `downloadCertificate`). Public check: `/verify-certificate/{code}`, limited to 10 requests per minute per IP; shows name and dates only.
-- "Valid from" = member account creation date, "Valid through" = `license_expires_at` (the data model has no separate membership dates).
+- "Valid from" = member account creation date, "Valid through" = `CertificateGeneratorService::validThrough()`: `license_expires_at` for individual members; for agency people the agency's `paid_through_at` (left out while unknown). Agency people (employees included) need no license data for a certificate.
 - `app:check-license-expirations` runs hourly 02:00–05:00 in `PORTAL_SCHEDULE_TIMEZONE`, `onOneServer()->withoutOverlapping(5)`.
   - Platform limit: scheduled tasks finish within 120 s. The command stops at `portal.scheduled_task_budget_seconds` (100) and the next run continues; every run must stay idempotent.
   - Refreshes license statuses and sends 60/30/7-day reminders.
