@@ -64,6 +64,77 @@
 
 .ppx-header__search input { width: 100%; border: 0; background: transparent; font: inherit; }
 
+/* Member area: a working search (public/portal/search.js) with suggestions under the field. */
+form.ppx-header__search { margin: 0; background: var(--ppx-surface); }
+
+form.ppx-header__search:focus-within { border-color: var(--ppx-blue-focus); box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.12); }
+
+form.ppx-header__search input { height: 100%; padding: 0; color: var(--ppx-ink); font-size: 14px; outline: none; }
+
+form.ppx-header__search input::placeholder { color: var(--ppx-subtle); opacity: 1; }
+
+form.ppx-header__search input::-webkit-search-cancel-button { cursor: pointer; }
+
+.ppx-search__list {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 50;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    padding: 6px;
+    border: 1px solid var(--ppx-line);
+    border-radius: 12px;
+    background: var(--ppx-surface);
+    box-shadow: var(--ppx-shadow-menu);
+    list-style: none;
+}
+
+.ppx-search__list[hidden] { display: none; }
+
+.ppx-search__option {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.ppx-search__option[aria-selected="true"],
+.ppx-search__option:hover { background: var(--ppx-page); }
+
+.ppx-search__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--ppx-blue-50);
+    color: var(--ppx-navy-500);
+}
+
+.ppx-search__svg { width: 18px; height: 18px; }
+
+.ppx-search__text { display: grid; min-width: 0; }
+
+.ppx-search__name { overflow: hidden; color: var(--ppx-ink); font-size: 13.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+
+.ppx-search__detail { overflow: hidden; color: var(--ppx-subtle); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+.ppx-search__date { color: var(--ppx-subtle); font-size: 12px; white-space: nowrap; }
+
+.ppx-search__all,
+.ppx-search__empty { padding: 8px 10px; color: var(--ppx-muted); font-size: 13px; }
+
+.ppx-search__all { color: var(--ppx-blue); font-weight: 600; cursor: pointer; }
+
+.ppx-search__all[aria-selected="true"],
+.ppx-search__all:hover { border-radius: 8px; background: var(--ppx-page); }
+
 .ppx-header__menu,
 .ppx-header__button {
     display: inline-flex;

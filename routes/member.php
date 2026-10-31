@@ -4,6 +4,7 @@ use App\Http\Controllers\Member\DocumentDownloadController;
 use App\Http\Controllers\Member\LicenseDocumentUploadController;
 use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\Member\PageController;
+use App\Http\Controllers\Member\SearchController;
 use App\Http\Middleware\EnsureMemberArea;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Member\MemberMenu;
@@ -36,8 +37,13 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
             ->whereUuid('notification')
             ->name('notifications.open');
 
+        // Header search: the query travels in POST bodies and the session only, never in a URL.
+        Route::post('search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:60,1')->name('search.suggest');
+        Route::post('search', [SearchController::class, 'submit'])->middleware('throttle:30,1')->name('search.submit');
+        Route::get('search', [SearchController::class, 'results'])->name('search');
+
         Route::get('documents/{type}/{document}', DocumentDownloadController::class)
-            ->whereIn('type', ['license', 'tax'])
+            ->whereIn('type', ['license', 'tax', 'library'])
             ->whereNumber('document')
             ->name('documents.download');
     });

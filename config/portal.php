@@ -75,8 +75,8 @@ return [
     'member_area' => [
         'enabled' => (bool) env('MEMBER_AREA_ENABLED', false),
 
-        // Header search: its scope is decided later.
-        'header_search' => false,
+        // Header search: own documents (license, tax, certificate) and the library (App\Member\MemberSearch).
+        'header_search' => true,
 
         // "Founding member" badge for individual members: no data source yet (agency people
         // of a founding-rate agency show it).

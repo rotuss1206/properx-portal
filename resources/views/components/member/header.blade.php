@@ -16,11 +16,18 @@
         <time class="ppx-header__date" datetime="{{ $header['dateIso'] }}">{{ $header['date'] }}</time>
 
         @if ($header['search'])
-            <label class="ppx-header__search">
+            {{-- Own documents and the library (App\Member\MemberSearch); suggestions by public/portal/search.js,
+                 Enter opens the results page. The query goes by POST, never into a URL. --}}
+            <form class="ppx-header__search" method="POST" action="{{ route('member.search.submit') }}" role="search" data-ppx-search data-suggest="{{ route('member.search.suggest') }}" data-icons="{{ \App\Support\PortalAsset::url('img/icons.svg') }}">
+                @csrf
                 <x-member.icon name="search" class="ppx-header__search-icon" />
-                <span class="ppx-visually-hidden">Search</span>
-                <input type="search" placeholder="Search" disabled>
-            </label>
+                <label class="ppx-visually-hidden" for="ppx-search-input">Search your documents and the library</label>
+                <input id="ppx-search-input" type="search" name="q" placeholder="Search" autocomplete="off" maxlength="{{ \App\Member\MemberSearch::MAX_LENGTH }}"
+                       role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ppx-search-list" aria-describedby="ppx-search-help">
+                <span class="ppx-visually-hidden" id="ppx-search-help">Type at least {{ \App\Member\MemberSearch::MIN_LENGTH }} characters. Use the arrow keys to choose a result, Enter to open it or to see all results.</span>
+                <ul class="ppx-search__list" id="ppx-search-list" role="listbox" aria-label="Search suggestions" hidden></ul>
+                <p class="ppx-visually-hidden" aria-live="polite" data-ppx-search-status></p>
+            </form>
         @endif
 
         <button type="button" class="ppx-header__button ppx-header__bell" data-ppx-notify-toggle aria-controls="ppx-notify" aria-expanded="false" aria-label="Notifications{{ $header['unread'] ? ', '.$header['unread'].' unread' : '' }}">

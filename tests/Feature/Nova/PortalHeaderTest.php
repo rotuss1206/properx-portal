@@ -72,7 +72,7 @@ class PortalHeaderTest extends TestCase
         $member = $this->member();
         $header = PortalHeader::for($member, 'member');
 
-        $this->assertFalse($header['search']);
+        $this->assertTrue($header['search']);
         $this->assertSame(route('member.profile'), $header['profileUrl']);
 
         $this->actingAs($member)->get('/member')->assertOk()
@@ -81,10 +81,11 @@ class PortalHeaderTest extends TestCase
             ->assertSee('ppx-header__glyph--bell', false)
             ->assertSee('ppx-header__glyph--menu', false)
             ->assertSeeInOrder(['Profile', 'Security', 'Sign out'])
-            ->assertDontSee('ppx-header__search', false);
+            ->assertSee('ppx-header__search', false);
 
-        config(['portal.member_area.header_search' => true]);
-        $this->assertTrue(PortalHeader::for($member, 'member')['search']);
+        config(['portal.member_area.header_search' => false]);
+        $this->assertFalse(PortalHeader::for($member, 'member')['search']);
+        $this->actingAs($member)->get('/member')->assertDontSee('ppx-header__search', false);
     }
 
     public function test_nova_stays_in_the_light_theme(): void

@@ -137,7 +137,7 @@ class MemberAreaTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), 'aria-current="page"'));
         $response->assertSee('#'.$member->memberProfile->member_number);
         $response->assertSee('Coming soon');
-        $response->assertDontSee('ppx-header__search', false); // search hidden (member_area.header_search)
+        $response->assertSee('ppx-header__search', false); // member_area.header_search
         $response->assertSee('action="'.route('nova.logout').'"', false);
         $response->assertSee('href="'.route('nova.pages.user-security').'"', false);
 
