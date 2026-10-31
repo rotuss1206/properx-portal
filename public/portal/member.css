@@ -49,6 +49,8 @@ body.ppx-member {
 
 .ppx-member__main {
     min-height: 100vh;
+    /* Mobile browsers: the visible height, so the address bar adds no scroll. */
+    min-height: 100dvh;
     margin-left: var(--ppx-sidebar-width);
     transition: margin-left 0.2s ease;
 }
@@ -144,6 +146,10 @@ body.ppx-member {
 .ppx-agency-line__icon { flex: none; width: 20px; height: 20px; color: var(--ppx-navy-500); }
 
 .ppx-agency-line strong { color: var(--ppx-ink); }
+
+/* Long agency or member names wrap instead of widening the page. */
+.ppx-agency-line span,
+.ppx-page-heading { min-width: 0; overflow-wrap: anywhere; }
 
 /* Overview cards */
 

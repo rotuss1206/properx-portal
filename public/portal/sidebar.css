@@ -69,7 +69,15 @@
 
 .ppx-sidebar__collapse-svg { width: 18px; height: 24px; transition: transform 0.2s ease; }
 
-.ppx-sidebar__menu { flex: 1 1 auto; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.ppx-sidebar__menu {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin: 0 -4px;
+    padding: 0 4px;
+    /* Scrolls only on short screens; a thin bar in the sidebar colours then. */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
 
 .ppx-sidebar__label {
     margin: 18px 0 8px 10px;
