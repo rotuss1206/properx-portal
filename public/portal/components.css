@@ -166,17 +166,29 @@
 
 .ppx-btn[disabled] { cursor: wait; opacity: 0.7; }
 
-/* Tabs */
+/* Tabs. On narrow screens the row scrolls sideways without a visible scrollbar; nothing sticks
+   out vertically (overflow-y: hidden; the underline and the focus ring are drawn inside each
+   tab), so Windows' classic scrollbars never appear here. */
 
-.ppx-tabs { margin: 0 0 20px; border-bottom: 1px solid var(--ppx-line); }
+.ppx-tabs { margin: 0 0 20px; }
 
-.ppx-tabs__list { display: flex; gap: 6px; margin: 0; padding: 0; overflow-x: auto; list-style: none; }
+.ppx-tabs__list {
+    display: flex;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    list-style: none;
+    box-shadow: inset 0 -1px 0 var(--ppx-line); /* the grey base line */
+    scrollbar-width: none;
+}
+
+.ppx-tabs__list::-webkit-scrollbar { display: none; }
 
 .ppx-tabs__tab {
     display: block;
-    padding: 10px 4px;
-    margin: 0 6px -1px;
-    border-bottom: 2px solid transparent;
+    padding: 10px 10px 12px;
     color: var(--ppx-muted) !important;
     font-size: 14px;
     text-decoration: none;
@@ -185,9 +197,9 @@
 
 .ppx-tabs__tab:hover { color: var(--ppx-ink) !important; }
 
-.ppx-tabs__tab.is-active { border-bottom-color: var(--ppx-blue); color: var(--ppx-blue) !important; font-weight: 600; }
+.ppx-tabs__tab.is-active { box-shadow: inset 0 -2px 0 var(--ppx-blue); color: var(--ppx-blue) !important; font-weight: 600; }
 
-.ppx-tabs__tab:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 2px; border-radius: 4px; }
+.ppx-tabs__tab:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: -2px; border-radius: 6px; }
 
 /* Filter chips */
 
@@ -209,7 +221,7 @@
 
 .ppx-chips__chip.is-active { background: var(--ppx-navy-500); color: #fff !important; font-weight: 600; }
 
-.ppx-chips__chip:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 2px; }
+.ppx-chips__chip:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 1px; }
 
 /* Document table */
 
