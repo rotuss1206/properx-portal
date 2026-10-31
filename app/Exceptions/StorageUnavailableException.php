@@ -2,44 +2,35 @@
 
 namespace App\Exceptions;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
 /**
  * Document storage did not answer (App\Services\Documents\StorageHealth, or a storage call
- * failed). The member gets a short "try again in a few minutes" page (503); the log gets the
- * kind, the record id and the error's class only (no PHI, no technical detail on screen).
+ * failed): a 503 "try again in a few minutes" (no technical detail on screen).
  */
-class StorageUnavailableException extends RuntimeException
+class StorageUnavailableException extends DocumentDownloadException
 {
-    public function __construct(
-        public readonly string $kind,
-        public readonly int|string|null $recordId = null,
-        ?Throwable $previous = null,
-    ) {
-        parent::__construct("Document storage unavailable ({$kind}).", 0, $previous);
+    protected const LOG_MESSAGE = 'Document storage unavailable';
+
+    public function heading(): string
+    {
+        return 'Temporarily unavailable';
     }
 
-    public function report(): void
+    public function userMessage(): string
     {
-        Log::warning('Document storage unavailable', array_filter([
-            'kind' => $this->kind,
-            'id' => $this->recordId,
-            'exception' => $this->getPrevious() ? $this->getPrevious()::class : null,
-        ], fn ($value) => $value !== null));
-    }
-
-    public function render(Request $request): Response
-    {
-        $message = $this->kind === 'certificate'
+        return $this->kind === 'certificate'
             ? 'The certificate is temporarily unavailable. Please try again in a few minutes.'
             : 'The document is temporarily unavailable. Please try again in a few minutes.';
+    }
 
-        return $request->expectsJson()
-            ? response()->json(['message' => $message], Response::HTTP_SERVICE_UNAVAILABLE)
-            : response()->view('errors.storage-unavailable', ['message' => $message], Response::HTTP_SERVICE_UNAVAILABLE, ['Retry-After' => '120']);
+    protected function status(): int
+    {
+        return Response::HTTP_SERVICE_UNAVAILABLE;
+    }
+
+    protected function headers(): array
+    {
+        return ['Retry-After' => '120'];
     }
 }

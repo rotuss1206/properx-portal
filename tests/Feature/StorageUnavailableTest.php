@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\AuditLog;
 use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
@@ -114,6 +115,47 @@ class StorageUnavailableTest extends TestCase
             ->assertDontSee('license-documents/');
 
         $this->assertDatabaseMissing('audit_logs', ['action' => 'document_downloaded']);
+    }
+
+    public function test_a_file_missing_from_reachable_storage_sends_the_member_to_support(): void
+    {
+        $this->storageUp();
+        Storage::fake(DocumentVault::diskName());
+        Log::spy();
+        $member = $this->member();
+        $document = LicenseDocument::factory()->for($member)->create(['stored_filename' => 'license-documents/gone.pdf.enc']);
+
+        $this->actingAs($member)->get(DocumentDownloader::signedUrl($document))
+            ->assertNotFound()
+            ->assertSee('This document is not available right now. Please contact ProPerx support.')
+            ->assertDontSee('temporarily unavailable')
+            ->assertDontSee('gone.pdf');
+
+        $this->assertDatabaseMissing('audit_logs', ['action' => 'document_downloaded']);
+        Log::shouldHaveReceived('warning')->withArgs(fn ($message, $context) => $message === 'Document file missing from storage'
+            && $context === ['kind' => 'license', 'id' => $document->id])->once();
+    }
+
+    public function test_members_see_download_errors_inside_the_member_area(): void
+    {
+        config(['portal.member_area.enabled' => true]);
+        $this->storageDown();
+        $member = $this->member();
+        $document = TaxDocument::factory()->for($member)->create();
+
+        $this->actingAs($member)->get(DocumentDownloader::signedUrl($document))
+            ->assertStatus(503)
+            ->assertSee('class="ppx-member"', false)
+            ->assertSee('id="ppx-sidebar"', false)
+            ->assertSee('Temporarily unavailable')
+            ->assertSee('The document is temporarily unavailable. Please try again in a few minutes.')
+            ->assertSee('Back to dashboard')
+            ->assertSee(route('member.dashboard'), false);
+
+        // Staff keep the plain page (Nova has its own layout).
+        $this->actingAs($this->staff(Role::ExecutiveDirector))->get(DocumentDownloader::signedUrl($document))
+            ->assertStatus(503)
+            ->assertDontSee('class="ppx-member"', false);
     }
 
     public function test_the_probe_result_is_cached_briefly(): void

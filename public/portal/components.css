@@ -69,6 +69,8 @@
 
 .ppx-empty__text { margin: 0; color: var(--ppx-muted); }
 
+.ppx-empty__action { margin-top: 18px; }
+
 .ppx-card__action { display: flex; align-items: center; gap: 10px; }
 
 .ppx-card__note { color: var(--ppx-muted); font-size: 13px; }

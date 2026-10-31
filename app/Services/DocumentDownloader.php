@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\DownloadableDocument;
+use App\Exceptions\DocumentMissingException;
 use App\Exceptions\StorageUnavailableException;
 use App\Models\AuditLog;
 use App\Services\Documents\DocumentVault;
@@ -42,7 +43,8 @@ class DocumentDownloader
 
     /**
      * Fails fast with StorageUnavailableException (a 503 "try again" page) when storage does
-     * not answer; the download is audited only once the file has been read.
+     * not answer, and with DocumentMissingException (a 404 "contact support" page) when it
+     * answers without the file; the download is audited only once the file has been read.
      */
     public function stream(DownloadableDocument&Model $document): StreamedResponse
     {
@@ -53,8 +55,16 @@ class DocumentDownloader
         $this->health->ensureAvailable($kind, $document->getKey());
 
         try {
-            abort_unless($disk->exists($path), 404, 'The file is no longer available.');
+            $exists = $disk->exists($path);
+        } catch (Throwable $e) {
+            throw new StorageUnavailableException($kind, $document->getKey(), $e);
+        }
 
+        if (! $exists) {
+            throw new DocumentMissingException($kind, $document->getKey());
+        }
+
+        try {
             $headers = ['Content-Type' => $document->downloadMimeType(), 'Cache-Control' => 'private, no-store'];
 
             if (DocumentVault::isEncrypted($path)) {
