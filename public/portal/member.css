@@ -228,7 +228,7 @@ body.ppx-member {
 
 /* Membership timeline: points placed in proportion to their dates (left: N %, 5 % steps). */
 
-.ppx-timeline { position: relative; height: 92px; margin: 0 26px; padding-top: 22px; }
+.ppx-timeline { position: relative; height: 92px; margin: 0 28px 14px; padding-top: 22px; }
 
 .ppx-timeline__track {
     position: absolute;

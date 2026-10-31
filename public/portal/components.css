@@ -74,8 +74,7 @@
 .ppx-card__note { color: var(--ppx-muted); font-size: 13px; }
 
 .ppx-card > .ppx-empty,
-.ppx-card > .ppx-activity,
-.ppx-card > .ppx-timeline { margin: 0; }
+.ppx-card > .ppx-activity { margin: 0; }
 
 .ppx-link {
     color: var(--ppx-blue);
