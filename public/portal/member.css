@@ -519,9 +519,9 @@ body.ppx-member {
 
     .ppx-timeline__point:not(:last-child)::after {
         position: absolute;
-        top: 22px;
+        top: 20px;
         bottom: -14px;
-        left: 9px;
+        left: 8px;
         width: 4px;
         background: var(--ppx-line);
         content: '';
@@ -529,7 +529,7 @@ body.ppx-member {
 
     .ppx-timeline__point.is-done:not(:last-child)::after { background: var(--ppx-green); }
 
-    .ppx-activity__item { grid-template-columns: 34px minmax(0, 1fr); }
+    .ppx-activity__item { grid-template-columns: 34px minmax(0, 1fr); row-gap: 2px; }
 
     .ppx-activity__time { grid-column: 2; }
 }

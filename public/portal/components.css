@@ -292,6 +292,9 @@
 .ppx-notice--success { background: var(--ppx-badge-success-bg); color: var(--ppx-badge-success-fg); }
 
 @media (max-width: 600px) {
+    /* The title keeps its own line above filter chips. */
+    .ppx-card__header { flex-wrap: wrap; }
+
     .ppx-doc-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
     .ppx-doc-table tr { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; padding: 12px 16px; border-top: 1px solid var(--ppx-line); }
