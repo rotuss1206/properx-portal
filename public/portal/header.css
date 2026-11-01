@@ -49,32 +49,82 @@
 
 .ppx-header__date { color: var(--ppx-muted); font-size: 14px; font-weight: 400; white-space: nowrap; }
 
-.ppx-header__search {
+.ppx-header__search { position: relative; display: flex; align-items: center; gap: 8px; width: 210px; margin: 0; }
+
+.ppx-search__field {
     position: relative;
     display: flex;
+    flex: 1 1 auto;
     align-items: center;
-    width: 210px;
+    min-width: 0;
     height: 40px;
-    padding: 0 12px 0 40px;
+    padding: 0 6px 0 40px;
     border: 1px solid var(--ppx-border);
     border-radius: var(--ppx-radius);
+    background: var(--ppx-surface);
 }
+
+.ppx-search__field:focus-within { border-color: var(--ppx-blue-focus); box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.12); }
 
 .ppx-header__search-icon { position: absolute; left: 12px; width: 20px; height: 20px; color: var(--ppx-subtle); }
 
-.ppx-header__search input { width: 100%; border: 0; background: transparent; font: inherit; }
+.ppx-search__field input {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ppx-ink);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
 
-/* Member area: a working search (public/portal/search.js) with suggestions under the field. */
-form.ppx-header__search { margin: 0; background: var(--ppx-surface); }
+.ppx-search__field input::placeholder { color: var(--ppx-subtle); opacity: 1; }
 
-form.ppx-header__search:focus-within { border-color: var(--ppx-blue-focus); box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.12); }
+/* The browser's own clear button and decoration: ours is .ppx-search__clear (public/portal/search.js). */
+.ppx-search__field input::-webkit-search-cancel-button,
+.ppx-search__field input::-webkit-search-decoration { display: none; -webkit-appearance: none; appearance: none; }
 
-form.ppx-header__search input { height: 100%; padding: 0; color: var(--ppx-ink); font-size: 14px; outline: none; }
+.ppx-search__field input::-ms-clear { display: none; }
 
-form.ppx-header__search input::placeholder { color: var(--ppx-subtle); opacity: 1; }
+.ppx-search__clear,
+.ppx-search__close {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ppx-subtle);
+    cursor: pointer;
+}
 
-form.ppx-header__search input::-webkit-search-cancel-button { cursor: pointer; }
+.ppx-search__clear { width: 26px; height: 26px; }
 
+.ppx-search__clear[hidden] { display: none; }
+
+.ppx-search__clear:hover,
+.ppx-search__close:hover { background: var(--ppx-page); color: var(--ppx-ink); }
+
+.ppx-search__clear:focus-visible,
+.ppx-search__close:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 1px; }
+
+.ppx-search__clear-svg { width: 16px; height: 16px; }
+
+/* Phones and tablets only: the magnifier in the header and the close button beside the opened field. */
+.ppx-search__close { display: none; width: 40px; height: 40px; color: var(--ppx-muted); }
+
+.ppx-search__close-svg { width: 20px; height: 20px; }
+
+.ppx-header__search-toggle-svg { width: 22px; height: 22px; }
+
+/* Suggestions under the field. */
 .ppx-search__list {
     position: absolute;
     top: calc(100% + 8px);
@@ -89,6 +139,9 @@ form.ppx-header__search input::-webkit-search-cancel-button { cursor: pointer; }
     background: var(--ppx-surface);
     box-shadow: var(--ppx-shadow-menu);
     list-style: none;
+    max-height: calc(100vh - var(--ppx-header-height) - 16px);
+    max-height: calc(100dvh - var(--ppx-header-height) - 16px);
+    overflow-y: auto;
 }
 
 .ppx-search__list[hidden] { display: none; }
@@ -150,7 +203,8 @@ form.ppx-header__search input::-webkit-search-cancel-button { cursor: pointer; }
     cursor: pointer;
 }
 
-.ppx-header__menu { display: none; }
+.ppx-header__menu,
+.ppx-header__search-toggle { display: none; }
 
 .ppx-header__menu:hover,
 .ppx-header__button:hover { border-color: var(--ppx-border-hover); background: var(--ppx-hover); }
@@ -291,9 +345,25 @@ form.ppx-header__search input::-webkit-search-cancel-button { cursor: pointer; }
 @media (max-width: 1023px) {
     .ppx-header { padding: 0 16px; }
 
-    .ppx-header__menu { display: inline-flex; }
+    .ppx-header__menu,
+    .ppx-header__search-toggle { display: inline-flex; }
 
+    /* The field opens across the whole header (the sticky .ppx-header is its containing block). */
     .ppx-header__search { display: none; }
+
+    .ppx-header__search.is-open {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: flex;
+        width: auto;
+        padding: 0 16px;
+        background: var(--ppx-surface);
+    }
+
+    .ppx-search__close { display: inline-flex; }
+
+    .ppx-search__list { top: calc(100% + 4px); right: 16px; left: 16px; width: auto; max-width: none; }
 }
 
 @media (max-width: 600px) {

@@ -2,8 +2,9 @@
  * Header search of the member area (resources/views/components/member/header.blade.php,
  * App\Http\Controllers\Member\SearchController): suggestions under the field as an ARIA
  * combobox. Arrow keys move through the list, Enter opens the chosen result or, with none
- * chosen, the results page (the form's POST); Esc closes the list. The query is sent in a POST
- * body only. DOM APIs only, text through textContent (CSP: no inline handlers, no eval).
+ * chosen, the results page (the form's POST); Esc closes the list. Below 1024 px the magnifier
+ * opens the field across the header; the close button or Esc closes it and focus returns to the
+ * magnifier. The query is sent in a POST body only. DOM APIs only, text through textContent (CSP: no inline handlers, no eval).
  */
 (function () {
     var form = document.querySelector('[data-ppx-search]')
@@ -16,6 +17,9 @@
     var list = document.getElementById(input.getAttribute('aria-controls'))
     var status = form.querySelector('[data-ppx-search-status]')
     var token = form.querySelector('input[name="_token"]')
+    var clear = form.querySelector('[data-ppx-search-clear]')
+    var closeButton = form.querySelector('[data-ppx-search-close]')
+    var opener = document.querySelector('[data-ppx-search-open]')
     var MIN = 2
     var timer = null
     var request = 0
@@ -160,7 +164,65 @@
         }
     }
 
+    // Phones and tablets: the field across the header.
+    function setField(show, returnFocus) {
+        form.classList.toggle('is-open', show)
+
+        if (opener) {
+            opener.setAttribute('aria-expanded', show ? 'true' : 'false')
+        }
+
+        if (show) {
+            input.focus()
+        } else {
+            open(false)
+
+            if (returnFocus && opener) {
+                opener.focus()
+            }
+        }
+    }
+
+    if (opener) {
+        opener.addEventListener('click', function () { setField(true) })
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', function () { setField(false, true) })
+    }
+
+    // Tabbing away must not leave focus on controls the opened field covers.
+    form.addEventListener('focusout', function (event) {
+        if (form.classList.contains('is-open') && event.relatedTarget && !form.contains(event.relatedTarget)) {
+            setField(false)
+        }
+    })
+
+    if (window.matchMedia) {
+        var desktop = window.matchMedia('(min-width: 1024px)')
+
+        if (desktop.addEventListener) {
+            desktop.addEventListener('change', function () {
+                if (desktop.matches && form.classList.contains('is-open')) {
+                    setField(false)
+                }
+            })
+        }
+    }
+
+    clear.addEventListener('click', function () {
+        input.value = ''
+        clear.hidden = true
+        request++
+        window.clearTimeout(timer)
+        list.textContent = ''
+        status.textContent = ''
+        open(false)
+        input.focus()
+    })
+
     input.addEventListener('input', function () {
+        clear.hidden = input.value === ''
         window.clearTimeout(timer)
         timer = window.setTimeout(suggest, 200)
     })
@@ -193,11 +255,20 @@
             } else if (input.value.trim().length < MIN) {
                 event.preventDefault()
             }
-        } else if (event.key === 'Escape') {
-            if (!list.hidden) {
-                event.preventDefault()
-                open(false)
-            }
+        }
+    })
+
+    form.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') {
+            return
+        }
+
+        if (form.classList.contains('is-open')) {
+            event.preventDefault()
+            setField(false, true)
+        } else if (!list.hidden) {
+            event.preventDefault()
+            open(false)
         }
     })
 

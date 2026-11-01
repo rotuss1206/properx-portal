@@ -39,6 +39,25 @@ class HeaderSearchTest extends TestCase
             ->assertSee('portal/search.js?v=', false);
     }
 
+    public function test_phones_open_the_field_from_a_magnifier_and_the_browsers_clear_button_is_gone(): void
+    {
+        $this->actingAs($this->member())->get('/member')->assertOk()
+            ->assertSee('data-ppx-search-open aria-controls="ppx-search" aria-expanded="false" aria-label="Search"', false)
+            ->assertSee('data-ppx-search-close aria-label="Close search"', false)
+            ->assertSee('data-ppx-search-clear aria-label="Clear search" hidden', false);
+
+        $css = file_get_contents(public_path('portal/header.css'));
+
+        $this->assertStringContainsString('::-webkit-search-cancel-button', $css);
+        $this->assertStringContainsString('.ppx-header__search.is-open', $css);
+
+        $js = file_get_contents(public_path('portal/search.js'));
+
+        foreach (['data-ppx-search-open', 'data-ppx-search-close', 'data-ppx-search-clear', "'Escape'"] as $part) {
+            $this->assertStringContainsString($part, $js);
+        }
+    }
+
     public function test_suggestions_cover_own_documents_and_the_published_library_only(): void
     {
         $member = $this->member();
