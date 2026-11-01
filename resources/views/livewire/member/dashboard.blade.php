@@ -56,7 +56,7 @@
         </div>
 
         @if ($timeline)
-            <x-ppx.card title="Membership timeline">
+            <x-ppx.card title="Membership timeline" variant="timeline">
                 <x-slot:action><span class="ppx-card__note">{{ $timeline['cycle'] }} cycle</span></x-slot:action>
                 {{-- Points sit in proportion to their dates (ppx-l-* classes, 5 % steps, see App\Member\Overview::timeline). --}}
                 <div class="ppx-timeline">
