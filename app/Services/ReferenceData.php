@@ -18,7 +18,7 @@ use Spatie\Permission\PermissionRegistrar;
  * Additive and idempotent: it creates what is missing and grants what a role lacks, but never
  * deletes a role, a permission or a grant, so it is safe on a database where the roles were
  * already (partly) created. New roles or permissions: add them here AND ship a new migration
- * that calls seed() again (docs/DEVELOPMENT.md).
+ * that calls seed() again.
  */
 class ReferenceData
 {

@@ -5,7 +5,7 @@ namespace App\Member;
 use App\Models\User;
 
 /**
- * Pages of the member area (/member, docs/specs/member-area.md) in menu order, and who
+ * Pages of the member area (/member) in menu order, and who
  * sees them. Pages a person may not see answer 404 and are left out of the menu.
  */
 final class MemberMenu

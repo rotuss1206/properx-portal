@@ -9,7 +9,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
 /**
- * Member area pages of stage 1 (docs/specs/member-area.md): the dashboard heading and
+ * Member area pages: the dashboard heading and
  * "Coming soon" placeholders for the other menu items. Pages the person may not see
  * (e.g. Billing for agency people other than the principal) answer 404.
  */

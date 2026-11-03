@@ -1,6 +1,6 @@
 @props(['page', 'title', 'notifyOpen' => false, 'notifyExtra' => null])
 {{--
-    Member area layout (docs/specs/member-area.md): sidebar, header, content. Styles:
+    Member area layout: sidebar, header, content. Styles:
     public/portal/tokens.css, sidebar.css (shared with Nova) and member.css; behaviour:
     public/portal/member.js (collapse, mobile drawer, account menu) and notify.js (the
     notifications panel, open by default where notifyOpen is set), loaded with the CSP nonce.

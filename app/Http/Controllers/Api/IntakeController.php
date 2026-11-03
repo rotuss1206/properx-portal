@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Paid individual applications from the marketing site (Gravity Forms connector,
- * integrations/wordpress). Off (404) unless INTAKE_ENABLED. Authenticated by
+ * Paid individual applications from the marketing site (Gravity Forms connector).
+ * Off (404) unless INTAKE_ENABLED. Authenticated by
  * HMAC-SHA256(timestamp + "." + raw body) with WP_INTAKE_SECRET; processed and audited as the API
  * Service account. Failures name fields only, never values, and nothing here logs member data.
  */

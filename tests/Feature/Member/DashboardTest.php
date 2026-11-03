@@ -28,7 +28,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Member dashboard (docs/specs/member-area.md, stage 2): blocks per kind of member, own data
+ * Member dashboard: blocks per kind of member, own data
  * only, in-app notifications from events, the license upload and the activity feed.
  */
 class DashboardTest extends TestCase

@@ -10,7 +10,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * Tabs of the member dashboard (docs/specs/member-area.md, section 3): Overview, Documents,
+ * Tabs of the member dashboard: Overview, Documents,
  * Activity and, once the catalogue is configured, Benefits. Only the tab and the document
  * filter travel to the browser; everything else is read for the signed-in member on each
  * render (no member data in public properties). The tabs are links too, so they work without

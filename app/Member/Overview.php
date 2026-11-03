@@ -15,7 +15,7 @@ use App\Support\UsStates;
 use Carbon\CarbonInterface;
 
 /**
- * The Overview tab of the member dashboard (docs/specs/member-area.md, section 3): membership,
+ * The Overview tab of the member dashboard: membership,
  * license verification, certificate, timeline and the agency line. Read from the member's own
  * profile (and, for agency people, their agency) only.
  */

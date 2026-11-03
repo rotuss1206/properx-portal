@@ -12,7 +12,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * The member area skeleton (docs/specs/member-area.md, stage 1): who gets in, the
+ * The member area skeleton: who gets in, the
  * redirects between Nova and /member in both states of MEMBER_AREA_ENABLED, the menu and
  * the Renewal due card.
  */

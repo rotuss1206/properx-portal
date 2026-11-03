@@ -7,8 +7,8 @@
  * Render functions only (the CSP has no unsafe-eval). Nova's own MainMenu stays the
  * fallback: if this script does not load, or the component throws, Nova's menu renders
  * and the layout overrides are switched off. Depends on Nova 5 internals (component
- * name "MainMenu", AppLayout and MainHeader markup): recheck after Nova upgrades
- * (docs/DEVELOPMENT.md). Styles: public/portal/sidebar.css (shared with the member area)
+ * name "MainMenu", AppLayout and MainHeader markup): recheck after Nova upgrades.
+ * Styles: public/portal/sidebar.css (shared with the member area)
  * and resources/css/nova/sidebar.css (Nova layout); icons: public/portal/img/icons.svg.
  */
 (function () {

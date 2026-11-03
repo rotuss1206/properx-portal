@@ -11,7 +11,7 @@ use App\Member\MemberMenu;
 use Illuminate\Support\Facades\Route;
 
 /*
- * Member area (docs/specs/member-area.md): Members only, behind MEMBER_AREA_ENABLED,
+ * Member area: Members only, behind MEMBER_AREA_ENABLED,
  * two-factor authentication as in Nova. Stage 2: the dashboard (with the license upload and
  * document downloads); the other pages are placeholders.
  */

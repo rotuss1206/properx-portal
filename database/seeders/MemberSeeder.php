@@ -82,7 +82,7 @@ class MemberSeeder extends Seeder
     }
 
     /**
-     * Member area dashboard data for member01-member05 (docs/specs/member-area.md, stage 2):
+     * Member area dashboard data for member01-member05:
      * license verification, in-app notifications, activity and paid invoices. Fills only what
      * is missing, so it also completes members seeded before.
      */

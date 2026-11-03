@@ -64,7 +64,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Member area (/member) — docs/specs/member-area.md
+    | Member area (/member)
     |--------------------------------------------------------------------------
     |
     | The Blade + Livewire area that replaces Nova for the Member role. Off until it is
@@ -219,8 +219,8 @@ return [
     */
 
     'intake' => [
-        // POST /api/intake/individual: paid applications from properx.org (Gravity Forms connector,
-        // integrations/wordpress). Off (404) unless enabled.
+        // POST /api/intake/individual: paid applications from properx.org (Gravity Forms connector).
+        // Off (404) unless enabled.
         'enabled' => (bool) env('INTAKE_ENABLED', false),
         'secret' => env('WP_INTAKE_SECRET'),
         // "Set your password" email to new members; off until the portal is announced to them.
