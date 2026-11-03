@@ -7,6 +7,7 @@ use App\Http\Controllers\Security\TwoFactorSetupController;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Nova\Http\Middleware\HandleInertiaRequests;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
@@ -223,6 +224,20 @@ class TwoFactorSetupTest extends TestCase
         $all = AuditLog::where('user_id', $member->id)->get()->toJson();
         $this->assertStringNotContainsString(decrypt($member->fresh()->two_factor_secret), $all);
         $this->assertStringNotContainsString($member->fresh()->recoveryCodes()[0], $all);
+    }
+
+    public function test_the_authenticator_app_shows_the_brand_whatever_app_name_says(): void
+    {
+        config(['app.name' => 'Laravel']);
+
+        $member = $this->member(withTwoFactor: false);
+
+        $this->freshlySignedIn($member)->post(route('security.two-factor.start'));
+
+        $url = $member->fresh()->twoFactorQrCodeUrl();
+
+        $this->assertStringContainsString('issuer=ProPerX%20Alliance', $url);
+        $this->assertStringNotContainsString('Laravel', $url);
     }
 
     public function test_someone_with_two_factor_is_not_kept_in_the_setup(): void

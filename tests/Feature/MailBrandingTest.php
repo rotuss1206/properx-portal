@@ -147,8 +147,8 @@ class MailBrandingTest extends TestCase
         $this->assertStringNotContainsString($member->memberProfile->last_name, $rendered['html'].$rendered['text']);
     }
 
-    public function test_app_name_defaults_to_the_portal_name(): void
+    public function test_app_name_defaults_to_the_brand(): void
     {
-        $this->assertStringContainsString("env('APP_NAME', 'ProPerX Member Portal')", file_get_contents(config_path('app.php')));
+        $this->assertStringContainsString("env('APP_NAME', 'ProPerX Alliance')", file_get_contents(config_path('app.php')));
     }
 }

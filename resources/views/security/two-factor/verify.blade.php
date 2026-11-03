@@ -1,5 +1,5 @@
 <x-security.setup-layout :step="3" title="Enter the code from your app">
-    <p class="ppx-setup__text">Your app now shows a 6-digit code for ProPerX. Enter it here to finish connecting the app.</p>
+    <p class="ppx-setup__text">Your app now shows a 6-digit code for ProPerX Alliance. Enter it here to finish connecting the app.</p>
 
     <form method="POST" action="{{ route('security.two-factor.confirm') }}" class="ppx-setup__form">
         @csrf
