@@ -94,7 +94,7 @@ class MemberAreaTest extends TestCase
         $member = $this->member();
 
         $this->actingAs($member)->get('/nova/dashboards/my-membership')->assertRedirect(route('member.dashboard'));
-        $this->get('/nova/resources/license-documents')->assertRedirect(route('member.dashboard'));
+        $this->get('/nova/resources/tax-documents')->assertRedirect(route('member.dashboard'));
 
         // Inside the Nova app (Inertia visit): a full page load to /member.
         $version = app(HandleInertiaRequests::class)->version(request());
@@ -141,7 +141,7 @@ class MemberAreaTest extends TestCase
         $response->assertSee('action="'.route('nova.logout').'"', false);
         $response->assertSee('href="'.route('nova.pages.user-security').'"', false);
 
-        foreach (['profile', 'license-documents', 'tax-documents', 'billing', 'library', 'notifications'] as $page) {
+        foreach (['tax-documents', 'billing'] as $page) {
             $this->get("/member/{$page}")->assertOk();
         }
     }

@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Enums\ReminderType;
 use App\Models\MemberProfile;
+use App\Nova\Menu\SidebarMenu;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -62,10 +63,11 @@ class LicenseExpiryReminder extends Notification implements ShouldQueue
     }
 
     /**
-     * Notification preferences live on the profile edit form in Nova.
+     * Notification preferences live on the profile edit form in Nova, the same page as the
+     * Notifications menu item. Signed-out members return here after signing in.
      */
     public static function preferencesUrl(MemberProfile $profile): string
     {
-        return url(Nova::path()."/resources/member-profiles/{$profile->getKey()}/edit");
+        return url(Nova::path()."/resources/member-profiles/{$profile->getKey()}/edit?".SidebarMenu::SECTION.'=notifications');
     }
 }

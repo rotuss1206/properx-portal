@@ -2,25 +2,35 @@
 
 namespace Tests\Feature\Member;
 
+use App\Enums\NotificationCategory;
 use App\Enums\PaymentStatus;
+use App\Enums\ReminderType;
+use App\Enums\VerificationStatus;
 use App\Member\MemberMenu;
+use App\Models\LicenseDocument;
 use App\Models\TaxDocument;
 use App\Models\User;
+use App\Notifications\LicenseExpiryReminder;
 use App\Notifications\Member\RenewalDue;
 use App\Services\Documents\DocumentVault;
 use Database\Seeders\Support\DemoFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Laravel\Nova\Nova;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
  * Nothing in the member area leads to an error: every link on every page reachable from the
- * dashboard opens, for each kind of member. Pages not built yet say so and lead back.
+ * dashboard opens, for each kind of member. Profile, notification preferences, license
+ * documents and the library stay in Nova for now; the other pages not built yet say so and
+ * lead back.
  */
 class MemberLinksTest extends TestCase
 {
     use CreatesPortalUsers, RefreshDatabase;
+
+    private const COMING_SOON = ['tax-documents', 'certificate', 'billing'];
 
     protected function setUp(): void
     {
@@ -75,7 +85,11 @@ class MemberLinksTest extends TestCase
 
     private function absolute(string $href, string $base): string
     {
-        return str_starts_with($href, '?') ? strtok($base, '?').$href : $href;
+        return match (true) {
+            str_starts_with($href, '?') => strtok($base, '?').$href,
+            str_starts_with($href, '/') => rtrim(config('app.url'), '/').$href,
+            default => $href,
+        };
     }
 
     private function pathOf(string $url): string
@@ -108,14 +122,29 @@ class MemberLinksTest extends TestCase
         return $user;
     }
 
+    /**
+     * @return array<string, string>
+     */
+    private function menu(User $user): array
+    {
+        return collect(MemberMenu::items($user, null))->pluck('url', 'key')->all();
+    }
+
     public function test_every_link_opens_for_an_individual_member(): void
     {
-        $paths = $this->paths($this->assertEveryLinkOpens($this->withDocumentsAndNotifications($this->member())));
+        $member = $this->withDocumentsAndNotifications($this->member());
+        $profile = $member->memberProfile->getKey();
 
-        foreach (array_keys(MemberMenu::PAGES) as $page) {
-            $this->assertContains($this->pathOf(route('member.'.$page)), $paths);
+        $paths = $this->paths($this->assertEveryLinkOpens($member));
+
+        foreach ($this->menu($member) as $url) {
+            $this->assertContains($this->pathOf($url), $paths);
         }
 
+        $this->assertContains("/nova/resources/member-profiles/{$profile}", $paths);
+        $this->assertContains("/nova/resources/member-profiles/{$profile}/edit", $paths);
+        $this->assertContains('/nova/resources/license-documents', $paths);
+        $this->assertContains('/nova/resources/library-documents', $paths);
         $this->assertContains('/nova/user-security', $paths);
         $this->assertNotEmpty(preg_grep('#^/documents/.+/download$#', $paths));
         $this->assertNotEmpty(preg_grep('#^/certificates/\d+/download$#', $paths));
@@ -128,7 +157,8 @@ class MemberLinksTest extends TestCase
         $paths = $this->paths($this->assertEveryLinkOpens($principal));
 
         $this->assertContains($this->pathOf(route('member.billing')), $paths);
-        $this->assertNotContains($this->pathOf(route('member.license-documents')), $paths);
+        $this->assertContains('/nova/resources/library-documents', $paths);
+        $this->assertNotContains('/nova/resources/license-documents', $paths);
     }
 
     public function test_every_link_opens_for_other_agency_people(): void
@@ -139,32 +169,127 @@ class MemberLinksTest extends TestCase
         $paths = $this->paths($this->assertEveryLinkOpens($person));
 
         $this->assertNotContains($this->pathOf(route('member.billing')), $paths);
-        $this->assertNotContains($this->pathOf(route('member.license-documents')), $paths);
+        $this->assertNotContains('/nova/resources/license-documents', $paths);
     }
 
-    public function test_every_link_opens_for_a_canceled_membership(): void
+    public function test_every_link_opens_for_a_canceled_membership_with_closed_pages_left_out(): void
     {
         $member = $this->withDocumentsAndNotifications($this->member());
         $member->memberProfile->forceFill(['payment_status' => PaymentStatus::Canceled])->save();
+        $member = $member->fresh();
 
-        $this->assertEveryLinkOpens($member->fresh());
+        $paths = $this->paths($this->assertEveryLinkOpens($member));
+
+        $this->assertArrayNotHasKey('library', $this->menu($member));
+        $this->assertArrayNotHasKey('license-documents', $this->menu($member));
+        $this->assertNotContains('/nova/resources/library-documents', $paths);
+        $this->assertContains("/nova/resources/member-profiles/{$member->memberProfile->getKey()}", $paths);
+
+        // Opened by hand, Nova's closed pages lead back instead of showing an error.
+        $this->get('/nova/resources/library-documents')->assertRedirect(route('member.dashboard'));
+        $this->get('/nova/resources/license-documents')->assertRedirect(route('member.dashboard'));
     }
 
-    public function test_pages_not_built_yet_say_so_and_lead_back_to_the_dashboard(): void
+    public function test_only_pages_not_built_yet_say_coming_soon_and_lead_back_to_the_dashboard(): void
     {
-        $this->actingAs($this->member());
+        $member = $this->member();
+        $this->actingAs($member);
 
-        foreach (array_keys(MemberMenu::PAGES) as $page) {
-            if ($page === 'dashboard') {
-                continue;
-            }
+        foreach (self::COMING_SOON as $page) {
+            $this->assertSame(route('member.'.$page), $this->menu($member)[$page]);
 
             $response = $this->get(route('member.'.$page))->assertOk()
                 ->assertSee('This section is coming soon')
-                ->assertSee('Back to dashboard')
-                ->assertSee('ppx-btn--primary', false);
+                ->assertSee('Back to dashboard');
 
             $this->assertMatchesRegularExpression('#<a\b[^>]*href="'.preg_quote(route('member.dashboard'), '#').'"[^>]*ppx-empty__action#s', $response->getContent());
         }
+    }
+
+    public function test_profile_notifications_license_documents_and_library_stay_in_nova(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile->getKey();
+        $menu = $this->menu($member);
+
+        $expected = [
+            'profile' => "/nova/resources/member-profiles/{$profile}",
+            'notifications' => "/nova/resources/member-profiles/{$profile}/edit?section=notifications",
+            'license-documents' => '/nova/resources/license-documents',
+            'library' => '/nova/resources/library-documents',
+        ];
+
+        $this->actingAs($member);
+
+        foreach ($expected as $page => $path) {
+            $this->assertSame($path, $menu[$page]);
+
+            // Old links to the member area's address keep working, and the Nova page opens.
+            $this->get(route('member.'.$page))->assertRedirect($path);
+            $this->get($path)->assertOk();
+        }
+    }
+
+    public function test_members_get_back_to_the_member_area_from_nova(): void
+    {
+        $member = $this->member();
+        $this->actingAs($member);
+
+        // The sidebar's Dashboard item and its logo.
+        $this->get(Nova::url('/dashboards/my-membership'))->assertRedirect(route('member.dashboard'));
+        $this->get(Nova::url('/'))->assertRedirect();
+        $this->get(Nova::initialPathUrl(request()))->assertRedirect(route('member.dashboard'));
+    }
+
+    public function test_agency_people_are_not_kept_on_nova_license_documents(): void
+    {
+        $principal = $this->agency(2)->principal()->first();
+
+        $this->actingAs($principal)->get('/nova/resources/license-documents')->assertRedirect(route('member.dashboard'));
+        $this->get('/member/license-documents')->assertNotFound();
+    }
+
+    public function test_the_reminders_unsubscribe_link_opens_the_notification_preferences(): void
+    {
+        $member = $this->member('expiring');
+        $url = LicenseExpiryReminder::preferencesUrl($member->memberProfile);
+
+        $message = (new LicenseExpiryReminder($member->memberProfile, ReminderType::Days30))->toMail($member);
+        $this->assertStringContainsString($url, implode(' ', $message->outroLines));
+
+        $this->actingAs($member)->get($url)->assertOk();
+
+        // The form there has the toggles (saving them: MemberSelfServiceTest).
+        $category = NotificationCategory::cases()[0];
+        $fields = $this->getJson("/nova-api/member-profiles/{$member->memberProfile->getKey()}/update-fields?editing=true&editMode=update")
+            ->assertOk()
+            ->collect('fields')
+            ->pluck('attribute');
+
+        $this->assertContains("notify_{$category->value}", $fields);
+    }
+
+    public function test_a_signed_out_member_reaches_the_notification_preferences_after_signing_in(): void
+    {
+        $member = $this->member('expiring');
+        $url = LicenseExpiryReminder::preferencesUrl($member->memberProfile);
+
+        $this->get($url)->assertRedirect();
+        $this->assertGuest();
+        $this->assertSame($url, session('url.intended'));
+    }
+
+    public function test_a_pending_license_document_is_withdrawn_in_nova(): void
+    {
+        $member = $this->member();
+        $pending = LicenseDocument::factory()->for($member)->create(['verification_status' => VerificationStatus::Pending]);
+        $approved = LicenseDocument::factory()->for($member)->create(['verification_status' => VerificationStatus::Approved]);
+
+        $this->actingAs($member)->get('/nova/resources/license-documents')->assertOk();
+
+        $this->deleteJson('/nova-api/license-documents?resources[]='.$pending->id.'&resources[]='.$approved->id)->assertOk();
+
+        $this->assertModelMissing($pending);
+        $this->assertModelExists($approved);
     }
 }

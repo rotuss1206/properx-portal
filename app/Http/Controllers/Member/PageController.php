@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Member\MemberMenu;
 use App\Member\Overview;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * Member area pages: the dashboard heading and
- * "Coming soon" placeholders for the other menu items. Pages the person may not see
+ * Member area pages: the dashboard heading, redirects to the pages that stay in Nova for now
+ * and "Coming soon" placeholders for the other menu items. Pages the person may not see
  * (e.g. Billing for agency people other than the principal) answer 404.
  */
 class PageController extends Controller
@@ -46,9 +47,13 @@ class PageController extends Controller
         };
     }
 
-    public function placeholder(Request $request, string $page): View
+    public function placeholder(Request $request, string $page): View|RedirectResponse
     {
         abort_unless(MemberMenu::visible($request->user(), $page), 404);
+
+        if ($novaUrl = MemberMenu::novaUrl($request->user(), $page)) {
+            return redirect($novaUrl);
+        }
 
         return view('member.placeholder', ['page' => $page, 'title' => MemberMenu::label($page)]);
     }

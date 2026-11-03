@@ -38,7 +38,7 @@ class NotificationPanelTest extends TestCase
             ->assertSee('portal/notify.css?v=', false)
             ->assertSee('You are all caught up');
 
-        $this->get('/member/profile')->assertOk()
+        $this->get('/member/tax-documents')->assertOk()
             ->assertSee('id="ppx-notify"', false)
             ->assertSee('data-context="member" data-default="closed"', false);
     }
@@ -57,7 +57,7 @@ class NotificationPanelTest extends TestCase
             ->assertSee('2 unread notifications')
             ->assertSee('Mark all read');
 
-        $this->get('/member/profile')->assertOk()->assertSee('ppx-notify__item is-unread', false);
+        $this->get('/member/tax-documents')->assertOk()->assertSee('ppx-notify__item is-unread', false);
 
         $this->assertSame(2, $member->unreadNotifications()->count());
     }
@@ -115,7 +115,7 @@ class NotificationPanelTest extends TestCase
         $html = $this->actingAs($member)->get('/member')->assertOk()->getContent();
         $this->assertGreaterThan(strpos($html, 'id="ppx-notify"'), strpos($html, 'data-ppx-upload'));
 
-        $this->get('/member/profile')->assertOk()->assertDontSee('data-ppx-upload', false);
+        $this->get('/member/tax-documents')->assertOk()->assertDontSee('data-ppx-upload', false);
 
         $agency = $this->agency(2);
         $this->actingAs($agency->principal()->first())->get('/member')->assertOk()

@@ -2,7 +2,14 @@
 
 namespace App\Member;
 
+use App\Models\LibraryDocument;
+use App\Models\LicenseDocument;
 use App\Models\User;
+use App\Nova\LibraryDocument as LibraryDocumentResource;
+use App\Nova\LicenseDocument as LicenseDocumentResource;
+use App\Nova\MemberProfile as MemberProfileResource;
+use App\Nova\Menu\SidebarMenu;
+use Laravel\Nova\Nova;
 
 /**
  * Pages of the member area (/member) in menu order, and who
@@ -33,7 +40,8 @@ final class MemberMenu
 
         foreach (self::PAGES as $key => [$label, $icon]) {
             if (self::visible($user, $key)) {
-                $items[] = ['key' => $key, 'label' => $label, 'icon' => $icon, 'url' => route('member.'.$key), 'active' => $key === $current];
+                $url = self::novaUrl($user, $key) ?? route('member.'.$key);
+                $items[] = ['key' => $key, 'label' => $label, 'icon' => $icon, 'url' => $url, 'active' => $key === $current];
             }
         }
 
@@ -42,7 +50,8 @@ final class MemberMenu
 
     /**
      * Agency people hold NPN and resident state only (no license document uploads) and the
-     * principal pays the agency's invoice, so only the principal sees Billing.
+     * principal pays the agency's invoice, so only the principal sees Billing. License
+     * documents and the library close while the membership is restricted (Spec 7).
      */
     public static function visible(User $user, string $key): bool
     {
@@ -50,9 +59,29 @@ final class MemberMenu
         $inAgency = $profile?->agency_id !== null;
 
         return match ($key) {
-            'license-documents' => ! $inAgency || (bool) config('portal.member_area.agency_people.license_upload'),
+            'license-documents' => (! $inAgency || (bool) config('portal.member_area.agency_people.license_upload'))
+                && $user->can('viewAny', LicenseDocument::class),
             'billing' => ! $inAgency || ($profile->isAgencyPrincipal() && config('portal.member_area.agency_people.principal_billing')),
+            'library' => $user->can('viewAny', LibraryDocument::class),
             default => array_key_exists($key, self::PAGES),
+        };
+    }
+
+    /**
+     * Pages that stay in Nova until the member area has its own (kept open for members by
+     * SendMembersToMemberArea). Null: the page is the member area's, built or "coming soon".
+     */
+    public static function novaUrl(User $user, string $key): ?string
+    {
+        $profile = $user->memberProfile;
+        $profilePath = $profile ? '/resources/'.MemberProfileResource::uriKey().'/'.$profile->getKey() : null;
+
+        return match (true) {
+            $key === 'license-documents' => Nova::url('/resources/'.LicenseDocumentResource::uriKey()),
+            $key === 'library' => Nova::url('/resources/'.LibraryDocumentResource::uriKey()),
+            $key === 'profile' && $profilePath !== null => Nova::url($profilePath),
+            $key === 'notifications' && $profilePath !== null => Nova::url($profilePath.'/edit?'.SidebarMenu::SECTION.'=notifications'),
+            default => null,
         };
     }
 
