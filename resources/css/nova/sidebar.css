@@ -44,7 +44,13 @@
 
 .ppx-shell .ppx-drawer > .border-b { display: none; }
 
-.ppx-shell .ppx-drawer .mt-auto { color: var(--ppx-sidebar-text); }
+.ppx-shell .ppx-drawer .mt-auto { position: relative; color: var(--ppx-sidebar-text); }
+
+/* The star and swooshes fill the drawer, not the shorter, inset menu inside it: anchored to the
+   drawer (Nova's positioned element), so neither the menu's edge nor its scrolling moves them. */
+.ppx-shell .ppx-drawer .ppx-sidebar--responsive { position: static; }
+
+.ppx-shell .ppx-drawer .ppx-sidebar--responsive .ppx-sidebar__decor { bottom: 0; }
 
 /* "Download certificate" in the profile's Membership Certificate block (App\Nova\MemberProfile). */
 
