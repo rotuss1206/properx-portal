@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'ProPerx Member Portal'),
+    'name' => env('APP_NAME', 'ProPerX Member Portal'),
 
     /*
     |--------------------------------------------------------------------------

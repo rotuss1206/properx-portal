@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg">
-  <!-- ProPerx icons from the design, drawn with the stroke of the <svg> that uses them
+  <!-- ProPerX icons from the design, drawn with the stroke of the <svg> that uses them
        (stroke="currentColor"). Used by the Nova sidebar and the member area. -->
   <symbol id="dashboard" viewBox="0 0 24 24">
     <path d="M4 3H9C9.55192 3 10 3.44808 10 4V11C10 11.5519 9.55192 12 9 12H4C3.44808 12 3 11.5519 3 11V4C3 3.44808 3.44808 3 4 3V3"/>

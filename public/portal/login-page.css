@@ -1,5 +1,5 @@
 /*
- * ProPerx sign-in page (markup: public/portal/login-page.js, loaded by
+ * ProPerX sign-in page (markup: public/portal/login-page.js, loaded by
  * resources/views/vendor/nova/partials/meta.blade.php). Colours, fonts and radii come from
  * public/portal/tokens.css, loaded first (it also declares the self-hosted fonts).
  */
@@ -185,6 +185,8 @@
 .ppx-login__input.is-invalid { border-color: var(--ppx-danger); }
 
 .ppx-login__input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15); }
+
+.ppx-login__hint { margin: 6px 0 0; color: var(--ppx-muted); font-size: 12.5px; line-height: 1.4; }
 
 .ppx-login__error { margin: 6px 0 0; color: var(--ppx-danger); font-size: 12.5px; line-height: 1.4; }
 

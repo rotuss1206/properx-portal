@@ -20,5 +20,5 @@
 </div>
 
 <x-join.checkbox name="principal.authority_confirmed">
-    I am authorized to enroll this agency and its people in ProPerx Alliance and to pay membership dues on their behalf.
+    I am authorized to enroll this agency and its people in ProPerX Alliance and to pay membership dues on their behalf.
 </x-join.checkbox>

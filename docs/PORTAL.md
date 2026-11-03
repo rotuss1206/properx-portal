@@ -1,6 +1,6 @@
-# ProPerx Member Portal
+# ProPerX Member Portal
 
-Member self-service portal for ProPerx Alliance, a professional association of licensed
+Member self-service portal for ProPerX Alliance, a professional association of licensed
 insurance agents. Members manage their profile, license data, documents, membership
 certificate and notification preferences; staff run the association from the same Nova
 panel; agencies enroll several people on one annual invoice.
@@ -17,7 +17,7 @@ the root `README.md`, owned by KEENEY. This file describes the application.
 | Roles | spatie/laravel-permission: Executive Director, Membership Coordinator, Compliance Specialist, Member, Agency Principal, API Service |
 | Database | MySQL 8 (TLS with a verified certificate when `MYSQL_ATTR_SSL_CA` is set) |
 | Files | Private Azure Blob container (`azure-oss/storage-blob-laravel`), managed identity; Azurite locally |
-| Mail | Azure Communication Services (`symfony/azure-mailer`); no PHI in bodies; ProPerx Alliance templates (`resources/views/vendor/mail`, `config portal.brand`) |
+| Mail | Azure Communication Services (`symfony/azure-mailer`); no PHI in bodies; ProPerX Alliance templates (`resources/views/vendor/mail`, `config portal.brand`) |
 | PDF | barryvdh/laravel-dompdf, hardened (`config/dompdf.php`) |
 | Public forms | Livewire 4 in CSP-safe mode (`config/livewire.php`), scripts from Livewire's own route with the CSP nonce; agency enrollment at `/join/agency` |
 | Payments | Stripe webhooks only (`stripe/stripe-php`); the portal takes no payments |

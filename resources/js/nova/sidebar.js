@@ -1,5 +1,5 @@
 /*
- * ProPerx sidebar for Nova (signed-in pages). Replaces Nova's MainMenu component with
+ * ProPerX sidebar for Nova (signed-in pages). Replaces Nova's MainMenu component with
  * one that draws the same menu (store getter "mainMenu", built by App\Nova\Menu\SidebarMenu
  * on the server, items and access included): logo, collapse button, icons, the
  * "Renewal due" card and the signed-in person. It hides nothing itself.
@@ -262,7 +262,7 @@
                 decor(vm.screen),
                 h('div', { class: 'ppx-sidebar__top' }, [
                     h(Vue.resolveComponent('Link'), { class: 'ppx-sidebar__logo', href: vm.$url('/'), onClick: function () { vm.follow() } }, {
-                        default: function () { return [h('img', { src: data.logo, alt: 'ProPerx Alliance', class: 'ppx-sidebar__logo-image' })] },
+                        default: function () { return [h('img', { src: data.logo, alt: 'ProPerX Alliance', class: 'ppx-sidebar__logo-image' })] },
                     }),
                     desktop ? h('button', {
                         type: 'button',
@@ -294,7 +294,7 @@
                 if (!this.failed) {
                     this.failed = true
                     shell(false)
-                    console.error('ProPerx sidebar failed; showing the Nova menu.', error && error.name)
+                    console.error('ProPerX sidebar failed; showing the Nova menu.', error && error.name)
                 }
 
                 return false

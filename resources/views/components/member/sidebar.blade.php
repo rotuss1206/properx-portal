@@ -1,6 +1,6 @@
 @props(['page'])
 {{--
-    The ProPerx sidebar: same markup and classes as the Nova sidebar (resources/js/nova/sidebar.js),
+    The ProPerX sidebar: same markup and classes as the Nova sidebar (resources/js/nova/sidebar.js),
     styled by public/portal/sidebar.css. Items: App\Member\MemberMenu; bottom: App\Support\PortalSidebar.
 --}}
 @php
@@ -15,7 +15,7 @@
 
     <div class="ppx-sidebar__top">
         <a class="ppx-sidebar__logo" href="{{ route('member.dashboard') }}">
-            <img class="ppx-sidebar__logo-image" src="{{ $sidebar['logo'] }}" alt="ProPerx Alliance">
+            <img class="ppx-sidebar__logo-image" src="{{ $sidebar['logo'] }}" alt="ProPerX Alliance">
         </a>
         <button type="button" class="ppx-sidebar__collapse" data-ppx-collapse aria-controls="ppx-sidebar" aria-expanded="true" aria-label="Collapse sidebar">
             <x-member.icon name="collapse" class="ppx-sidebar__collapse-svg" view-box="0 0 18 24" stroke="1.5" />

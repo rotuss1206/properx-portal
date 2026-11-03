@@ -1,5 +1,5 @@
 /*
- * The ProPerx header, shared by the member area (resources/views/components/member/
+ * The ProPerX header, shared by the member area (resources/views/components/member/
  * header.blade.php) and Nova (resources/js/nova/header.js, with Nova-only rules in
  * resources/css/nova/header.css): page title, date, search (staff in Nova), notifications
  * bell, avatar with the account menu. Tokens: public/portal/tokens.css.

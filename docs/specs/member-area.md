@@ -284,7 +284,7 @@ code; QR code added next to the verification line (the mockup shows none). Data:
 | Member ID | `member_number` (`PPX-M…`) |
 | Member since | `users.created_at` (month and year) |
 | Valid through | `paid_through_at` (default 4.1); fallback while no Stripe date: `license_expires_at` as today |
-| Statement | "…is a recognized member in good standing of ProPerx Alliance, entitled to all rights, benefits, and privileges of membership. **Membership valid through Mar 12, 2027.**" (date = Valid through). No "2026 membership term" wording. |
+| Statement | "…is a recognized member in good standing of ProPerX Alliance, entitled to all rights, benefits, and privileges of membership. **Membership valid through Mar 12, 2027.**" (date = Valid through). No "2026 membership term" wording. |
 | Signatures | Executive Director name and title from config; optional second signatory (config), off by default |
 | Verification | `route('certificates.verify', certificate_code)`, QR as data URI |
 
@@ -295,7 +295,7 @@ chroot.
 
 Card with a table: document type (`1099-NEC`…), tax year, uploaded date, status "Available" /
 "Downloaded" (`downloaded_at`), download through the existing signed route (audited). Chips per tax
-year. Empty state: "Your tax documents will appear here when ProPerx uploads them." Open to restricted
+year. Empty state: "Your tax documents will appear here when ProPerX uploads them." Open to restricted
 members too (Spec 7).
 
 ### `/member/library` (no mockup)

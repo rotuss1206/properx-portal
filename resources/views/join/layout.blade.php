@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>{{ $title ?? 'Enroll your agency' }} · ProPerx Alliance</title>
+    <title>{{ $title ?? 'Enroll your agency' }} · ProPerX Alliance</title>
     {{-- Same look as the other public pages (certificates/layout), wider for the form. --}}
     <style>
         :root { --navy: #1e3a5f; --navy-600: #21579d; --gold: #c8a24a; --muted: #6b7280; --line: #e5e7eb;
@@ -112,7 +112,7 @@
 
     {{ $slot }}
 
-    <div class="footer">Questions? Contact ProPerx Alliance. Your answers are saved after each step.</div>
+    <div class="footer">Questions? Contact ProPerX Alliance. Your answers are saved after each step.</div>
 </div>
 @livewireScripts
 </body>

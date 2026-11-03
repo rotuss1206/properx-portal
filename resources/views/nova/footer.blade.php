@@ -1,6 +1,6 @@
 <p class="text-center">
-    &copy; {{ now()->year }} ProPerx Alliance &middot; Member Portal
+    &copy; {{ now()->year }} ProPerX Alliance &middot; Member Portal
 </p>
 <p class="text-center">
-    Questions about your membership? Contact the ProPerx Alliance membership team.
+    Questions about your membership? Contact the ProPerX Alliance membership team.
 </p>

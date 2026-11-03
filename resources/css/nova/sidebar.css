@@ -1,8 +1,8 @@
 /*
- * Nova layout around the ProPerx sidebar (markup: resources/js/nova/sidebar.js; the sidebar's
+ * Nova layout around the ProPerX sidebar (markup: resources/js/nova/sidebar.js; the sidebar's
  * own styles: public/portal/sidebar.css, tokens: public/portal/tokens.css, both loaded by
  * resources/views/vendor/nova/partials/meta.blade.php). These rules apply only while
- * html.ppx-shell is set, i.e. while the ProPerx menu is drawn; without it Nova's own layout
+ * html.ppx-shell is set, i.e. while the ProPerX menu is drawn; without it Nova's own layout
  * and menu stay. Selectors follow Nova 5 AppLayout / MainHeader markup: recheck after Nova
  * upgrades.
  */

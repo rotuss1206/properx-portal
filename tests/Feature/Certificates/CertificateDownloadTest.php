@@ -30,7 +30,7 @@ class CertificateDownloadTest extends TestCase
             ->get(CertificateGeneratorService::downloadUrl($member->memberProfile))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
-            ->assertDownload("ProPerx-membership-certificate-{$member->memberProfile->certificate_code}.pdf");
+            ->assertDownload("ProPerX-membership-certificate-{$member->memberProfile->certificate_code}.pdf");
 
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'certificate_downloaded',

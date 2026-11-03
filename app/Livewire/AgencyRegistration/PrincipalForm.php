@@ -58,7 +58,7 @@ class PrincipalForm extends StepForm
             'title' => ['required', Rule::in(array_keys(self::TITLES))],
             'email' => ['required', 'email', 'max:255', function (string $attribute, mixed $value, Closure $fail) {
                 if (User::query()->where('email', $value)->exists()) {
-                    $fail('This email is already registered in the portal. Please contact ProPerx.');
+                    $fail('This email is already registered in the portal. Please contact ProPerX.');
                 }
             }],
             'mobile_phone' => ['required', new UsPhone],

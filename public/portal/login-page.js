@@ -1,5 +1,5 @@
 /*
- * ProPerx sign-in pages. Replaces only the markup and layout of Nova's guest pages
+ * ProPerX sign-in pages. Replaces only the markup and layout of Nova's guest pages
  * (Nova 5 pages/Login.vue, ForgotPassword.vue, ResetPassword.vue): the form state,
  * attempt() (POST /nova/login and the 2FA redirect, /nova/password/email,
  * /nova/password/reset), browser validation and server errors stay Nova's own. Render
@@ -123,7 +123,7 @@
     // Full-colour logo for the sign-in page only (Nova's header keeps config nova.brand.logo).
     function logo() {
         return h('span', { class: 'ppx-login__logo' }, [
-            h('img', { class: 'ppx-login__logo-image', src: assetUrl('img/logo-color.svg'), alt: 'ProPerx Alliance' }),
+            h('img', { class: 'ppx-login__logo-image', src: assetUrl('img/logo-color.svg'), alt: 'ProPerX Alliance' }),
         ])
     }
 
@@ -233,7 +233,7 @@
                 onClick: function (event) {
                     if (!settings.supportUrl) {
                         event.preventDefault()
-                        notice('Please contact the ProPerx Alliance membership team.')
+                        notice('Please contact the ProPerX Alliance membership team.')
                     }
                 },
             }, 'Contact support'),
@@ -286,10 +286,11 @@
             autocomplete: field.autocomplete,
             required: true,
             'aria-invalid': error ? 'true' : null,
-            'aria-describedby': error ? errorId : null,
+            'aria-describedby': [error ? errorId : null, field.hint ? field.id + '-hint' : null].filter(Boolean).join(' ') || null,
         })
 
         var label = h('label', { class: 'ppx-login__label', for: field.id }, field.label)
+        var hint = field.hint ? h('p', { id: field.id + '-hint', class: 'ppx-login__hint' }, field.hint) : null
 
         return h('div', { class: 'ppx-login__field' }, [
             field.aside ? h('div', { class: 'ppx-login__label-row' }, [label, field.aside]) : label,
@@ -451,6 +452,7 @@
                     name: 'email',
                     type: 'email',
                     label: vm.__('Email address'),
+                    hint: 'Enter the email address this message was sent to',
                     autocomplete: 'username',
                     autofocus: true,
                 }),

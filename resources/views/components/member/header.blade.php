@@ -1,6 +1,6 @@
 @props(['title'])
 {{--
-    The ProPerx header (public/portal/header.css), the same as in Nova (resources/js/nova/header.js):
+    The ProPerX header (public/portal/header.css), the same as in Nova (resources/js/nova/header.js):
     data from App\Support\PortalHeader. The bell shows the unread count (.ppx-header__count, the same
     look as Nova's bell) and opens the notifications panel (x-member.notify-panel, public/portal/notify.js).
 --}}

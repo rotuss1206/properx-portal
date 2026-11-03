@@ -1,5 +1,5 @@
 /*
- * ProPerx header for Nova (signed-in pages): the same header as the member area
+ * ProPerX header for Nova (signed-in pages): the same header as the member area
  * (resources/views/components/member/header.blade.php, styles public/portal/header.css).
  * Nova's MainHeader cannot be replaced, so three of its global components are swapped as
  * Nova registers them:
@@ -361,7 +361,7 @@
                         shell(false)
                     }
 
-                    console.error('ProPerx ' + name + ' failed; showing Nova\'s own.', error && error.name)
+                    console.error('ProPerX ' + name + ' failed; showing Nova\'s own.', error && error.name)
                 }
 
                 return false

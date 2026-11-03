@@ -43,7 +43,7 @@
             <div class="firm">{{ $firmName }}</div>
         @endif
 
-        <div class="lead" style="margin-top: 12pt;">is a member in good standing of ProPerx Alliance.</div>
+        <div class="lead" style="margin-top: 12pt;">is a member in good standing of ProPerX Alliance.</div>
 
         <table class="details">
             <tr><td class="label">Member ID</td><td class="value">{{ $memberId }}</td></tr>
@@ -62,7 +62,7 @@
             @endif
             <div class="line"></div>
             <strong>{{ $signatoryName }}</strong><br>
-            Executive Director, ProPerx Alliance
+            Executive Director, ProPerX Alliance
         </div>
 
         <div class="verify">

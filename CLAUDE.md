@@ -1,6 +1,6 @@
-# ProPerx Member Portal
+# ProPerX Member Portal
 
-Member self-service portal for ProPerx Alliance (a professional association of licensed insurance agents).
+Member self-service portal for ProPerX Alliance (a professional association of licensed insurance agents).
 The requirements spec (Rev. 2, KEENEY) is kept outside the repository (local `docs/*.docx` is git-excluded); reference it as "Spec N".
 Target hosting: Azure AKS (HIPAA tier, SHN account). Production secrets live in Azure Key Vault.
 
@@ -76,7 +76,7 @@ The whole interface, the member area and Nova, must end up looking like the mock
   - UUID file names; the extension comes from the MIME type sniffed with `finfo`, never from the client.
   - Uploads are limited to PDF/JPG/PNG up to 10 MB (`DocumentVault::uploadRules()`).
   - License and tax documents are AES-encrypted by the app (`.enc` suffix, key `DOCUMENTS_ENCRYPTION_KEY`, falling back to `APP_KEY`).
-- Downloads (`App\Services\DocumentDownloader`): never a public or SAS URL. After Nova's policy check the download endpoint redirects to a 5-minute `URL::temporarySignedRoute` (`documents.download`, `certificates.download`); that route requires the session, re-checks the policy and streams the blob (decrypting `.enc` files). Every download is audited. When storage does not answer (`App\Services\Documents\StorageHealth`: a short HEAD probe to the Blob endpoint, cached 15 s, because the azure-oss Blob client retries unreachable hosts for minutes and that cannot be configured), downloads throw `StorageUnavailableException` (503 "temporarily unavailable"); when storage answers but the file is missing, `DocumentMissingException` (404 "not available right now, contact ProPerx support"). Both extend `DocumentDownloadException`: the log gets kind, id and error class only, nothing is audited as downloaded, members in the member area see the page inside its layout (card with "Back to dashboard", `member/download-error.blade.php`); `/api/health` uses the same probe. Blob client timeouts: `DOCUMENTS_STORAGE_TIMEOUT` / `_CONNECT_TIMEOUT` (20 / 5 s).
+- Downloads (`App\Services\DocumentDownloader`): never a public or SAS URL. After Nova's policy check the download endpoint redirects to a 5-minute `URL::temporarySignedRoute` (`documents.download`, `certificates.download`); that route requires the session, re-checks the policy and streams the blob (decrypting `.enc` files). Every download is audited. When storage does not answer (`App\Services\Documents\StorageHealth`: a short HEAD probe to the Blob endpoint, cached 15 s, because the azure-oss Blob client retries unreachable hosts for minutes and that cannot be configured), downloads throw `StorageUnavailableException` (503 "temporarily unavailable"); when storage answers but the file is missing, `DocumentMissingException` (404 "not available right now, contact ProPerX support"). Both extend `DocumentDownloadException`: the log gets kind, id and error class only, nothing is audited as downloaded, members in the member area see the page inside its layout (card with "Back to dashboard", `member/download-error.blade.php`); `/api/health` uses the same probe. Blob client timeouts: `DOCUMENTS_STORAGE_TIMEOUT` / `_CONNECT_TIMEOUT` (20 / 5 s).
 - Security (Spec 3.3, 8):
   - Login: max 5 failed attempts per 15 minutes per IP (`App\Auth\LoginRateLimiter` replaces Fortify's). The 2FA challenge allows 5 tries per minute.
   - Session: owned by the KEENEY platform (`SESSION_*`: 15 minutes, database, encrypted, secure, `lax`); `config/session.php` stays stock, do not add custom timeouts or cookie names. "Remember me" is ignored (`DisableRememberMe`).
@@ -113,7 +113,7 @@ The whole interface, the member area and Nova, must end up looking like the mock
   - Email bodies contain no PHI (no names, license numbers, dates): they only link back to the portal.
   - Branding: published templates in `resources/views/vendor/mail` (header, message, layout, theme) and `vendor/notifications/email.blade.php` use `config('portal.brand')` ("ProPerX Alliance", Nova colours), never `app.name`; the header's logo is embedded by CID (no remote images, Outlook blocks them). Only the customised templates are published. `MailBrandingTest` renders the reset, reminder and task-failure emails with `app.name = Laravel` and checks no framework branding or PHI.
 
-## Agency membership (spec "ProPerx Agency Membership", Option B)
+## Agency membership (spec "ProPerX Agency Membership", Option B)
 
 - Requirements: [docs/specs/agency-membership.md](docs/specs/agency-membership.md) (English summary of the client spec). We build **Option B** (Agency spec 12). The spec lives in this repository only: `sync-to-keeney.ps1` copies no `docs/` file except `docs/PORTAL.md`.
   - References in code, comments, tests and other docs: "Agency spec 5.4", without §; the § sign is used only inside `docs/specs/agency-membership.md`.
@@ -136,7 +136,7 @@ The whole interface, the member area and Nova, must end up looking like the mock
   - Draft: `agency_registration_drafts` (`data` `encrypted:array`, `token_hash` for a future continue link, `expires_at` 30 days after the last save, pruned daily by `model:prune`); the session holds only the draft id (`Wizard::SESSION_KEY`). Created on the first "Continue", not on page load.
   - Query parameters: `?partner=CODE` fills the partner code; `?tier=agency_10to49` or `?tier=agency-plus` preselects the tier and opens screen 2.
   - Price block: `AgencyPricingService::quote()` for the chosen tier's minimum headcount until the People screen exists.
-  - Duplicates: principal email against `users.email`, NPN, agency NPN and FEIN through blind indexes ("Please contact ProPerx"). Legal address: `App\Rules\NotPoBox`; phones: `App\Rules\UsPhone`.
+  - Duplicates: principal email against `users.email`, NPN, agency NPN and FEIN through blind indexes ("Please contact ProPerX"). Legal address: `App\Rules\NotPoBox`; phones: `App\Rules\UsPhone`.
   - Rate limits per IP: `agency-registration` (page) and `livewire` (Livewire's update route, replaced in `AppServiceProvider` with the same path). Nothing is logged.
 
 ## Stripe payment status (Spec 7)

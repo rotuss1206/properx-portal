@@ -127,7 +127,7 @@ class StorageUnavailableTest extends TestCase
 
         $this->actingAs($member)->get(DocumentDownloader::signedUrl($document))
             ->assertNotFound()
-            ->assertSee('This document is not available right now. Please contact ProPerx support.')
+            ->assertSee('This document is not available right now. Please contact ProPerX support.')
             ->assertDontSee('temporarily unavailable')
             ->assertDontSee('gone.pdf');
 

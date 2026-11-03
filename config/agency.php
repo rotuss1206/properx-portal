@@ -6,7 +6,7 @@
 |--------------------------------------------------------------------------
 |
 | Annual dues per person (the principal counts as one); amounts are in cents.
-| One Stripe product, "ProPerx Agency Membership", with six annual recurring
+| One Stripe product, "ProPerX Agency Membership", with six annual recurring
 | prices; the subscription quantity equals the headcount. Prices are found by
 | their lookup key unless a price ID is configured.
 |

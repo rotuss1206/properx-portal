@@ -34,7 +34,7 @@ abstract class CertificateAction extends Action
 
         return Action::download(
             CertificateGeneratorService::downloadUrl($profile),
-            "ProPerx-membership-certificate-{$profile->certificate_code}.pdf",
+            "ProPerX-membership-certificate-{$profile->certificate_code}.pdf",
         );
     }
 }

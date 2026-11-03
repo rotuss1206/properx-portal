@@ -29,7 +29,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 5;
+    private const TEMPLATE_VERSION = 6;
 
     /**
      * @var array<string, string> attribute => human-readable name
@@ -214,7 +214,7 @@ class CertificateGeneratorService
 
     private function filename(MemberProfile $profile): string
     {
-        return "ProPerx-membership-certificate-{$profile->certificate_code}.pdf";
+        return "ProPerX-membership-certificate-{$profile->certificate_code}.pdf";
     }
 
     private function directory(MemberProfile $profile): string

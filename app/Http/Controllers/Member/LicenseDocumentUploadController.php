@@ -44,7 +44,7 @@ class LicenseDocumentUploadController extends Controller
             'uploaded_at' => now(),
         ])->save();
 
-        $message = 'Document uploaded. ProPerx will review it shortly.';
+        $message = 'Document uploaded. ProPerX will review it shortly.';
 
         return $request->expectsJson()
             ? response()->json(['message' => $message, 'redirect' => route('member.dashboard')], 201)

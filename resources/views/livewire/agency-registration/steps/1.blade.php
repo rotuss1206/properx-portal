@@ -1,5 +1,5 @@
 <h2>Who is joining?</h2>
-<p class="lead">Choose how you want to become a member of ProPerx Alliance.</p>
+<p class="lead">Choose how you want to become a member of ProPerX Alliance.</p>
 
 <fieldset @if ($errors->has('membership.type')) aria-describedby="membership-type-error" @endif>
     <legend class="sr-only">Membership type</legend>

@@ -43,7 +43,7 @@ final class DemoFile
         $title = $escape(mb_convert_encoding($title, 'Windows-1252', 'UTF-8'));
 
         $content = "BT /F1 20 Tf 72 720 Td ({$title}) Tj ET\n"
-            ."BT /F1 12 Tf 72 690 Td (ProPerx Alliance - demo placeholder document.) Tj ET\n";
+            ."BT /F1 12 Tf 72 690 Td (ProPerX Alliance - demo placeholder document.) Tj ET\n";
 
         $objects = [
             '<< /Type /Catalog /Pages 2 0 R >>',

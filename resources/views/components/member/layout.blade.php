@@ -11,7 +11,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>{{ $title }} · ProPerx Alliance</title>
+    <title>{{ $title }} · ProPerX Alliance</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('sidebar.css') }}">

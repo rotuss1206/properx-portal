@@ -27,7 +27,7 @@
 | 24 | consent | заборона повторної заявки 24 міс. | так | |
 | 32 | consent | внески не повертаються, автопродовження | так | **та сама назва, що й у поля 24** |
 | 25 | consent | Terms of Service і Privacy Policy | так | |
-| 27 | select | How did you hear about ProPerx Alliance? | ні | |
+| 27 | select | How did you hear about ProPerX Alliance? | ні | |
 
 HTML-блоки 4, 10, 12, 18, 21, 22 — лише заголовки секцій.
 
@@ -60,7 +60,7 @@ HTML-блоки 4, 10, 12, 18, 21, 22 — лише заголовки секці
 ## 3. Лист Approved / Welcome
 
 Є, і **спрацьовує двічі** при зміні ролі на `active_member`:
-- плагін: «Welcome to ProPerx Alliance — Set Your Password» (HTML, посилання на пароль WordPress);
+- плагін: «Welcome to ProPerX Alliance — Set Your Password» (HTML, посилання на пароль WordPress);
 - тема (`functions.php`, хук `set_user_role`): «Your Membership Application Has Been Approved!» (текст, без наступних кроків).
 
 Портал ці листи не надсилає, а посилання веде на WordPress, не на портал.
@@ -78,7 +78,7 @@ HTML-блоки 4, 10, 12, 18, 21, 22 — лише заголовки секці
 
 ## 5. Плагіни
 
-Активні: All-in-One WP Migration 7.113, Classic Editor 1.7.0, Download Monitor 5.3.6 + PRO 1.1.4, Elementor 4.3.6, Elementor Pro 4.3.3, GP Address Autocomplete 1.2.30, GP Better User Activation 1.2.13, Gravity SMTP 2.3.4, ProPerx Membership Roles 1.0.0, Readlyte 1.0.0, Site Kit 1.191.0, Web Accessibility 4.1.4, WP Dummy Content Generator 4.0.0, WP Extra File Types 0.5.2, Yoast SEO 28.8.
+Активні: All-in-One WP Migration 7.113, Classic Editor 1.7.0, Download Monitor 5.3.6 + PRO 1.1.4, Elementor 4.3.6, Elementor Pro 4.3.3, GP Address Autocomplete 1.2.30, GP Better User Activation 1.2.13, Gravity SMTP 2.3.4, ProPerX Membership Roles 1.0.0, Readlyte 1.0.0, Site Kit 1.191.0, Web Accessibility 4.1.4, WP Dummy Content Generator 4.0.0, WP Extra File Types 0.5.2, Yoast SEO 28.8.
 
 Gravity Forms 3.2.1 і add-ons: Stripe 7.0.0, User Registration 5.5.2, Webhooks 1.7.0, Geolocation 1.5.3.
 

@@ -405,8 +405,8 @@ class AgencyRegistrationWizardTest extends TestCase
             ->set('agency.fein', '747654321')
             ->set('agency.agency_npn', '9988776')
             ->call('next')
-            ->assertSee('This FEIN is already registered in the portal. Please contact ProPerx.')
-            ->assertSee('This agency NPN is already registered in the portal. Please contact ProPerx.')
+            ->assertSee('This FEIN is already registered in the portal. Please contact ProPerX.')
+            ->assertSee('This agency NPN is already registered in the portal. Please contact ProPerX.')
             ->assertSet('step', 3);
     }
 
@@ -479,7 +479,7 @@ class AgencyRegistrationWizardTest extends TestCase
             ->set('principal.email', ' Dana@LoneStarBenefits.example ')
             ->call('next')
             ->assertHasErrors('principal.email')
-            ->assertSee('This email is already registered in the portal. Please contact ProPerx.')
+            ->assertSee('This email is already registered in the portal. Please contact ProPerX.')
             ->assertSet('step', 4);
     }
 
@@ -490,7 +490,7 @@ class AgencyRegistrationWizardTest extends TestCase
         $this->fill($this->wizardAt(4), 'principal', self::PRINCIPAL)
             ->call('next')
             ->assertHasErrors('principal.npn')
-            ->assertSee('This NPN is already registered in the portal. Please contact ProPerx.')
+            ->assertSee('This NPN is already registered in the portal. Please contact ProPerX.')
             ->assertSet('step', 4);
     }
 

@@ -1,5 +1,5 @@
 /*
- * ProPerx UI components (docs/specs/member-area.md, section 2), used by the member area and
+ * ProPerX UI components (docs/specs/member-area.md, section 2), used by the member area and
  * meant for the Nova theme later: card with the green title bar, document table, status badge,
  * buttons (primary yellow, secondary white with a border, icon), tabs, filter chips, empty
  * state, form field. Blade: resources/views/components/ppx/*. Tokens: public/portal/tokens.css;

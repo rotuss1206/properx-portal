@@ -149,6 +149,6 @@ class MailBrandingTest extends TestCase
 
     public function test_app_name_defaults_to_the_portal_name(): void
     {
-        $this->assertStringContainsString("env('APP_NAME', 'ProPerx Member Portal')", file_get_contents(config_path('app.php')));
+        $this->assertStringContainsString("env('APP_NAME', 'ProPerX Member Portal')", file_get_contents(config_path('app.php')));
     }
 }

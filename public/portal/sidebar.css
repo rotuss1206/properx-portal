@@ -1,5 +1,5 @@
 /*
- * ProPerx sidebar, shared by Nova (markup: resources/js/nova/sidebar.js, layout rules:
+ * ProPerX sidebar, shared by Nova (markup: resources/js/nova/sidebar.js, layout rules:
  * resources/css/nova/sidebar.css) and the member area (resources/views/components/member/
  * sidebar.blade.php). Same classes in both; colours and fonts from public/portal/tokens.css.
  * Collapsed state: html.ppx-sidebar-collapsed (localStorage "ppx-sidebar-collapsed").

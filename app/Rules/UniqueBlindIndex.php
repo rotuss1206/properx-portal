@@ -33,7 +33,7 @@ final class UniqueBlindIndex implements ValidationRule
             ->exists();
 
         if ($exists) {
-            $fail('This :attribute is already registered in the portal. Please contact ProPerx.');
+            $fail('This :attribute is already registered in the portal. Please contact ProPerX.');
         }
     }
 }

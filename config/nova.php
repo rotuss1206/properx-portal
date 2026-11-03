@@ -35,7 +35,7 @@ return [
     |
     */
 
-    'name' => env('NOVA_APP_NAME', 'ProPerx Alliance'),
+    'name' => env('NOVA_APP_NAME', 'ProPerX Alliance'),
 
     /*
     |--------------------------------------------------------------------------
@@ -177,7 +177,7 @@ return [
         // Placeholder text logo; replace with the client's artwork.
         'logo' => resource_path('images/logo.svg'),
 
-        // ProPerx navy as the primary palette (RGB channels).
+        // ProPerX navy as the primary palette (RGB channels).
         'colors' => [
             '50' => '239, 245, 252',
             '100' => '220, 233, 248',

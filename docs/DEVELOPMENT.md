@@ -208,7 +208,7 @@ HTTP `400` means an invalid or expired signature; `503` means `STRIPE_WEBHOOK_SE
 
 ## Nova sidebar
 
-The left column of every signed-in Nova page is the ProPerx sidebar:
+The left column of every signed-in Nova page is the ProPerX sidebar:
 
 - Items and access: `App\Nova\Menu\SidebarMenu` (`Nova::mainMenu`), per role, each item behind Nova's resource
   authorization or the profile policy. A new Nova resource must be added there to appear in the sidebar.
@@ -242,7 +242,7 @@ shared styles in `public/portal/header.css`, data from `App\Support\PortalHeader
    still exists, and pages still set their title through Inertia's `<Head>` ("<title> - <app name>").
 5. Sign in as `member01@properx.test`, a staff account and on a phone width: the sidebar, the active item, collapse,
    the mobile drawer, the Renewal due card, the header title, search (staff), bell and account menu all work, and
-   the browser console shows no "ProPerx sidebar failed" or "ProPerx header failed" message. If either fails, Nova's
+   the browser console shows no "ProPerX sidebar failed" or "ProPerX header failed" message. If either fails, Nova's
    own menu or header shows instead, so nothing breaks while it is fixed.
 
 ## WordPress connector (properx.org)

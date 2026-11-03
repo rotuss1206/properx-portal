@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>@yield('title') · ProPerx Alliance</title>
+    <title>@yield('title') · ProPerX Alliance</title>
     <style>
         :root { --navy: #1e3a5f; --gold: #c8a24a; --muted: #6b7280; }
         * { box-sizing: border-box; }

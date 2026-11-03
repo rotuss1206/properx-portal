@@ -19,7 +19,7 @@ class DocumentMissingException extends DocumentDownloadException
 
     public function userMessage(): string
     {
-        return 'This document is not available right now. Please contact ProPerx support.';
+        return 'This document is not available right now. Please contact ProPerX support.';
     }
 
     protected function status(): int

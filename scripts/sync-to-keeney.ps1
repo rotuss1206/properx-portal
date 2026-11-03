@@ -327,7 +327,7 @@ $status | ForEach-Object { Write-Host "  $_" }
 $hasApplication = @(Invoke-Git $Target @('ls-tree', '--name-only', 'HEAD', '--', 'app/Nova')).Count -gt 0
 $changes = @(Get-PendingChanges $Target)
 if (-not $hasApplication) {
-    $message = 'Add ProPerx member portal application'
+    $message = 'Add ProPerX member portal application'
 } elseif ($changes.Count -eq 0) {
     Write-Host ''
     Write-Host 'Only line-ending metadata differs: nothing to commit after git add -A.'

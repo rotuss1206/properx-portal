@@ -26,7 +26,7 @@
         </dl>
     @else
         <p>Check that the verification number <code>{{ $code }}</code> was entered exactly as printed on the certificate.
-            If the problem persists, contact ProPerx Alliance.</p>
+            If the problem persists, contact ProPerX Alliance.</p>
     @endif
 
     <div class="footer">Checked {{ now()->toDayDateTimeString() }} UTC. This page confirms membership status only.</div>
