@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\IntakeController;
 use App\Http\Controllers\Api\ServiceAccountController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,13 @@ Route::post('/api/webhooks/stripe', StripeWebhookController::class)
     ->withoutMiddleware('throttle:120,1')
     ->middleware('throttle:stripe-webhook')
     ->name('webhooks.stripe');
+
+// Paid applications from the marketing site, authenticated by their HMAC signature in the
+// controller (it needs the raw body). Off (404) unless INTAKE_ENABLED.
+Route::post('/api/intake/individual', [IntakeController::class, 'individual'])
+    ->withoutMiddleware('throttle:120,1')
+    ->middleware('throttle:intake')
+    ->name('intake.individual');
 
 // Calls from automation authenticated with the API Service key (Spec 3.7, 8).
 Route::middleware('auth.api-key')->prefix('api/service')->name('api.service.')->group(function () {

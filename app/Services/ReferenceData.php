@@ -69,6 +69,7 @@ class ReferenceData
         RoleName::ApiService->value => [
             'webhooks.stripe.handle',
             'members.payment-status.update',
+            'members.intake.create',
             'reminders.dispatch',
         ],
     ];

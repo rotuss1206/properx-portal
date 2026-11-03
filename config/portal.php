@@ -218,6 +218,17 @@ return [
     |
     */
 
+    'intake' => [
+        // POST /api/intake/individual: paid applications from properx.org (Gravity Forms connector,
+        // integrations/wordpress). Off (404) unless enabled.
+        'enabled' => (bool) env('INTAKE_ENABLED', false),
+        'secret' => env('WP_INTAKE_SECRET'),
+        // "Set your password" email to new members; off until the portal is announced to them.
+        'send_invite' => (bool) env('INTAKE_SEND_INVITE', false),
+        'timestamp_tolerance_seconds' => 300,
+        'requests_per_minute' => 60,
+    ],
+
     'registration' => [
         // Off (404) unless enabled: screens 5-6 are still placeholders.
         'enabled' => (bool) env('AGENCY_ENROLLMENT_ENABLED', false),
