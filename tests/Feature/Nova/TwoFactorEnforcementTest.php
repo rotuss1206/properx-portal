@@ -36,13 +36,13 @@ class TwoFactorEnforcementTest extends TestCase
     }
 
     #[DataProvider('staffRoles')]
-    public function test_staff_without_two_factor_is_sent_to_user_security(Role $role): void
+    public function test_staff_without_two_factor_is_sent_to_the_setup(Role $role): void
     {
         $this->actingAs($this->staff($role, withTwoFactor: false));
 
-        $this->get('/nova/dashboards/main')->assertRedirect(route('nova.pages.user-security'));
+        $this->get('/nova/dashboards/main')->assertRedirect(route('security.two-factor'));
         $this->getJson('/nova-api/member-profiles')->assertForbidden();
-        $this->get('/nova/user-security')->assertOk();
+        $this->get('/nova/user-security')->assertRedirect(route('security.two-factor'));
     }
 
     #[DataProvider('staffRoles')]
@@ -79,11 +79,11 @@ class TwoFactorEnforcementTest extends TestCase
 
         $this->actingAs($member);
 
-        $this->get('/nova/dashboards/my-membership')->assertRedirect(route('nova.pages.user-security'));
+        $this->get('/nova/dashboards/my-membership')->assertRedirect(route('security.two-factor'));
         $this->getJson('/nova-api/member-profiles')->assertForbidden();
         $this->get(CertificateGeneratorService::downloadUrl($member->memberProfile))
-            ->assertRedirect(route('nova.pages.user-security'));
-        $this->get('/nova/user-security')->assertOk();
+            ->assertRedirect(route('security.two-factor'));
+        $this->get('/nova/user-security')->assertRedirect(route('security.two-factor'));
     }
 
     public function test_members_with_two_factor_get_in(): void
@@ -107,7 +107,7 @@ class TwoFactorEnforcementTest extends TestCase
 
         $this->actingAs($this->staff(Role::ExecutiveDirector, withTwoFactor: false))
             ->get(CertificateGeneratorService::downloadUrl($profile))
-            ->assertRedirect(route('nova.pages.user-security'));
+            ->assertRedirect(route('security.two-factor'));
     }
 
     public function test_login_redirects_to_two_factor_challenge_when_enabled(): void

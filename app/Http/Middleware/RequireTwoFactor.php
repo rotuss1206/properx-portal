@@ -2,15 +2,18 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Security\TwoFactorSetupController;
 use Closure;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Laravel\Nova\Nova;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Every Nova user (staff and members) must enrol in TOTP two-factor authentication
- * before using the portal (KEENEY platform rule, Spec 8).
- * Until then only the User Security page (and what it needs) is reachable.
+ * before using the portal (KEENEY platform rule, Spec 8). Until then, and until they have
+ * acknowledged their recovery codes, people are sent to the setup pages
+ * (App\Http\Controllers\Security\TwoFactorSetupController); only signing out stays open.
  */
 class RequireTwoFactor
 {
@@ -18,8 +21,6 @@ class RequireTwoFactor
      * Paths (relative to the Nova path) that stay reachable during enrolment.
      */
     private const ALLOWED_NOVA_PATHS = [
-        'user-security',
-        'user-security/*',
         'logout',
     ];
 
@@ -34,7 +35,7 @@ class RequireTwoFactor
     {
         $user = $request->user();
 
-        if ($user === null || ! $user->requiresTwoFactor() || $user->hasConfirmedTwoFactor() || $this->isAllowed($request)) {
+        if ($user === null || ! $this->mustFinishSetup($request, $user) || $this->isAllowed($request)) {
             return $next($request);
         }
 
@@ -44,7 +45,16 @@ class RequireTwoFactor
             ], Response::HTTP_FORBIDDEN);
         }
 
-        return redirect()->route('nova.pages.user-security');
+        // Inertia visits leave the Nova app for the setup pages with a full page load.
+        return $request->header('X-Inertia')
+            ? Inertia::location(route('security.two-factor'))
+            : redirect()->route('security.two-factor');
+    }
+
+    private function mustFinishSetup(Request $request, $user): bool
+    {
+        return ($request->hasSession() && $request->session()->get(TwoFactorSetupController::PENDING_CODES_KEY))
+            || ($user->requiresTwoFactor() && ! $user->hasConfirmedTwoFactor());
     }
 
     private function isAllowed(Request $request): bool

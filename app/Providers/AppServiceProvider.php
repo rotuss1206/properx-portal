@@ -52,6 +52,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(config('services.stripe.webhook_requests_per_minute'))->by('stripe|'.$request->ip());
         });
 
+        // Guessing the first code or the password: per person, with a message on the page.
+        RateLimiter::for('two-factor-setup', function (Request $request) {
+            return Limit::perMinute(5)->by('2fa-setup|'.$request->user()?->getKey())->response(
+                fn () => back()->withErrors(['code' => 'Too many attempts. Wait a minute and try again.', 'password' => 'Too many attempts. Wait a minute and try again.'])
+            );
+        });
+
         RateLimiter::for('intake', function (Request $request) {
             return Limit::perMinute(config('portal.intake.requests_per_minute'))->by('intake|'.$request->ip());
         });

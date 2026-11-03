@@ -84,7 +84,7 @@ class MemberAreaTest extends TestCase
     {
         $this->actingAs($this->member(withTwoFactor: false))
             ->get('/member')
-            ->assertRedirect(route('nova.pages.user-security'));
+            ->assertRedirect(route('security.two-factor'));
     }
 
     // Redirects from Nova

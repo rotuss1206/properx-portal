@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             Route::group([], base_path('routes/health.php'));
+            Route::group([], base_path('routes/security.php'));
             Route::middleware('throttle:120,1')->group(base_path('routes/machine.php'));
             Route::group([], base_path('routes/member.php'));
         },

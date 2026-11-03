@@ -186,6 +186,20 @@
 
 .ppx-login__input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15); }
 
+.ppx-login__switch {
+    justify-self: end;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ppx-blue);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ppx-login__switch:hover { text-decoration: underline; }
+
 .ppx-login__hint { margin: 6px 0 0; color: var(--ppx-muted); font-size: 12.5px; line-height: 1.4; }
 
 .ppx-login__error { margin: 6px 0 0; color: var(--ppx-danger); font-size: 12.5px; line-height: 1.4; }

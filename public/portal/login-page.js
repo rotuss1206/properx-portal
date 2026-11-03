@@ -284,6 +284,8 @@
             onInput: function (event) { vm.form[field.name] = event.target.value },
             autofocus: field.autofocus ? '' : null,
             autocomplete: field.autocomplete,
+            inputmode: field.inputmode || null,
+            ref: field.ref || null,
             required: true,
             'aria-invalid': error ? 'true' : null,
             'aria-describedby': [error ? errorId : null, field.hint ? field.id + '-hint' : null].filter(Boolean).join(' ') || null,
@@ -404,6 +406,47 @@
                     }),
                     submitButton(vm, vm.__('Send Password Reset Link'), vm.__('Sending…')),
                 ], [backToSignIn(vm), helpLine()])
+        })
+    }
+
+    // Code at sign-in (Nova.TwoFactorChallenge): Nova's data, attempt() and toggleRecovery().
+    // The refs are the ones Nova's watcher focuses when switching between the two fields.
+    var challenge = Nova.pages['Nova.TwoFactorChallenge']
+
+    if (fits(challenge)) {
+        restyle(challenge, function () {
+            var vm = this
+
+            return card(vm, vm.__('Two-factor Confirmation'), vm.recovery
+                ? 'Enter one of the recovery codes you saved.'
+                : 'Enter the 6-digit code from your authenticator app.', [
+                vm.recovery
+                    ? inputField(vm, {
+                        id: 'recovery_code',
+                        name: 'recovery_code',
+                        type: 'text',
+                        label: vm.__('Recovery Code'),
+                        autocomplete: 'one-time-code',
+                        autofocus: true,
+                        ref: 'recoveryCodeInput',
+                    })
+                    : inputField(vm, {
+                        id: 'code',
+                        name: 'code',
+                        type: 'text',
+                        label: vm.__('Code'),
+                        inputmode: 'numeric',
+                        autocomplete: 'one-time-code',
+                        autofocus: true,
+                        ref: 'codeInput',
+                    }),
+                h('button', {
+                    type: 'button',
+                    class: 'ppx-login__switch',
+                    onClick: function () { vm.toggleRecovery() },
+                }, vm.__(vm.recovery ? 'Use an authentication code' : 'Use a recovery code')),
+                submitButton(vm, 'Sign in', 'Signing in…'),
+            ], [backToSignIn(vm), helpLine()])
         })
     }
 
