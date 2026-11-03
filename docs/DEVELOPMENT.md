@@ -258,6 +258,7 @@ Paid applications on the local WP copy (https://properx-org.local, not in git) r
   stripe listen --all-snapshot --forward-to https://properx-portal.local/api/webhooks/stripe --skip-verify
   ```
 
+- Invites (`INTAKE_SEND_INVITE=true`) are queued: they reach Mailpit (http://localhost:8025) only while `php artisan queue:work` runs. Restart the worker after changing `.env`, and keep one line per key: when a key is repeated, the last one wins.
 - `STRIPE_SECRET` in `.env` lets the queued job read the subscription (`php artisan queue:work`); empty, only the webhook sets the paid period.
 - The page is `https://properx-org.local/?page_id=26` (permalinks are off on the copy); test card 4242 4242 4242 4242.
 

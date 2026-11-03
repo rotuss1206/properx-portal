@@ -42,12 +42,12 @@ class StaffAccountCreated extends Notification implements ShouldQueue
         $minutes = config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
 
         return (new MailMessage)
-            ->subject('Your ProPerx Alliance portal account')
+            ->subject('Your ProPerX Alliance portal account')
             ->greeting('Hello,')
-            ->line('A staff account has been created for you in the ProPerx Alliance member portal.')
+            ->line('A staff account has been created for you in the ProPerX Alliance member portal.')
             ->line('Choose your password to sign in. You will then set up two-factor authentication.')
             ->action('Set your password', $url)
             ->line("The link works once and expires in {$minutes} minutes. After that, use \"Forgot your password?\" on the sign-in page.")
-            ->salutation("Regards,\nProPerx Alliance");
+            ->salutation("Regards,\nProPerX Alliance");
     }
 }

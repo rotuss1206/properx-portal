@@ -10,10 +10,13 @@ use App\Models\IntakeSubmission;
 use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\MemberInvited;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
@@ -127,6 +130,37 @@ class IndividualIntakeTest extends TestCase
         $this->send($this->payload(['entry_id' => '102', 'email' => $member->email, 'npn' => '999', 'stripe_customer_id' => 'cus_Other', 'stripe_subscription_id' => 'sub_Other']))
             ->assertOk()->assertJsonPath('outcome', 'linked');
         Notification::assertNothingSent();
+    }
+
+    public function test_the_invite_follows_the_flag_and_reaches_the_queue_with_a_set_password_link(): void
+    {
+        Notification::fake();
+        config(['portal.intake.send_invite' => false]);
+
+        $this->send($this->payload(['entry_id' => '201', 'email' => 'flag.off@example.test']))->assertOk()->assertJsonPath('outcome', 'created');
+        Notification::assertNothingSent();
+
+        config(['portal.intake.send_invite' => true]);
+
+        $this->send($this->payload(['entry_id' => '202', 'email' => 'flag.on@example.test', 'npn' => '222', 'stripe_customer_id' => 'cus_On', 'stripe_subscription_id' => 'sub_On']))
+            ->assertOk()->assertJsonPath('outcome', 'created');
+
+        $user = User::where('email', 'flag.on@example.test')->first();
+        Notification::assertSentTo($user, MemberInvited::class);
+        Notification::assertSentTimes(MemberInvited::class, 1);
+
+        // Queued, like every email of the portal; the link sets the password and carries no member data.
+        $this->assertInstanceOf(ShouldQueue::class, new MemberInvited);
+
+        $mail = (new MemberInvited)->toMail($user);
+        $html = (string) $mail->render();
+
+        $this->assertSame('Your ProPerX Alliance member portal account', $mail->subject);
+        $this->assertStringContainsString('ProPerX Alliance', $html);
+        $this->assertStringNotContainsString('ProPerx', $html);
+        $this->assertStringContainsString('/nova/password/reset/', $mail->actionUrl);
+        $this->assertTrue(Password::broker()->tokenExists($user, Str::between($mail->actionUrl, '/nova/password/reset/', '?') ?: Str::afterLast($mail->actionUrl, '/')));
+        $this->assertStringNotContainsString('Avery', $html);
     }
 
     public function test_a_wrong_or_missing_signature_gets_401_without_details(): void

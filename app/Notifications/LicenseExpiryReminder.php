@@ -44,12 +44,12 @@ class LicenseExpiryReminder extends Notification implements ShouldQueue
         $preferencesUrl = self::preferencesUrl($this->profile);
 
         return (new MailMessage)
-            ->subject('Action needed: your ProPerx Alliance license information')
+            ->subject('Action needed: your ProPerX Alliance license information')
             ->greeting('Hello,')
             ->line('There is an update about your license on file that needs your attention.')
             ->line('Please sign in to the member portal to review it and, if needed, upload your renewed license document.')
             ->action('Sign in to the member portal', self::profileUrl($this->profile))
-            ->salutation("Regards,\nProPerx Alliance Membership Team")
+            ->salutation("Regards,\nProPerX Alliance Membership Team")
             ->line("To stop these emails, change your notification preferences in the portal: {$preferencesUrl}")
             ->withSymfonyMessage(function (Email $message) use ($preferencesUrl) {
                 $message->getHeaders()->addTextHeader('List-Unsubscribe', "<{$preferencesUrl}>");

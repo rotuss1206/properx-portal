@@ -51,7 +51,7 @@ return [
 
     'from' => [
         'address' => env('KEENEY_MAIL_FROM', 'no-reply@example.com'),
-        'name' => env('KEENEY_MAIL_FROM_NAME', 'ProPerx Alliance'),
+        'name' => env('KEENEY_MAIL_FROM_NAME', 'ProPerX Alliance'),
     ],
 
 ];

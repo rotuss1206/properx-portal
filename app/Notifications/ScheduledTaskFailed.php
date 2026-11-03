@@ -31,7 +31,7 @@ class ScheduledTaskFailed extends Notification
     {
         $message = (new MailMessage)
             ->error()
-            ->subject("[ProPerx portal] Scheduled task failed: {$this->task}")
+            ->subject("[ProPerX portal] Scheduled task failed: {$this->task}")
             ->line("The scheduled task \"{$this->task}\" finished with errors at ".now()->toDayDateTimeString().' (UTC).');
 
         foreach (array_slice($this->errors, 0, 20) as $error) {

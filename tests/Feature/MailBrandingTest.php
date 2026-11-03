@@ -16,7 +16,7 @@ use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
- * Every email carries the ProPerx Alliance brand, never the framework's (a server without
+ * Every email carries the ProPerX Alliance brand, never the framework's (a server without
  * APP_NAME used to send "Laravel" logos and signatures), and no member data in the body.
  */
 class MailBrandingTest extends TestCase
@@ -52,8 +52,8 @@ class MailBrandingTest extends TestCase
     {
         foreach ($rendered as $format => $content) {
             $this->assertStringNotContainsStringIgnoringCase('laravel', $content, "{$format} mentions the framework");
-            $this->assertStringContainsString('ProPerx Alliance', $content, "{$format} lacks the brand");
-            $this->assertStringContainsString('© '.date('Y').' ProPerx Alliance', $content, "{$format} footer");
+            $this->assertStringContainsString('ProPerX Alliance', $content, "{$format} lacks the brand");
+            $this->assertStringContainsString('© '.date('Y').' ProPerX Alliance', $content, "{$format} footer");
         }
 
         // Text logo only: no remote images (blocked by Outlook and many clients).
@@ -77,7 +77,7 @@ class MailBrandingTest extends TestCase
 
         $rendered = $this->render($mail);
         $this->assertBranded($rendered);
-        $this->assertMatchesRegularExpression('/Regards,<br>\s*ProPerx Alliance/', $rendered['html']);
+        $this->assertMatchesRegularExpression('/Regards,<br>\s*ProPerX Alliance/', $rendered['html']);
         $this->assertStringContainsString('/nova/password/reset/', $rendered['html']);
 
         foreach ([$member->email, $member->memberProfile->first_name, $member->memberProfile->last_name] as $value) {
@@ -107,7 +107,7 @@ class MailBrandingTest extends TestCase
         $rendered = $this->render((new LicenseExpiryReminder($profile, ReminderType::Days30))->toMail($member));
 
         $this->assertBranded($rendered);
-        $this->assertStringContainsString('ProPerx Alliance Membership Team', $rendered['html']);
+        $this->assertStringContainsString('ProPerX Alliance Membership Team', $rendered['html']);
 
         foreach ([$member->email, $profile->first_name, $profile->last_name, $profile->npn, $profile->license_number, $profile->license_expires_at->toFormattedDateString()] as $value) {
             $this->assertStringNotContainsString($value, $rendered['html'].$rendered['text']);
@@ -123,7 +123,7 @@ class MailBrandingTest extends TestCase
         $rendered = $this->render($notification->toMail($director));
 
         $this->assertBranded($rendered);
-        $this->assertMatchesRegularExpression('/Regards,<br>\s*ProPerx Alliance/', $rendered['html']);
+        $this->assertMatchesRegularExpression('/Regards,<br>\s*ProPerX Alliance/', $rendered['html']);
         $this->assertStringContainsString("Member profile #{$member->memberProfile->id}", $rendered['html']);
         $this->assertStringNotContainsString($member->memberProfile->last_name, $rendered['html'].$rendered['text']);
     }

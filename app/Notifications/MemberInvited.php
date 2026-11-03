@@ -39,12 +39,12 @@ class MemberInvited extends Notification implements ShouldQueue
         $minutes = config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
 
         return (new MailMessage)
-            ->subject('Your ProPerx Alliance member portal account')
+            ->subject('Your ProPerX Alliance member portal account')
             ->greeting('Hello,')
-            ->line('Your account in the ProPerx Alliance member portal is ready.')
+            ->line('Your account in the ProPerX Alliance member portal is ready.')
             ->line('Choose your password to sign in. You will then set up two-factor authentication.')
             ->action('Set your password', $url)
             ->line("The link works once and expires in {$minutes} minutes. After that, use \"Forgot your password?\" on the sign-in page.")
-            ->salutation("Regards,\nProPerx Alliance");
+            ->salutation("Regards,\nProPerX Alliance");
     }
 }

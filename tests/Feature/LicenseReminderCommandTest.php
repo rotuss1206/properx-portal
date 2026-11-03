@@ -84,7 +84,7 @@ class LicenseReminderCommandTest extends TestCase
         $html = (string) $mail->render();
         $text = (string) app(Markdown::class)->renderText($mail->markdown, $mail->data());
 
-        $this->assertSame('Action needed: your ProPerx Alliance license information', $mail->subject);
+        $this->assertSame('Action needed: your ProPerX Alliance license information', $mail->subject);
         $this->assertStringContainsString('<html', $html);
         $this->assertStringContainsString($preferencesUrl, $html);
         $this->assertStringNotContainsString('<html', $text);

@@ -39,7 +39,7 @@ return [
     */
 
     'brand' => [
-        'name' => 'ProPerx Alliance',
+        'name' => 'ProPerX Alliance',
         'tagline' => 'Member Portal',
         'navy' => '#1e3a5f',
         'button' => '#21579d',
