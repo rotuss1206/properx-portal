@@ -29,7 +29,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 6;
+    private const TEMPLATE_VERSION = 7;
 
     /**
      * @var array<string, string> attribute => human-readable name

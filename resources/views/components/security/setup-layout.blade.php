@@ -19,7 +19,7 @@
 </head>
 <body class="ppx-setup">
     <header class="ppx-setup__top">
-        <img class="ppx-setup__logo" src="{{ asset('portal/img/logo-color.svg') }}" alt="ProPerX Alliance">
+        <img class="ppx-setup__logo" src="{{ asset('portal/img/logo-on-white@2x.png') }}" alt="ProPerX Alliance">
         <form method="POST" action="{{ route('nova.logout') }}">
             @csrf
             <button type="submit" class="ppx-setup__signout">Sign out</button>

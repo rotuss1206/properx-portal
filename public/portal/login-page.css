@@ -53,10 +53,7 @@
     display: inline-flex;
     align-self: flex-start;
     align-items: center;
-    padding: 6px 12px;
-    border-radius: 6px;
-    background: #fff;
-    color: var(--ppx-navy-panel);
+    padding: 6px 0;
 }
 
 .ppx-login__logo-image { display: block; width: auto; height: 60px; }
@@ -394,7 +391,7 @@
     .ppx-login__panel--bottom{
         overflow: hidden;
     }
-    .ppx-login__logo { padding: 4px 10px; }
+    .ppx-login__logo { padding: 4px 0; }
 
     .ppx-login__logo-image { height: 48px; }
 
@@ -416,9 +413,11 @@
 @media (max-width: 600px) {
     .ppx-login__panel--top { gap: 14px 16px; }
 
-    .ppx-login__logo { padding: 4px 8px; }
+    .ppx-login__logo { padding: 4px 0; }
 
     .ppx-login__logo-image { height: 42px; }
+
+    .ppx-login__intro { flex-basis: 100%; }
 
     .ppx-login__tagline { font-size: 17px; }
 

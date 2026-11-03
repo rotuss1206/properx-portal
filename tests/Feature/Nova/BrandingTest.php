@@ -27,6 +27,36 @@ class BrandingTest extends TestCase
         $this->assertStringContainsString('Enter the email address this message was sent to', (string) file_get_contents(public_path('portal/login-page.js')));
     }
 
+    public function test_the_white_logo_is_the_colour_logo_repainted(): void
+    {
+        $paths = fn (string $file) => preg_match_all('/\sd="([^"]+)"/', (string) file_get_contents(public_path('portal/img/'.$file)), $found) ? $found[1] : [];
+
+        $this->assertNotSame([], $paths('logo-white.svg'));
+        $this->assertSame($paths('logo-color.svg'), $paths('logo-white.svg'));
+
+        $white = (string) file_get_contents(public_path('portal/img/logo-white.svg'));
+        preg_match_all('/fill="([^"]+)"/', $white, $fills);
+
+        $this->assertSame(['none', '#FFFFFF'], array_values(array_unique($fills[1])));
+        $this->assertStringNotContainsString('Gradient', $white);
+    }
+
+    public function test_each_screen_uses_the_logo_for_its_background(): void
+    {
+        $this->assertStringContainsString('img/logo-white.svg', (string) file_get_contents(public_path('portal/login-page.js')));
+        $this->assertStringNotContainsString('background', $this->cssRule(public_path('portal/login-page.css'), '.ppx-login__logo'));
+        $this->assertStringContainsString('logo-on-white@2x.png', (string) file_get_contents(resource_path('views/components/security/setup-layout.blade.php')));
+        $this->assertStringContainsString('logo-on-white@2x.png', (string) file_get_contents(resource_path('views/certificates/layout.blade.php')));
+        $this->assertStringContainsString('logo-color.svg', (string) file_get_contents(resource_path('views/join/layout.blade.php')));
+    }
+
+    private function cssRule(string $file, string $selector): string
+    {
+        preg_match('/^'.preg_quote($selector, '/').' \{(.*?)\}/ms', (string) file_get_contents($file), $rule);
+
+        return $rule[1] ?? '';
+    }
+
     public function test_nova_uses_portal_branding(): void
     {
         $this->seedRoles();

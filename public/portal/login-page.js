@@ -120,10 +120,10 @@
         return h('img', { class: 'ppx-login__art', src: artworkUrl, alt: '', 'aria-hidden': 'true' })
     }
 
-    // Full-colour logo for the sign-in page only (Nova's header keeps config nova.brand.logo).
+    // White logo: the panel is navy, and the package's "Wht on Blue" brings a different blue.
     function logo() {
         return h('span', { class: 'ppx-login__logo' }, [
-            h('img', { class: 'ppx-login__logo-image', src: assetUrl('img/logo-color.svg'), alt: 'ProPerX Alliance' }),
+            h('img', { class: 'ppx-login__logo-image', src: assetUrl('img/logo-white.svg'), alt: 'ProPerX Alliance' }),
         ])
     }
 

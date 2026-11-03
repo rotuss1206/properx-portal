@@ -28,7 +28,7 @@
 </head>
 <body>
 <main class="card">
-    <img class="brand" src="{{ asset('portal/img/logo-color.svg') }}" alt="ProPerX Alliance">
+    <img class="brand" src="{{ asset('portal/img/logo-on-white@2x.png') }}" alt="ProPerX Alliance">
     @yield('content')
 </main>
 </body>
