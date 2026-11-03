@@ -45,7 +45,12 @@ class SendMembersToMemberArea
             return $next($request);
         }
 
-        $target = route('member.dashboard');
+        $novaPath = trim(Nova::path(), '/');
+
+        // Tax documents have their place in the member area: the dashboard's Documents tab.
+        $target = $request->is("{$novaPath}/resources/tax-documents", "{$novaPath}/resources/tax-documents/*")
+            ? MemberMenu::movedUrl($request->user(), 'tax-documents')
+            : route('member.dashboard');
 
         // An Inertia visit inside Nova must leave the Nova app for a full page load.
         return $request->header('X-Inertia') ? Inertia::location($target) : redirect($target);

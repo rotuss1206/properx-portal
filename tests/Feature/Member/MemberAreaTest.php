@@ -94,13 +94,26 @@ class MemberAreaTest extends TestCase
         $member = $this->member();
 
         $this->actingAs($member)->get('/nova/dashboards/my-membership')->assertRedirect(route('member.dashboard'));
-        $this->get('/nova/resources/tax-documents')->assertRedirect(route('member.dashboard'));
 
         // Inside the Nova app (Inertia visit): a full page load to /member.
         $version = app(HandleInertiaRequests::class)->version(request());
-        $this->get('/nova/resources/tax-documents', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'])
+        $this->get('/nova/dashboards/my-membership', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'])
             ->assertStatus(409)
             ->assertHeader('X-Inertia-Location', route('member.dashboard'));
+    }
+
+    public function test_novas_tax_documents_lead_to_the_dashboards_documents_tab_filtered_to_tax(): void
+    {
+        $target = route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']);
+
+        $this->actingAs($this->member())->get('/nova/resources/tax-documents')->assertRedirect($target);
+        $this->get('/nova/resources/tax-documents/1')->assertRedirect($target);
+
+        // The sidebar's link is an Inertia visit.
+        $version = app(HandleInertiaRequests::class)->version(request());
+        $this->get('/nova/resources/tax-documents', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'])
+            ->assertStatus(409)
+            ->assertHeader('X-Inertia-Location', $target);
     }
 
     public function test_security_and_signing_out_stay_in_nova(): void
