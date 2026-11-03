@@ -44,9 +44,7 @@
 .ppx-sidebar__logo {
     display: inline-flex;
     align-items: center;
-    padding: 5px 10px;
-    border-radius: 8px;
-    background: #fff;
+    border-radius: 4px;
 }
 
 .ppx-sidebar__logo-image { display: block; width: auto; height: 34px; }

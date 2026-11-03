@@ -12,7 +12,7 @@
                font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f3f4f6; color: #1f2937; }
         .card { width: 100%; max-width: 520px; background: #fff; border-radius: 12px; border-top: 6px solid var(--navy);
                 box-shadow: 0 10px 30px rgba(15, 23, 42, .08); padding: 32px; }
-        .brand { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--navy); font-weight: 600; }
+        .brand { display: block; width: auto; height: 44px; }
         h1 { font-size: 22px; margin: 8px 0 24px; }
         .status { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 8px; font-weight: 600; margin-bottom: 20px; }
         .status .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
@@ -28,7 +28,7 @@
 </head>
 <body>
 <main class="card">
-    <div class="brand">ProPerx Alliance</div>
+    <img class="brand" src="{{ asset('portal/img/logo-color.svg') }}" alt="ProPerX Alliance">
     @yield('content')
 </main>
 </body>

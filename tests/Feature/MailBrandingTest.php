@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ReminderType;
 use App\Enums\Role;
 use App\Notifications\LicenseExpiryReminder;
+use App\Notifications\MemberInvited;
 use App\Notifications\ScheduledTaskFailed;
 use App\Notifications\StaffAccountCreated;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -57,8 +58,26 @@ class MailBrandingTest extends TestCase
         }
 
         // Text logo only: no remote images (blocked by Outlook and many clients).
-        $this->assertDoesNotMatchRegularExpression('/<img\b/i', $rendered['html']);
+        // The only image is the embedded logo: nothing loads from outside.
+        $this->assertSame(1, preg_match_all('/<img\b/i', $rendered['html']));
+        $this->assertStringContainsString('src="cid:properx-logo"', $rendered['html']);
+        $this->assertStringContainsString('alt="ProPerX Alliance"', $rendered['html']);
         $this->assertStringContainsString('#21579d', $rendered['html']); // Nova palette, inlined
+    }
+
+    public function test_the_logo_travels_inside_the_message(): void
+    {
+        config(['mail.default' => 'array']);
+        $member = $this->member(withTwoFactor: false);
+
+        $member->notify(new MemberInvited);
+
+        $sent = app('mailer')->getSymfonyTransport()->messages()->last()->getOriginalMessage();
+        $inline = collect($sent->getAttachments())->first(fn ($part) => $part->getDisposition() === 'inline');
+
+        $this->assertNotNull($inline);
+        $this->assertSame(file_get_contents(public_path('portal/img/logo-color@2x.png')), $inline->getBody());
+        $this->assertSame('image/png', $inline->getMediaType().'/'.$inline->getMediaSubtype());
     }
 
     public function test_password_reset_email_is_branded_and_has_no_member_data(): void

@@ -123,7 +123,7 @@
     // Full-colour logo for the sign-in page only (Nova's header keeps config nova.brand.logo).
     function logo() {
         return h('span', { class: 'ppx-login__logo' }, [
-            h('img', { class: 'ppx-login__logo-image', src: assetUrl('img/properx-alliance-logo.png'), alt: 'ProPerx Alliance' }),
+            h('img', { class: 'ppx-login__logo-image', src: assetUrl('img/logo-color.svg'), alt: 'ProPerx Alliance' }),
         ])
     }
 

@@ -12,7 +12,8 @@
         body { margin: 0; font-family: 'Certificate Sans', sans-serif; color: #1f2937; }
         .frame { position: absolute; top: 22pt; left: 22pt; width: 736pt; height: 556pt; border: 5pt double #1e3a5f; }
         .inner { position: absolute; top: 6pt; left: 6pt; width: 722pt; height: 542pt; border: 0.75pt solid #c8a24a; text-align: center; }
-        .org { margin-top: 34pt; font-size: 11pt; letter-spacing: 4pt; text-transform: uppercase; color: #1e3a5f; }
+        .org { margin-top: 22pt; }
+        .org img { width: 170pt; height: auto; }
         h1 { font-size: 30pt; margin: 10pt 0 4pt; color: #1e3a5f; font-weight: normal; }
         .lead { font-size: 11pt; color: #4b5563; }
         .name { font-size: 26pt; font-weight: bold; margin: 16pt 0 2pt; color: #111827; }
@@ -33,7 +34,7 @@
 <body>
 <div class="frame">
     <div class="inner">
-        <div class="org">ProPerx Alliance</div>
+        <div class="org"><img src="{{ $logoImage }}" alt="ProPerX Alliance"></div>
         <h1>Certificate of Membership</h1>
         <div class="lead">This certifies that</div>
 

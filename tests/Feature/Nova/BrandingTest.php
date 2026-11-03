@@ -20,7 +20,7 @@ class BrandingTest extends TestCase
             ->viewData('page')['props']['novaConfig'];
 
         $this->assertSame('ProPerx Alliance', config('nova.name'));
-        $this->assertStringContainsString('aria-label="ProPerx Alliance"', $config['logo']);
+        $this->assertStringContainsString('aria-label="ProPerX Alliance"', $config['logo']);
         $this->assertSame('45, 108, 186', $config['brandColors']['500']);
         $this->assertStringContainsString('--colors-primary-500: 45, 108, 186', $config['brandColorsCSS']);
 

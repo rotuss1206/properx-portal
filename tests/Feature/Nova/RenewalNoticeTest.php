@@ -99,7 +99,7 @@ class RenewalNoticeTest extends TestCase
         $this->assertSame(76, $sidebar['renewal']['days']);
         $this->assertSame($member->memberProfile->fullName(), $sidebar['user']['name']);
         $this->assertSame('#'.$member->memberProfile->member_number, $sidebar['user']['caption']);
-        $this->assertStringEndsWith('portal/img/logo-portal.png', $sidebar['logo']);
+        $this->assertStringEndsWith('portal/img/logo-white.png', $sidebar['logo']);
 
         $staff = PortalSidebar::for($this->staff(Role::ComplianceSpecialist));
         $this->assertNull($staff['renewal']);

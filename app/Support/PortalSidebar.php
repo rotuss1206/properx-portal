@@ -19,7 +19,7 @@ final class PortalSidebar
     public static function for(?User $user): array
     {
         return [
-            'logo' => asset('portal/img/logo-portal.png'),
+            'logo' => asset('portal/img/logo-white.png'),
             'icons' => PortalAsset::url('img/icons.svg'),
             'user' => $user ? self::person($user) : null,
             'renewal' => RenewalNotice::for($user),

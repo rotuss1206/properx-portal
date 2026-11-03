@@ -29,7 +29,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 4;
+    private const TEMPLATE_VERSION = 5;
 
     /**
      * @var array<string, string> attribute => human-readable name
@@ -104,6 +104,7 @@ class CertificateGeneratorService
             'issuedAt' => now(),
             'qrCode' => $this->qrCode($data['verificationUrl']),
             'signatureImage' => $this->signatureImage(),
+            'logoImage' => 'data:image/png;base64,'.base64_encode((string) file_get_contents(resource_path('views/pdf/images/logo-color.png'))),
             'fontPath' => fn (string $file) => self::chrootPath('fonts/'.$file),
         ])
             ->setPaper('letter', 'landscape');

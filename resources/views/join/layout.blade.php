@@ -13,7 +13,7 @@
         body { margin: 0; min-height: 100vh; padding: 24px 16px 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
                background: #f3f4f6; color: #1f2937; line-height: 1.5; }
         .page { max-width: 1100px; margin: 0 auto; }
-        .brand { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--navy); font-weight: 600; }
+        .brand { display: block; width: auto; height: 44px; margin-bottom: 12px; }
         h1 { font-size: 26px; margin: 4px 0 20px; color: #111827; }
         h2 { font-size: 20px; margin: 0 0 4px; color: #111827; }
         .lead { margin: 0 0 20px; color: #374151; }
@@ -107,7 +107,7 @@
 </head>
 <body>
 <div class="page">
-    <div class="brand">ProPerx Alliance</div>
+    <img class="brand" src="{{ asset('portal/img/logo-color.svg') }}" alt="ProPerX Alliance">
     <h1>Enroll your agency</h1>
 
     {{ $slot }}
