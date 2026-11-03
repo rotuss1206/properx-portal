@@ -245,6 +245,21 @@ shared styles in `public/portal/header.css`, data from `App\Support\PortalHeader
    the browser console shows no "ProPerx sidebar failed" or "ProPerx header failed" message. If either fails, Nova's
    own menu or header shows instead, so nothing breaks while it is fixed.
 
+## WordPress connector (properx.org)
+
+Paid applications on the local WP copy (https://properx-org.local, not in git) reach the portal through `integrations/wordpress/properx-portal-connector.php`. Rules: `CLAUDE.md`, "WordPress site"; audit and log of changes: `docs/wordpress/`.
+
+- Portal `.env`: `INTAKE_ENABLED=true`, `WP_INTAKE_SECRET=<random>`. WP `wp-config.php`: `PROPERX_PORTAL_URL`, `PROPERX_PORTAL_SECRET` (the same value), `PROPERX_PORTAL_FORM_ID`, `WP_ENVIRONMENT_TYPE=local`.
+- After changing the plugin, copy it to `wp-content/mu-plugins/` of the copy.
+- Without a webhook, form 1 stops at "Processing" and nothing is sent. Run the Stripe CLI twice, one terminal per site, and put the printed `whsec_...` both in Forms > Settings > Stripe (Test Signing Secret) and in `.env` (`STRIPE_WEBHOOK_SECRET`):
+
+  ```bash
+  stripe listen --forward-to "https://properx-org.local/?callback=gravityformsstripe" --skip-verify
+  stripe listen --forward-to https://properx-portal.local/api/webhooks/stripe --skip-verify
+  ```
+
+- The page is `https://properx-org.local/?page_id=26` (permalinks are off on the copy); test card 4242 4242 4242 4242.
+
 ## Member area (/member)
 
 The new member area (plan: `docs/specs/member-area.md`) is Blade and Livewire 4 under `/member`, separate from
