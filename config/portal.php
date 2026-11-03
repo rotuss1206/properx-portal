@@ -67,8 +67,8 @@ return [
     | Member area (/member)
     |--------------------------------------------------------------------------
     |
-    | The Blade + Livewire area that replaces Nova for the Member role. Off until it is
-    | finished; members keep using Nova meanwhile. Each default below is one line to change.
+    | The Blade + Livewire area that replaces Nova for the Member role. Off by default;
+    | members use Nova while it is off. Each default below is one line to change.
     |
     */
 

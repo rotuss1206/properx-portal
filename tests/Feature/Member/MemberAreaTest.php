@@ -136,7 +136,7 @@ class MemberAreaTest extends TestCase
         $this->assertMatchesRegularExpression('#href="'.preg_quote(route('member.certificate'), '#').'"\s+class="ppx-sidebar__item is-active"\s+aria-current="page"#', $response->getContent());
         $this->assertSame(1, substr_count($response->getContent(), 'aria-current="page"'));
         $response->assertSee('#'.$member->memberProfile->member_number);
-        $response->assertSee('Coming soon');
+        $response->assertSee('This section is coming soon');
         $response->assertSee('ppx-header__search', false); // member_area.header_search
         $response->assertSee('action="'.route('nova.logout').'"', false);
         $response->assertSee('href="'.route('nova.pages.user-security').'"', false);
