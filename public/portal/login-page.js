@@ -309,6 +309,7 @@
                     }, [revealIcon(shown)]),
                 ])
                 : input,
+            hint,
             errorText(errorId, error),
         ])
     }
