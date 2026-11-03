@@ -160,6 +160,15 @@ The whole interface, the member area and Nova, must end up looking like the mock
   - `php artisan app:api-key:rotate [--overlap=24]`: quarterly rotation; prints the new key once, the old key expires after the overlap window; audited as `api_key_rotated`.
 - Other stateless endpoints (webhooks, service API) live in `routes/machine.php`, rate limited 120/min per IP.
 
+## WordPress site (properx.org)
+
+- Local copy of the live site (WordPress, Gravity Forms, Stripe, Elementor): `D:\WORK\OSPanel6\home\properx-org.local`, https://properx-org.local. It is NOT in git and it is a copy of production.
+- Never call the live properx.org or Stripe Live. The copy stays in Stripe Test mode with outgoing email disabled (Disable Emails in must-use mode, because Gravity SMTP also replaces `wp_mail()`).
+- Settings changes in WP admin on the copy must be mirrored on production manually by Kevin, so every such change is logged in [docs/wordpress/changes.md](docs/wordpress/changes.md) with exact click-path steps. Audit: [docs/wordpress/audit.md](docs/wordpress/audit.md); production rollout: [docs/wordpress/deploy.md](docs/wordpress/deploy.md).
+- Integration code (mu-plugin) lives in this repository under `integrations/wordpress/` and is copied to the WP site. `docs/wordpress` and `integrations/wordpress` never go to the KEENEY clone (`sync-to-keeney.ps1` copies an allow-list only); the endpoint code in `app/` does.
+- Portal URL and secret for WP go in `wp-config.php` constants, never in the WP database.
+- Local only: OSPanel's self-signed certificate; relaxing TLS verification is allowed only when `WP_ENVIRONMENT_TYPE=local`.
+
 ## Local environment (Windows, OSPanel 6)
 
 `php`, `composer` and `git` are not on PATH, so call them by full path:
