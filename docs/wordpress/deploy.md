@@ -31,11 +31,7 @@ In the portal environment, set `INTAKE_ENABLED=true` and restart.
 
 Leave `INTAKE_SEND_INVITE` unset for now. While it is off, new members get no "set your password" email from the portal. Turn it on when the portal is announced to members.
 
-Check from the properx.org server. An unsigned request must answer 401 (404 means the flag is off; a timeout means the WAF):
-
-```
-curl -s -o /dev/null -w "%{http_code}\n" -X POST https://shn-portal.keeney.cloud/api/intake/individual
-```
+The connection is tested in step 5, with a button.
 
 ## 5. Install the plugin on properx.org
 
@@ -49,13 +45,25 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST https://shn-portal.keeney.cloud
    ```
 
 3. Make sure `WP_ENVIRONMENT_TYPE` is **not** `local`. It is fine if it is absent. `local` turns off TLS verification.
-4. Plugins > Must-Use should list "ProPerx Portal Connector". A yellow notice in wp-admin means a constant is missing.
+4. Plugins > Must-Use should list "ProPerX Portal Connector". A yellow notice in wp-admin means a constant is missing.
+5. **Forms > Settings > ProPerX Portal > Test connection.** It sends a signed request that changes nothing and says in plain words what is wrong:
+
+   | Result | Meaning |
+   |---|---|
+   | Connected (200) | All good |
+   | 401 | `PROPERX_PORTAL_SECRET` differs from `WP_INTAKE_SECRET`, or the server clock is off |
+   | 403 | The WAF blocks the request (step 3) |
+   | 404 | `INTAKE_ENABLED` is off, or the URL is wrong (step 4) |
+   | No answer within 15 seconds | Firewall or network |
+
+   Without shell access this button is all you need. WP-CLI is an alternative, not a requirement.
 
 Before going on, check these on the live site:
 
 - **WP-Cron runs.** The plugin queues deliveries with it (the site has no Action Scheduler). If `DISABLE_WP_CRON` is set, a server cron must call `wp-cron.php` every few minutes.
 - **The Gravity Forms Stripe webhook is active** in Live mode (Forms > Settings > Stripe, signing secret filled in). Without it, payments stay in "Processing" and nothing is sent.
 - **The portal's own Stripe webhook** (`/api/webhooks/stripe`) receives Live events with `STRIPE_WEBHOOK_SECRET` set. It sets the paid period and payment status.
+- **`STRIPE_SECRET` in the portal environment** (optional but recommended): a Stripe **restricted key** with read access to Subscriptions only. After each application a queued job reads the subscription, so the paid period is right even if a webhook is missed. While it is empty, the job is skipped and only webhooks set the period.
 
 ## 6. One live test
 
@@ -91,14 +99,15 @@ Everything is in the entry's notes (Forms > Entries > the entry). They hold no p
 
 Retries: 5 min, 15 min, 1 h, 3 h, 6 h, 12 h (about 22 hours). After that, resend by hand:
 
-- **One entry:** the entry's side panel, "ProPerx Portal" box, **Resend to portal**.
-- **Several entries:** `wp properx-portal send --form=1 --since=YYYY-MM-DD`
+- **One entry:** the entry's side panel, "ProPerX Portal" box, **Resend to portal**.
+- **Several entries:** Forms > Entries, tick the entries, Bulk actions > **Resend to portal**.
+- **Alternative with shell access:** `wp properx-portal send --form=1 --since=YYYY-MM-DD`
 
 Repeats are safe: the portal answers a known entry with the stored result and creates nothing new.
 
 ## 8. Optional: send existing paid applications
 
-Dry run first. It prints entry IDs only and changes nothing:
+In Forms > Entries, filter to the paid entries, tick them and use Bulk actions > **Resend to portal**. Or, with shell access, use WP-CLI. Dry run first; it prints entry IDs only and changes nothing:
 
 ```
 wp properx-portal send --form=1 --dry-run
@@ -110,7 +119,7 @@ Then, once the list looks right:
 wp properx-portal send --form=1
 ```
 
-Only active (not trashed) entries with payment status Active or Paid are sent. Entries already sent are skipped. Check that test entries are trashed first, because every entry on the list becomes a portal member.
+Only active (not trashed) entries with payment status Active or Paid are sent. WP-CLI skips entries already sent; the bulk action sends them again, which is safe because the portal answers a known entry with the stored result. Check that test entries are trashed first, because every entry on the list becomes a portal member.
 
 ## Settings to repeat on production
 
