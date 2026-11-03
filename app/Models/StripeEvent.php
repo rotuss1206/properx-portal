@@ -10,13 +10,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * A processed Stripe webhook event (idempotency record).
  */
-#[Fillable(['id', 'type', 'member_profile_id', 'outcome', 'amount', 'currency', 'plan_name'])]
+#[Fillable(['id', 'type', 'member_profile_id', 'stripe_customer_id', 'pending_status', 'pending_paid_through_at', 'event_created_at', 'outcome', 'amount', 'currency', 'plan_name'])]
 #[WithoutIncrementing]
 class StripeEvent extends Model
 {
     public const UPDATED_AT = null;
 
     protected $keyType = 'string';
+
+    protected function casts(): array
+    {
+        return [
+            'pending_paid_through_at' => 'datetime',
+            'event_created_at' => 'datetime',
+        ];
+    }
 
     /**
      * @return BelongsTo<MemberProfile, $this>

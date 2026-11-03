@@ -25,6 +25,11 @@ Route::post('/api/intake/individual', [IntakeController::class, 'individual'])
     ->middleware('throttle:intake')
     ->name('intake.individual');
 
+Route::post('/api/intake/ping', [IntakeController::class, 'ping'])
+    ->withoutMiddleware('throttle:120,1')
+    ->middleware('throttle:intake')
+    ->name('intake.ping');
+
 // Calls from automation authenticated with the API Service key (Spec 3.7, 8).
 Route::middleware('auth.api-key')->prefix('api/service')->name('api.service.')->group(function () {
     Route::get('/whoami', ServiceAccountController::class)->name('whoami');

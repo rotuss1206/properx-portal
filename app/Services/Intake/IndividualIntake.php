@@ -3,11 +3,14 @@
 namespace App\Services\Intake;
 
 use App\Enums\Role;
+use App\Jobs\SyncStripeSubscription;
 use App\Models\AuditLog;
 use App\Models\IntakeSubmission;
 use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\MemberInvited;
+use App\Services\Stripe\StripeWebhookHandler;
+use App\Services\Stripe\SubscriptionReader;
 use App\Support\UsStates;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +20,14 @@ use Illuminate\Support\Str;
  * Turns a paid individual application from the marketing site into a member. Each source + entry
  * is processed once; a repeat gets the stored result. An existing account is linked: only blank
  * fields are filled, anything that differs stays as it is and its field name goes to the audit
- * log. paid_through_at and payment_status stay with the Stripe webhook.
+ * log. The paid period and payment status come from Stripe: events that arrived before the member
+ * are applied now, and a queued job reads the subscription from the Stripe API.
  */
 class IndividualIntake
 {
     public const SOURCE = 'properx.org';
+
+    public function __construct(private StripeWebhookHandler $stripeEvents) {}
 
     /** Profile fields filled from the application, compared when the member already exists. */
     private const PROFILE_FIELDS = ['first_name', 'last_name', 'phone', 'address', 'firm_name', 'npn', 'license_state', 'license_type', 'license_expires_at'];
@@ -53,6 +59,13 @@ class IndividualIntake
             });
         } catch (UniqueConstraintViolationException) {
             return $this->submission($entryId)->result;
+        }
+
+        $profileId = $result['member_profile_id'];
+
+        if ($profileId !== null && $result['outcome'] !== 'conflict' && SubscriptionReader::isConfigured()
+            && filled(MemberProfile::find($profileId)?->stripe_subscription_id)) {
+            SyncStripeSubscription::dispatch($profileId);
         }
 
         if ($invite !== null && config('portal.intake.send_invite')) {
@@ -127,6 +140,7 @@ class IndividualIntake
         $profile->user()->associate($user);
         $conflicts = array_merge($conflicts, $this->fillStripeIds($profile, $data));
         $profile->save();
+        $this->stripeEvents->applyPendingEvents($profile, $serviceAccount);
 
         AuditLog::record('member_intake_'.$outcome, $profile, $serviceAccount, array_filter([
             'source' => self::SOURCE,
@@ -172,6 +186,7 @@ class IndividualIntake
 
         $conflicts = array_merge($conflicts, $this->fillStripeIds($profile, $data));
         $profile->save();
+        $this->stripeEvents->applyPendingEvents($profile, $serviceAccount);
 
         AuditLog::record('member_intake_linked', $profile, $serviceAccount, array_filter([
             'source' => self::SOURCE,

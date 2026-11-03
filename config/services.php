@@ -14,9 +14,11 @@ return [
     |
     */
 
-    // Membership payment status webhooks (Spec 7). Only the signing secret is needed:
-    // the portal never calls the Stripe API or takes payments.
+    // Membership payment status webhooks (Spec 7). The portal takes no payments. The secret key
+    // (a restricted read-only key is enough) is used only to read a new member's subscription
+    // after a paid application (App\Jobs\SyncStripeSubscription).
     'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'webhook_tolerance' => 300,
         // Per IP. Higher than the rest of the machine API (120): Stripe sends bursts,

@@ -51,7 +51,7 @@ class StripeWebhookHandler
 
                 [$outcome, $profile] = $this->apply($event, $serviceAccount);
 
-                $record->update(['outcome' => $outcome, 'member_profile_id' => $profile?->getKey()] + $this->paymentDetails($event));
+                $record->update(['outcome' => $outcome, 'member_profile_id' => $profile?->getKey()] + $this->paymentDetails($event) + ($outcome === 'unmatched' ? $this->pendingFacts($event) : []));
                 AuditLog::record('stripe_event_processed', $profile, $serviceAccount);
 
                 return $outcome;
@@ -87,16 +87,22 @@ class StripeWebhookHandler
             $profile->stripe_customer_id = $customerId;
         }
 
+        return $this->applyFacts($profile, $this->statusFor($event), $this->paidThroughFor($event), Carbon::createFromTimestamp($event->created), $serviceAccount);
+    }
+
+    /**
+     * Applies what an event (or the Stripe API) says about a member's payment.
+     *
+     * @return array{0: string, 1: MemberProfile}
+     */
+    public function applyFacts(MemberProfile $profile, ?PaymentStatus $status, ?Carbon $paidThrough, Carbon $occurredAt, User $serviceAccount): array
+    {
         // The paid period only moves forward, whatever order the events arrive in.
-        $paidThrough = $this->paidThroughFor($event);
         $extended = $paidThrough !== null && ($profile->paid_through_at === null || $paidThrough->gt($profile->paid_through_at));
 
         if ($extended) {
             $profile->paid_through_at = $paidThrough;
         }
-
-        $status = $this->statusFor($event);
-        $occurredAt = Carbon::createFromTimestamp($event->created);
 
         if ($profile->payment_event_at !== null && $occurredAt->lt($profile->payment_event_at)) {
             $profile->save(); // keep a newly linked customer id and a later paid period
@@ -120,6 +126,53 @@ class StripeWebhookHandler
         AuditLog::record('payment_status_changed', $profile, $serviceAccount, ['from' => $from?->value, 'to' => $status->value]);
 
         return ['updated', $profile];
+    }
+
+    /**
+     * Applies the events that arrived for this customer before the member existed (or before the
+     * customer id was known), oldest first. Called when a paid application links the customer.
+     */
+    public function applyPendingEvents(MemberProfile $profile, User $serviceAccount): void
+    {
+        if (blank($profile->stripe_customer_id)) {
+            return;
+        }
+
+        $events = StripeEvent::query()
+            ->where('outcome', 'unmatched')
+            ->where('stripe_customer_id', $profile->stripe_customer_id)
+            ->orderBy('event_created_at')
+            ->get();
+
+        foreach ($events as $event) {
+            $this->applyFacts(
+                $profile,
+                $event->pending_status === null ? null : PaymentStatus::from($event->pending_status),
+                $event->pending_paid_through_at === null ? null : Carbon::parse($event->pending_paid_through_at),
+                Carbon::parse($event->event_created_at),
+                $serviceAccount,
+            );
+
+            $event->update(['outcome' => 'replayed', 'member_profile_id' => $profile->getKey()]);
+            AuditLog::record('stripe_event_processed', $profile, $serviceAccount);
+        }
+    }
+
+    /**
+     * What an unmatched event says, kept for applyPendingEvents(). Ids, enum values and dates only.
+     *
+     * @return array<string, mixed>
+     */
+    private function pendingFacts(Event $event): array
+    {
+        $customerId = $event->data->object->customer ?? null;
+
+        return [
+            'stripe_customer_id' => is_string($customerId) ? $customerId : null,
+            'pending_status' => $this->statusFor($event)?->value,
+            'pending_paid_through_at' => $this->paidThroughFor($event),
+            'event_created_at' => Carbon::createFromTimestamp($event->created),
+        ];
     }
 
     private function statusFor(Event $event): ?PaymentStatus

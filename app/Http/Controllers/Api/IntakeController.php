@@ -74,6 +74,20 @@ class IntakeController extends Controller
         return response()->json($intake->handle($validator->validated(), $serviceAccount));
     }
 
+    /**
+     * The connector's "Test connection" button: a signed request that changes nothing.
+     */
+    public function ping(Request $request): JsonResponse
+    {
+        abort_unless(config('portal.intake.enabled'), Response::HTTP_NOT_FOUND);
+
+        if (! $this->signatureIsValid($request)) {
+            return response()->json(['error' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
     private function signatureIsValid(Request $request): bool
     {
         $secret = (string) config('portal.intake.secret');

@@ -254,10 +254,11 @@ Paid applications on the local WP copy (https://properx-org.local, not in git) r
 - Without a webhook, form 1 stops at "Processing" and nothing is sent. Run the Stripe CLI twice, one terminal per site, and put the printed `whsec_...` both in Forms > Settings > Stripe (Test Signing Secret) and in `.env` (`STRIPE_WEBHOOK_SECRET`):
 
   ```bash
-  stripe listen --forward-to "https://properx-org.local/?callback=gravityformsstripe" --skip-verify
-  stripe listen --forward-to https://properx-portal.local/api/webhooks/stripe --skip-verify
+  stripe listen --all-snapshot --forward-to "https://properx-org.local/?callback=gravityformsstripe" --skip-verify
+  stripe listen --all-snapshot --forward-to https://properx-portal.local/api/webhooks/stripe --skip-verify
   ```
 
+- `STRIPE_SECRET` in `.env` lets the queued job read the subscription (`php artisan queue:work`); empty, only the webhook sets the paid period.
 - The page is `https://properx-org.local/?page_id=26` (permalinks are off on the copy); test card 4242 4242 4242 4242.
 
 ## Member area (/member)
