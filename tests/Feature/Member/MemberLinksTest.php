@@ -22,15 +22,13 @@ use Tests\TestCase;
 
 /**
  * Nothing in the member area leads to an error: every link on every page reachable from the
- * dashboard opens, for each kind of member. Profile, notification preferences, license
- * documents and the library stay in Nova for now; the other pages not built yet say so and
- * lead back.
+ * dashboard opens, for each kind of member. Profile, certificate, notification preferences,
+ * license documents and the library stay in Nova for now, tax documents lead to the dashboard's
+ * Documents tab; the only page left says it is coming soon and leads back.
  */
 class MemberLinksTest extends TestCase
 {
     use CreatesPortalUsers, RefreshDatabase;
-
-    private const COMING_SOON = ['tax-documents', 'certificate', 'billing'];
 
     protected function setUp(): void
     {
@@ -190,23 +188,38 @@ class MemberLinksTest extends TestCase
         $this->get('/nova/resources/license-documents')->assertRedirect(route('member.dashboard'));
     }
 
-    public function test_only_pages_not_built_yet_say_coming_soon_and_lead_back_to_the_dashboard(): void
+    public function test_only_billing_says_coming_soon_and_leads_back_to_the_dashboard(): void
     {
         $member = $this->member();
         $this->actingAs($member);
 
-        foreach (self::COMING_SOON as $page) {
-            $this->assertSame(route('member.'.$page), $this->menu($member)[$page]);
+        $placeholders = collect($this->menu($member))
+            ->filter(fn (string $url) => str_contains((string) $this->get($url)->getContent(), 'This section is coming soon'))
+            ->keys()
+            ->all();
 
-            $response = $this->get(route('member.'.$page))->assertOk()
-                ->assertSee('This section is coming soon')
-                ->assertSee('Back to dashboard');
+        $this->assertSame(['billing'], $placeholders);
 
-            $this->assertMatchesRegularExpression('#<a\b[^>]*href="'.preg_quote(route('member.dashboard'), '#').'"[^>]*ppx-empty__action#s', $response->getContent());
-        }
+        $response = $this->get(route('member.billing'))->assertOk()->assertSee('Back to dashboard');
+
+        $this->assertMatchesRegularExpression('#<a\b[^>]*href="'.preg_quote(route('member.dashboard'), '#').'"[^>]*ppx-empty__action#s', $response->getContent());
     }
 
-    public function test_profile_notifications_license_documents_and_library_stay_in_nova(): void
+    public function test_tax_documents_lead_to_the_dashboards_documents_tab_filtered_to_tax(): void
+    {
+        $member = $this->withDocumentsAndNotifications($this->member());
+        $url = route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']);
+
+        $this->assertSame($url, $this->menu($member)['tax-documents']);
+
+        $this->actingAs($member)->get(route('member.tax-documents'))->assertRedirect($url);
+        $this->get($url)->assertOk()
+            ->assertSee('All documents')
+            ->assertSee('Tax year')
+            ->assertDontSee('Uploaded ');
+    }
+
+    public function test_profile_certificate_notifications_license_documents_and_library_stay_in_nova(): void
     {
         $member = $this->member();
         $profile = $member->memberProfile->getKey();
@@ -214,6 +227,7 @@ class MemberLinksTest extends TestCase
 
         $expected = [
             'profile' => "/nova/resources/member-profiles/{$profile}",
+            'certificate' => "/nova/resources/member-profiles/{$profile}?section=certificate",
             'notifications' => "/nova/resources/member-profiles/{$profile}/edit?section=notifications",
             'license-documents' => '/nova/resources/license-documents',
             'library' => '/nova/resources/library-documents',

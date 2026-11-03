@@ -10,8 +10,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * Member area pages: the dashboard heading, redirects to the pages that stay in Nova for now
- * and "Coming soon" placeholders for the other menu items. Pages the person may not see
+ * Member area pages: the dashboard heading, redirects to where a page lives for now (Nova or
+ * a dashboard tab) and a "Coming soon" placeholder for the others. Pages the person may not see
  * (e.g. Billing for agency people other than the principal) answer 404.
  */
 class PageController extends Controller
@@ -51,8 +51,8 @@ class PageController extends Controller
     {
         abort_unless(MemberMenu::visible($request->user(), $page), 404);
 
-        if ($novaUrl = MemberMenu::novaUrl($request->user(), $page)) {
-            return redirect($novaUrl);
+        if ($movedUrl = MemberMenu::movedUrl($request->user(), $page)) {
+            return redirect($movedUrl);
         }
 
         return view('member.placeholder', ['page' => $page, 'title' => MemberMenu::label($page)]);

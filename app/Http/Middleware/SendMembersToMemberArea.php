@@ -14,9 +14,9 @@ use Symfony\Component\HttpFoundation\Response;
  * With the member area on (MEMBER_AREA_ENABLED), members opening a Nova page land on
  * /member instead, including right after sign-in (Nova redirects to its initial path).
  * Two-factor setup and the password stay on Nova's User Security page, and signing out is
- * Nova's. So do the pages the member area has not built yet (App\Member\MemberMenu::novaUrl):
- * profile with notification preferences, license documents and the library, for those who
- * may see them. Staff and Nova's API requests are not touched. Part of nova.api_middleware,
+ * Nova's. So do the pages the member area has not built yet (App\Member\MemberMenu::movedUrl):
+ * profile with its certificate and notification preferences, license documents and the
+ * library, for those who may see them. Staff and Nova's API requests are not touched. Part of nova.api_middleware,
  * after RequireTwoFactor.
  */
 class SendMembersToMemberArea

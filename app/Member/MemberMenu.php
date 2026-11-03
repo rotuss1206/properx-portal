@@ -40,7 +40,7 @@ final class MemberMenu
 
         foreach (self::PAGES as $key => [$label, $icon]) {
             if (self::visible($user, $key)) {
-                $url = self::novaUrl($user, $key) ?? route('member.'.$key);
+                $url = self::movedUrl($user, $key) ?? route('member.'.$key);
                 $items[] = ['key' => $key, 'label' => $label, 'icon' => $icon, 'url' => $url, 'active' => $key === $current];
             }
         }
@@ -68,18 +68,21 @@ final class MemberMenu
     }
 
     /**
-     * Pages that stay in Nova until the member area has its own (kept open for members by
-     * SendMembersToMemberArea). Null: the page is the member area's, built or "coming soon".
+     * Where a page lives until the member area has its own: tax documents on the dashboard, the
+     * others in Nova (kept open for members by SendMembersToMemberArea). Null: the page is the
+     * member area's, built or "coming soon".
      */
-    public static function novaUrl(User $user, string $key): ?string
+    public static function movedUrl(User $user, string $key): ?string
     {
         $profile = $user->memberProfile;
         $profilePath = $profile ? '/resources/'.MemberProfileResource::uriKey().'/'.$profile->getKey() : null;
 
         return match (true) {
+            $key === 'tax-documents' => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
             $key === 'license-documents' => Nova::url('/resources/'.LicenseDocumentResource::uriKey()),
             $key === 'library' => Nova::url('/resources/'.LibraryDocumentResource::uriKey()),
             $key === 'profile' && $profilePath !== null => Nova::url($profilePath),
+            $key === 'certificate' && $profilePath !== null => Nova::url($profilePath.'?'.SidebarMenu::SECTION.'=certificate'),
             $key === 'notifications' && $profilePath !== null => Nova::url($profilePath.'/edit?'.SidebarMenu::SECTION.'=notifications'),
             default => null,
         };
