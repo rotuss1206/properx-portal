@@ -45,9 +45,17 @@ class BrandingTest extends TestCase
     {
         $this->assertStringContainsString('img/logo-white.svg', (string) file_get_contents(public_path('portal/login-page.js')));
         $this->assertStringNotContainsString('background', $this->cssRule(public_path('portal/login-page.css'), '.ppx-login__logo'));
-        $this->assertStringContainsString('logo-on-white@2x.png', (string) file_get_contents(resource_path('views/components/security/setup-layout.blade.php')));
-        $this->assertStringContainsString('logo-on-white@2x.png', (string) file_get_contents(resource_path('views/certificates/layout.blade.php')));
+        $this->assertStringContainsString('logo-color.svg', (string) file_get_contents(resource_path('views/components/security/setup-layout.blade.php')));
+        $this->assertStringContainsString('logo-color.svg', (string) file_get_contents(resource_path('views/certificates/layout.blade.php')));
         $this->assertStringContainsString('logo-color.svg', (string) file_get_contents(resource_path('views/join/layout.blade.php')));
+    }
+
+    public function test_the_drawer_artwork_is_anchored_to_the_drawer_not_the_shorter_menu(): void
+    {
+        $css = resource_path('css/nova/sidebar.css');
+
+        $this->assertStringContainsString('position: static', $this->cssRule($css, '.ppx-shell .ppx-drawer .ppx-sidebar--responsive'));
+        $this->assertStringContainsString('bottom: 0', $this->cssRule($css, '.ppx-shell .ppx-drawer .ppx-sidebar--responsive .ppx-sidebar__decor'));
     }
 
     private function cssRule(string $file, string $selector): string
