@@ -68,9 +68,9 @@ final class MemberMenu
     }
 
     /**
-     * Where a page lives until the member area has its own: tax documents on the dashboard, the
-     * others in Nova (kept open for members by SendMembersToMemberArea). Null: the page is the
-     * member area's, built or "coming soon".
+     * Where a page lives until the member area has its own: tax documents on the dashboard,
+     * notification preferences on the profile, the others in Nova (kept open for members by
+     * SendMembersToMemberArea). Null: the page is the member area's, built or "coming soon".
      */
     public static function movedUrl(User $user, string $key): ?string
     {
@@ -81,9 +81,8 @@ final class MemberMenu
             $key === 'tax-documents' => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
             $key === 'license-documents' => Nova::url('/resources/'.LicenseDocumentResource::uriKey()),
             $key === 'library' => Nova::url('/resources/'.LibraryDocumentResource::uriKey()),
-            $key === 'profile' && $profilePath !== null => Nova::url($profilePath),
+            $key === 'notifications' => route('member.profile').'#notifications',
             $key === 'certificate' && $profilePath !== null => Nova::url($profilePath.'?'.SidebarMenu::SECTION.'=certificate'),
-            $key === 'notifications' && $profilePath !== null => Nova::url($profilePath.'/edit?'.SidebarMenu::SECTION.'=notifications'),
             default => null,
         };
     }

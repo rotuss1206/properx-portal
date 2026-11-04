@@ -4,6 +4,7 @@ use App\Http\Controllers\Member\DocumentDownloadController;
 use App\Http\Controllers\Member\LicenseDocumentUploadController;
 use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\Member\PageController;
+use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\Member\SearchController;
 use App\Http\Middleware\EnsureMemberArea;
 use App\Http\Middleware\RequireTwoFactor;
@@ -12,8 +13,8 @@ use Illuminate\Support\Facades\Route;
 
 /*
  * Member area: Members only, behind MEMBER_AREA_ENABLED,
- * two-factor authentication as in Nova. Stage 2: the dashboard (with the license upload and
- * document downloads); the other pages are placeholders.
+ * two-factor authentication as in Nova. Built: the dashboard (with the license upload and
+ * document downloads) and the profile; the other pages lead elsewhere or are placeholders.
  */
 Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class])
     ->prefix('member')
@@ -21,8 +22,17 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
     ->group(function () {
         Route::get('/', [PageController::class, 'dashboard'])->name('dashboard');
 
+        Route::get('profile', [ProfileController::class, 'show'])->name('profile');
+        Route::patch('profile/contact', [ProfileController::class, 'updateContact'])->name('profile.contact');
+        Route::patch('profile/business', [ProfileController::class, 'updateBusiness'])->name('profile.business');
+        Route::patch('profile/license', [ProfileController::class, 'updateLicense'])->name('profile.license');
+        Route::patch('profile/notifications', [ProfileController::class, 'updateNotifications'])->name('profile.notifications');
+        Route::patch('profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:10,1')->name('profile.password');
+        Route::post('profile/recovery-codes', [ProfileController::class, 'regenerateRecoveryCodes'])->middleware('throttle:10,1')->name('profile.recovery-codes');
+        Route::get('profile/recovery-codes/download', [ProfileController::class, 'downloadRecoveryCodes'])->name('profile.recovery-codes.download');
+
         foreach (array_keys(MemberMenu::PAGES) as $page) {
-            if ($page !== 'dashboard') {
+            if (! in_array($page, ['dashboard', 'profile'], true)) {
                 Route::get($page, [PageController::class, 'placeholder'])->name($page)->defaults('page', $page);
             }
         }

@@ -284,9 +284,13 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
 - Access: `routes/member.php`, middleware `EnsureMemberArea` (404 while off, staff to Nova, Member role only; it runs
   before `auth`, see `bootstrap/app.php`) and `RequireTwoFactor`. Nova's side: `SendMembersToMemberArea` in
   `nova.api_middleware`, which also keeps the pages `MemberMenu::movedUrl()` leads to open in Nova until the member area
-  has its own: profile with certificate and notification preferences, license documents, library (tax documents lead
-  to the dashboard's Documents tab). Remove a page from both when it is built here, and move
-  `LicenseExpiryReminder::preferencesUrl()` along with the notification preferences.
+  has its own: the profile's certificate block, license documents, library (tax documents lead to the dashboard's
+  Documents tab). Remove a page from both when it is built here.
+- Profile (`/member/profile`): `Member\ProfileController` + `App\Member\ProfilePage` (who may edit what) +
+  `App\Member\ProfileRules`. Plain forms, one section open at a time (`?edit=section`), no Livewire: phones, addresses
+  and passwords must not travel in a component snapshot. `MemberProfile::LICENSE_REVIEW_FIELDS` changed by a member
+  (also through Nova) send the license back to `pending_review`; staff's edits do not. The email link
+  `LicenseExpiryReminder::preferencesUrl()` carries `?section=notifications` because an anchor does not survive sign-in.
 - Menu: `App\Member\MemberMenu` (agency people see no License documents; only the principal sees Billing). The sidebar
   reuses the Nova sidebar's classes (`public/portal/sidebar.css`) and the Renewal due card and person from
   `App\Support\PortalSidebar`.

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Member;
 
-use App\Enums\NotificationCategory;
 use App\Enums\PaymentStatus;
 use App\Enums\ReminderType;
 use App\Enums\VerificationStatus;
@@ -16,15 +15,16 @@ use App\Services\Documents\DocumentVault;
 use Database\Seeders\Support\DemoFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Laravel\Nova\Http\Middleware\HandleInertiaRequests;
 use Laravel\Nova\Nova;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
 /**
  * Nothing in the member area leads to an error: every link on every page reachable from the
- * dashboard opens, for each kind of member. Profile, certificate, notification preferences,
- * license documents and the library stay in Nova for now, tax documents lead to the dashboard's
- * Documents tab; the only page left says it is coming soon and leads back.
+ * dashboard opens, for each kind of member. The certificate, license documents and the library
+ * stay in Nova for now, tax documents lead to the dashboard's Documents tab, notification
+ * preferences to the profile page; the only page left says it is coming soon and leads back.
  */
 class MemberLinksTest extends TestCase
 {
@@ -139,11 +139,11 @@ class MemberLinksTest extends TestCase
             $this->assertContains($this->pathOf($url), $paths);
         }
 
-        $this->assertContains("/nova/resources/member-profiles/{$profile}", $paths);
-        $this->assertContains("/nova/resources/member-profiles/{$profile}/edit", $paths);
+        $this->assertContains('/member/profile', $paths);
+        $this->assertContains("/nova/resources/member-profiles/{$profile}", $paths); // the certificate block
+        $this->assertNotContains("/nova/resources/member-profiles/{$profile}/edit", $paths);
         $this->assertContains('/nova/resources/license-documents', $paths);
         $this->assertContains('/nova/resources/library-documents', $paths);
-        $this->assertContains('/nova/user-security', $paths);
         $this->assertNotEmpty(preg_grep('#^/documents/.+/download$#', $paths));
         $this->assertNotEmpty(preg_grep('#^/certificates/\d+/download$#', $paths));
     }
@@ -219,16 +219,48 @@ class MemberLinksTest extends TestCase
             ->assertDontSee('Uploaded ');
     }
 
-    public function test_profile_certificate_notifications_license_documents_and_library_stay_in_nova(): void
+    public function test_profile_and_notifications_lead_to_the_profile_page_from_every_old_address(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile->getKey();
+        $menu = $this->menu($member);
+        $page = route('member.profile');
+
+        $this->assertSame($page, $menu['profile']);
+        $this->assertSame($page.'#notifications', $menu['notifications']);
+
+        $this->actingAs($member)->get($page)->assertOk();
+        $this->get(route('member.notifications'))->assertRedirect($page.'#notifications');
+
+        // Old links into Nova, also from emails already sent.
+        $this->get("/nova/resources/member-profiles/{$profile}")->assertRedirect($page);
+        $this->get("/nova/resources/member-profiles/{$profile}/edit")->assertRedirect($page);
+        $this->get('/nova/resources/member-profiles')->assertRedirect($page);
+        $this->get("/nova/resources/member-profiles/{$profile}/edit?section=notifications")->assertRedirect($page.'#notifications');
+        $this->get("/nova/resources/member-profiles/{$profile}/edit?section=certificate")->assertRedirect($page);
+
+        // The sidebar's links in Nova are Inertia visits.
+        $version = app(HandleInertiaRequests::class)->version(request());
+        $this->get("/nova/resources/member-profiles/{$profile}/edit?section=notifications", ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'])
+            ->assertStatus(409)
+            ->assertHeader('X-Inertia-Location', $page.'#notifications');
+    }
+
+    public function test_the_header_leads_to_the_profile_page_and_its_security_section(): void
+    {
+        $this->actingAs($this->member())->get(route('member.dashboard'))->assertOk()
+            ->assertSee('href="'.route('member.profile').'#security"', false)
+            ->assertDontSee('href="'.route('nova.pages.user-security').'"', false);
+    }
+
+    public function test_certificate_license_documents_and_library_stay_in_nova(): void
     {
         $member = $this->member();
         $profile = $member->memberProfile->getKey();
         $menu = $this->menu($member);
 
         $expected = [
-            'profile' => "/nova/resources/member-profiles/{$profile}",
             'certificate' => "/nova/resources/member-profiles/{$profile}?section=certificate",
-            'notifications' => "/nova/resources/member-profiles/{$profile}/edit?section=notifications",
             'license-documents' => '/nova/resources/license-documents',
             'library' => '/nova/resources/library-documents',
         ];
@@ -271,16 +303,9 @@ class MemberLinksTest extends TestCase
         $message = (new LicenseExpiryReminder($member->memberProfile, ReminderType::Days30))->toMail($member);
         $this->assertStringContainsString($url, implode(' ', $message->outroLines));
 
-        $this->actingAs($member)->get($url)->assertOk();
-
-        // The form there has the toggles (saving them: MemberSelfServiceTest).
-        $category = NotificationCategory::cases()[0];
-        $fields = $this->getJson("/nova-api/member-profiles/{$member->memberProfile->getKey()}/update-fields?editing=true&editMode=update")
-            ->assertOk()
-            ->collect('fields')
-            ->pluck('attribute');
-
-        $this->assertContains("notify_{$category->value}", $fields);
+        $this->actingAs($member)->followingRedirects()->get($url)->assertOk()
+            ->assertSee('id="notifications"', false)
+            ->assertSee('role="switch"', false);
     }
 
     public function test_a_signed_out_member_reaches_the_notification_preferences_after_signing_in(): void

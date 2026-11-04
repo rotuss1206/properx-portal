@@ -29,7 +29,7 @@ final class PortalHeader
             'initials' => $person['initials'] ?? '',
             'name' => $person['name'] ?? '',
             'profileUrl' => self::profileUrl($user, $area),
-            'securityUrl' => route('nova.pages.user-security'),
+            'securityUrl' => $area === 'member' ? route('member.profile').'#security' : route('nova.pages.user-security'),
             'search' => $area === 'member'
                 ? (bool) config('portal.member_area.header_search')
                 : $user->isStaff(),

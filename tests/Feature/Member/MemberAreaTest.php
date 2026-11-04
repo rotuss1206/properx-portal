@@ -152,7 +152,7 @@ class MemberAreaTest extends TestCase
         $response->assertSee('This section is coming soon');
         $response->assertSee('ppx-header__search', false); // member_area.header_search
         $response->assertSee('action="'.route('nova.logout').'"', false);
-        $response->assertSee('href="'.route('nova.pages.user-security').'"', false);
+        $response->assertSee('href="'.route('member.profile').'#security"', false);
     }
 
     public function test_agency_people_see_no_license_uploads_and_only_the_principal_sees_billing(): void

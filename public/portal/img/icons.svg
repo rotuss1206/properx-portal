@@ -1,6 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg">
   <!-- ProPerX icons from the design, drawn with the stroke of the <svg> that uses them
        (stroke="currentColor"). Used by the Nova sidebar and the member area. -->
+  <symbol id="pencil" viewBox="0 0 24 24">
+    <path d="M4 20L4.9 15.6L16.2 4.3C17 3.5 18.3 3.5 19.1 4.3L19.7 4.9C20.5 5.7 20.5 7 19.7 7.8L8.4 19.1L4 20"/>
+    <path d="M14.5 6L18 9.5"/>
+  </symbol>
+  <symbol id="sliders" viewBox="0 0 24 24">
+    <path d="M11 7H21"/>
+    <path d="M3 17H13"/>
+    <path d="M4 7C4 8.65 5.35 10 7 10C8.65 10 10 8.65 10 7C10 5.35 8.65 4 7 4C5.35 4 4 5.35 4 7V7"/>
+    <path d="M14 17C14 18.65 15.35 20 17 20C18.65 20 20 18.65 20 17C20 15.35 18.65 14 17 14C15.35 14 14 15.35 14 17V17"/>
+  </symbol>
   <symbol id="dashboard" viewBox="0 0 24 24">
     <path d="M4 3H9C9.55192 3 10 3.44808 10 4V11C10 11.5519 9.55192 12 9 12H4C3.44808 12 3 11.5519 3 11V4C3 3.44808 3.44808 3 4 3V3"/>
     <path d="M15 3H20C20.5519 3 21 3.44808 21 4V7C21 7.55192 20.5519 8 20 8H15C14.4481 8 14 7.55192 14 7V4C14 3.44808 14.4481 3 15 3V3"/>

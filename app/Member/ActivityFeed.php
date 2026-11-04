@@ -25,13 +25,13 @@ use Illuminate\Support\Number;
 final class ActivityFeed
 {
     /** Done by the member. */
-    private const OWN_ACTIONS = ['document_uploaded', 'document_downloaded', 'certificate_generated', 'certificate_downloaded'];
+    private const OWN_ACTIONS = ['document_uploaded', 'document_downloaded', 'certificate_generated', 'certificate_downloaded', 'notification_settings_updated', 'password_changed', 'mfa_recovery_codes_regenerated'];
 
     /** Profile fields grouped as the profile page's cards. */
     private const PROFILE_SECTIONS = [
         'Contact information' => ['first_name', 'last_name', 'phone', 'address'],
-        'Business details' => ['firm_name', 'npn'],
-        'License information' => ['license_number', 'license_state', 'license_type', 'license_expires_at'],
+        'Business details' => ['firm_name'],
+        'License information' => ['npn', 'license_number', 'license_state', 'license_type', 'license_expires_at'],
     ];
 
     /**
@@ -104,6 +104,9 @@ final class ActivityFeed
 
         $line = match ($log->action) {
             'profile_updated' => ['profile', 'blue', 'Profile updated', self::profileSections($log->details['fields'] ?? [])],
+            'notification_settings_updated' => ['notifications', 'blue', 'Notification preferences updated', null],
+            'password_changed' => ['shield', 'blue', 'Password changed', null],
+            'mfa_recovery_codes_regenerated' => ['shield', 'blue', 'New recovery codes created', null],
             'document_uploaded' => match (true) {
                 $tax !== null => ['tax', 'blue', 'Tax document available', $taxCaption],
                 default => ['license', 'blue', 'License document uploaded', $licenseCaption],

@@ -59,15 +59,21 @@ class LicenseExpiryReminder extends Notification implements ShouldQueue
 
     public static function profileUrl(MemberProfile $profile): string
     {
-        return url(Nova::path()."/resources/member-profiles/{$profile->getKey()}");
+        return config('portal.member_area.enabled')
+            ? route('member.profile')
+            : url(Nova::path()."/resources/member-profiles/{$profile->getKey()}");
     }
 
     /**
-     * Notification preferences live on the profile edit form in Nova, the same page as the
-     * Notifications menu item. Signed-out members return here after signing in.
+     * The notification preferences on the profile page (Nova's edit form while the member area
+     * is off). A query, not an anchor: it survives signing in, then the page moves to the section.
      */
     public static function preferencesUrl(MemberProfile $profile): string
     {
-        return url(Nova::path()."/resources/member-profiles/{$profile->getKey()}/edit?".SidebarMenu::SECTION.'=notifications');
+        $query = SidebarMenu::SECTION.'=notifications';
+
+        return config('portal.member_area.enabled')
+            ? route('member.profile').'?'.$query
+            : url(Nova::path()."/resources/member-profiles/{$profile->getKey()}/edit?".$query);
     }
 }

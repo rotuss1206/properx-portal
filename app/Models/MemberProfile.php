@@ -52,6 +52,11 @@ class MemberProfile extends Model
         'Personal Lines',
     ];
 
+    /**
+     * What staff verified: a member changing one of these sends the license back to review.
+     */
+    public const LICENSE_REVIEW_FIELDS = ['npn', 'license_state', 'license_number', 'license_expires_at'];
+
     protected static function booted(): void
     {
         // Model events are muted while seeding: factories set these values themselves.
@@ -94,8 +99,20 @@ class MemberProfile extends Model
                 $profile->license_verification = null;
             } else {
                 $profile->license_verification ??= LicenseVerification::PendingReview;
+
+                // Whichever door the member came through (member area, Nova). Staff decide for themselves.
+                if ($profile->exists && $profile->isDirty(self::LICENSE_REVIEW_FIELDS) && self::actorIsMember()) {
+                    $profile->license_verification = LicenseVerification::PendingReview;
+                }
             }
         });
+    }
+
+    private static function actorIsMember(): bool
+    {
+        $actor = auth()->user();
+
+        return $actor instanceof User && $actor->isMember() && ! $actor->isStaff();
     }
 
     /**

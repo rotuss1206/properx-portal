@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Member\MemberMenu;
 use App\Models\User;
+use App\Nova\Menu\SidebarMenu;
 use Closure;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,9 +16,9 @@ use Symfony\Component\HttpFoundation\Response;
  * /member instead, including right after sign-in (Nova redirects to its initial path).
  * Two-factor setup and the password stay on Nova's User Security page, and signing out is
  * Nova's. So do the pages the member area has not built yet (App\Member\MemberMenu::movedUrl):
- * profile with its certificate and notification preferences, license documents and the
- * library, for those who may see them. Staff and Nova's API requests are not touched. Part of nova.api_middleware,
- * after RequireTwoFactor.
+ * license documents, the library and the profile's certificate block, for those who may see
+ * them. Nova's profile pages lead to /member/profile. Staff and Nova's API requests are not
+ * touched. Part of nova.api_middleware, after RequireTwoFactor.
  */
 class SendMembersToMemberArea
 {
@@ -34,7 +35,6 @@ class SendMembersToMemberArea
      * Nova resources that stand in for a member area page => that page's key in MemberMenu.
      */
     private const KEPT_NOVA_RESOURCES = [
-        'resources/member-profiles' => 'profile',
         'resources/license-documents' => 'license-documents',
         'resources/library-documents' => 'library',
     ];
@@ -45,15 +45,30 @@ class SendMembersToMemberArea
             return $next($request);
         }
 
-        $novaPath = trim(Nova::path(), '/');
-
-        // Tax documents have their place in the member area: the dashboard's Documents tab.
-        $target = $request->is("{$novaPath}/resources/tax-documents", "{$novaPath}/resources/tax-documents/*")
-            ? MemberMenu::movedUrl($request->user(), 'tax-documents')
-            : route('member.dashboard');
+        $target = $this->target($request);
 
         // An Inertia visit inside Nova must leave the Nova app for a full page load.
         return $request->header('X-Inertia') ? Inertia::location($target) : redirect($target);
+    }
+
+    /**
+     * Pages with a place in the member area lead there, also from old links; the rest to the dashboard.
+     */
+    private function target(Request $request): string
+    {
+        $novaPath = trim(Nova::path(), '/');
+
+        return match (true) {
+            $request->is("{$novaPath}/resources/tax-documents", "{$novaPath}/resources/tax-documents/*") => MemberMenu::movedUrl($request->user(), 'tax-documents'),
+            $request->query(SidebarMenu::SECTION) === 'notifications' && $this->isProfilePage($request, $novaPath) => MemberMenu::movedUrl($request->user(), 'notifications'),
+            $this->isProfilePage($request, $novaPath) => route('member.profile'),
+            default => route('member.dashboard'),
+        };
+    }
+
+    private function isProfilePage(Request $request, string $novaPath): bool
+    {
+        return $request->is("{$novaPath}/resources/member-profiles", "{$novaPath}/resources/member-profiles/*");
     }
 
     private function applies(Request $request): bool
@@ -73,6 +88,13 @@ class SendMembersToMemberArea
 
     private function isKeptResource(Request $request, User $user, string $novaPath): bool
     {
+        // The certificate block of Nova's profile page (Certificate in the menu).
+        if ($request->query(SidebarMenu::SECTION) === 'certificate'
+            && $request->is("{$novaPath}/resources/member-profiles/*")
+            && ! $request->is("{$novaPath}/resources/member-profiles/*/edit")) {
+            return true;
+        }
+
         foreach (self::KEPT_NOVA_RESOURCES as $path => $page) {
             if ($request->is("{$novaPath}/{$path}", "{$novaPath}/{$path}/*")) {
                 return MemberMenu::visible($user, $page);

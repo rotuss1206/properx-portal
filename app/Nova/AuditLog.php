@@ -139,6 +139,10 @@ class AuditLog extends Resource
             'agency_updated', 'profile_updated' => isset($details['fields'])
                 ? 'Changed fields: '.implode(', ', array_map(fn (string $field) => Str::headline($field), $details['fields']))
                 : null,
+            'notification_settings_updated' => implode('; ', array_filter([
+                ($details['enabled'] ?? []) !== [] ? 'Turned on: '.implode(', ', array_map(fn (string $category) => Str::headline($category), $details['enabled'])) : null,
+                ($details['disabled'] ?? []) !== [] ? 'Turned off: '.implode(', ', array_map(fn (string $category) => Str::headline($category), $details['disabled'])) : null,
+            ])) ?: null,
             'agency_tier_changed' => self::fromTo('Tier', AgencyTier::tryFrom((string) ($details['from'] ?? ''))?->label(), AgencyTier::tryFrom((string) ($details['to'] ?? ''))?->label(), $details['reason'] ?? null),
             'agency_rate_type_changed' => self::fromTo('Rate type', RateType::tryFrom((string) ($details['from'] ?? ''))?->label(), RateType::tryFrom((string) ($details['to'] ?? ''))?->label(), $details['reason'] ?? null),
             default => null,
