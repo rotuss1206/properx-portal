@@ -80,8 +80,7 @@ function properx_portal_settings_page() {
 	$outcome  = properx_portal_handle_settings_post();
 	$settings = properx_portal_stored_settings();
 
-	GFSettings::page_header( 'ProPerX Portal' );
-
+	// Gravity Forms draws its header, tab menu and footer around this handler (GFSettings::settings_page).
 	echo '<style>
 		.ppx-portal-settings h3 { margin: 24px 0 10px; }
 		.ppx-portal-settings h3:first-child { margin-top: 0; }
@@ -186,6 +185,4 @@ function properx_portal_settings_page() {
 	echo '<p><button type="submit" name="properx_portal_test" value="1" class="button">Test connection</button></p></form>';
 
 	echo '</div></div>';
-
-	GFSettings::page_footer();
 }

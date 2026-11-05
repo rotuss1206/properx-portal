@@ -146,6 +146,13 @@ class PluginTest extends TestCase {
 		$this->assertSame( array( 'properx_portal_send', 'properx_portal_cron_heartbeat' ), $GLOBALS['unscheduled'] );
 	}
 
+	public function test_the_settings_page_leaves_the_header_and_tab_menu_to_gravity_forms(): void {
+		$page = file_get_contents( dirname( __DIR__ ) . '/properx-portal/includes/admin-page.php' );
+
+		$this->assertStringNotContainsString( 'GFSettings::page_header', $page );
+		$this->assertStringNotContainsString( 'GFSettings::page_footer', $page );
+	}
+
 	// Checklist
 
 	private function greenFacts(): array {
