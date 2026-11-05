@@ -28,6 +28,12 @@ Route::get('/certificates/{memberProfile}', [CertificateController::class, 'open
     ->whereNumber('memberProfile')
     ->name('certificates.open');
 
+// Public, the short address printed on the certificate: a form for the Certificate ID.
+Route::get('/verify-certificate', [VerifyCertificateController::class, 'form'])
+    ->middleware('throttle:certificate-verification')
+    ->name('certificates.verify.form');
+Route::redirect('/verify', '/verify-certificate');
+
 // Public, linked from the QR code on the certificate.
 Route::get('/verify-certificate/{code}', VerifyCertificateController::class)
     ->where('code', '[A-Za-z0-9\-]{1,40}')

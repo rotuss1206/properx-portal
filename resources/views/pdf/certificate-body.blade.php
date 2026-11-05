@@ -1,5 +1,9 @@
 {{-- The certificate's page, shared by the PDF and the HTML preview. Data: CertificateGeneratorService::document(). --}}
 <div class="cert">
+    @isset($backgroundImage)
+        <img class="cert-background" src="{{ $backgroundImage }}" alt="">
+    @endisset
+    <div class="cert-sheet"></div>
     <div class="cert-frame"></div>
     <div class="cert-frame-gold"></div>
     <div class="cert-corner cert-corner-left"></div>
@@ -7,10 +11,7 @@
 
     <div class="cert-line cert-logo-line"><img class="cert-logo" src="{{ $logoImage }}" alt="ProPerX Alliance"></div>
     <div class="cert-line cert-title">CERTIFICATE OF MEMBERSHIP</div>
-
-    <div class="cert-rule cert-rule-left"></div>
-    <div class="cert-line cert-diamond-line"><img class="cert-diamond" src="{{ $diamondImage }}" alt=""></div>
-    <div class="cert-rule cert-rule-right"></div>
+    <div class="cert-rule"></div>
 
     <div class="cert-line cert-lead">This certifies that</div>
     <div class="cert-line cert-name" style="font-size: {{ $nameSize }}pt;">{{ $memberName }}</div>
@@ -55,10 +56,7 @@
         <div class="cert-sign-title">{{ $signatoryTitle }}</div>
     </div>
 
-    <div class="cert-seal">
-        <img class="cert-seal-icon" src="{{ $sealImage }}" alt="">
-        <div class="cert-seal-text">OFFICIAL SEAL</div>
-    </div>
+    <img class="cert-seal" src="{{ $sealImage }}" alt="Official seal">
 
     @if ($secondSignatoryName)
         <div class="cert-sign cert-sign-right">
@@ -74,6 +72,6 @@
     </div>
 
     <div class="cert-line cert-footer">
-        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">Verify at {{ preg_replace('#^https?://#', '', $verificationUrl) }}
+        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">Verify at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · Certificate ID {{ $certificateCode }}
     </div>
 </div>

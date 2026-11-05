@@ -31,5 +31,7 @@
             If the problem persists, contact ProPerX Alliance.</p>
     @endif
 
+    <p class="again"><a class="ppx-link" href="{{ route('certificates.verify.form') }}">Verify another certificate</a></p>
+
     <div class="footer">Checked {{ now()->toDayDateTimeString() }} UTC. This page confirms membership status only.</div>
 @endsection

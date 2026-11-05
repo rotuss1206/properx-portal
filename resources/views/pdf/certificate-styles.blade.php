@@ -1,48 +1,47 @@
 {{--
-    The certificate's look (docs/design/Certificate.jpg), shared by the PDF (dompdf) and the HTML preview
-    (member area), so both show the same page: US Letter portrait, 612 × 792 pt, everything placed in
-    points. The font families are declared by each side: from the dompdf chroot, or from public/portal/fonts.
-    dompdf places text differently: pdf/certificate.blade.php corrects that, and only that.
+    The certificate's look, shared by the PDF (dompdf) and the HTML preview (member area), so both show the same
+    page: US Letter portrait. Values are Figma's, in pixels of its 636.48 px wide frame (the mockup at 0.78);
+    $u turns them into points on the 612 pt page. The vertical positions come from docs/design/Certificate.jpg
+    at 0.78. The font families are declared by each side: from the dompdf chroot, or from public/portal/fonts.
+    Shadows and the gradient: real CSS in the preview, an image in the PDF. dompdf also places text differently:
+    pdf/certificate.blade.php corrects that, and only that.
 --}}
+@php($u = \App\Services\Certificates\CertificateGeneratorService::points(...))
 .cert * { box-sizing: content-box; margin: 0; padding: 0; }
-.cert { position: absolute; top: 0; left: 0; width: 612pt; height: 791pt; overflow: hidden; background: #fff; color: #2f3a4a; font-family: 'PPX Open Sans', sans-serif; font-weight: normal; font-style: normal; text-align: left; }
-.cert-frame { position: absolute; top: 25.5pt; left: 25.5pt; width: 556.5pt; height: 735.5pt; border: 2.25pt solid #0f2f4f; }
-.cert-frame-gold { position: absolute; top: 33pt; left: 33pt; width: 544.5pt; height: 723.5pt; border: 0.75pt solid #c9a23a; }
-.cert-corner { position: absolute; top: 39pt; width: 23.25pt; height: 23.25pt; border-top: 2.25pt solid #c9a23a; }
-.cert-corner-left { left: 39pt; border-left: 2.25pt solid #c9a23a; }
-.cert-corner-right { left: 547.5pt; border-right: 2.25pt solid #c9a23a; }
+.cert { position: absolute; top: 0; left: 0; width: 612pt; height: 791pt; overflow: hidden; background: #fff; color: #2a3340; font-family: 'PPX Open Sans', sans-serif; font-weight: normal; font-style: normal; text-align: left; }
+.cert-background { position: absolute; top: 0; left: 0; width: 612pt; height: 791pt; }
+.cert-sheet { position: absolute; top: 0; left: 0; width: {{ $u(634.48) }}; height: {{ $u(820.64) }}; border: {{ $u(1) }} solid #e6ddc4; }
+.cert-frame { position: absolute; top: {{ $u(15) }}; left: {{ $u(15) }}; width: {{ $u(601.8) }}; height: {{ $u(787.96) }}; border: {{ $u(2.34) }} solid #0f2f4f; }
+.cert-frame-gold { position: absolute; top: {{ $u(18.9) }}; left: {{ $u(18.9) }}; width: {{ $u(596.68) }}; height: {{ $u(782.84) }}; border: {{ $u(1) }} solid #f0c846; }
+.cert-corner { position: absolute; top: {{ $u(26.14) }}; width: {{ $u(24.16) }}; height: {{ $u(24.16) }}; border-top: {{ $u(2.34) }} solid #f0c846; }
+.cert-corner-left { left: {{ $u(26.14) }}; border-left: {{ $u(2.34) }} solid #f0c846; }
+.cert-corner-right { left: {{ $u(583.84) }}; border-right: {{ $u(2.34) }} solid #f0c846; }
 .cert-line { position: absolute; left: 0; width: 612pt; text-align: center; }
-.cert-logo-line { top: 82pt; }
-.cert-logo { width: 132pt; height: 28pt; }
-.cert-title { top: 144pt; color: #164f8f; font-family: 'PPX Poppins', sans-serif; font-size: 11.25pt; letter-spacing: 2.6pt; line-height: 15pt; }
-.cert-rule { position: absolute; top: 178pt; width: 45pt; height: 0; border-top: 0.75pt solid #c9d2dc; }
-.cert-rule-left { left: 247.5pt; }
-.cert-rule-right { left: 319.5pt; }
-.cert-diamond-line { top: 174pt; }
-.cert .cert-diamond { display: block; width: 8pt; height: 8pt; margin: 0 auto; }
-.cert-lead { top: 212pt; color: #5e6b7c; font-size: 12pt; line-height: 16pt; }
-.cert-name { top: 236pt; color: #0f2f4f; font-family: 'PPX Lora', serif; font-style: italic; line-height: 60pt; white-space: nowrap; }
-.cert-name-rule { position: absolute; top: 300pt; left: 178.5pt; width: 255pt; height: 0; border-top: 0.75pt solid #e2e8f0; }
-.cert-text { position: absolute; top: 318pt; left: 96pt; width: 420pt; color: #2f3a4a; font-size: 12pt; line-height: 22.5pt; text-align: center; }
-.cert-strong { color: #0f2f4f; }
-.cert-fields-line { top: 413pt; }
+.cert-logo-line { top: {{ $u(84) }}; }
+.cert-logo { width: {{ $u(136) }}; height: {{ $u(29) }}; }
+.cert-title { top: {{ $u(149) }}; color: #14508c; font-family: 'PPX Poppins', sans-serif; font-size: {{ $u(12) }}; letter-spacing: {{ $u(2.64) }}; line-height: {{ $u(18) }}; }
+.cert-rule { position: absolute; top: {{ $u(184) }}; left: {{ $u(292.24) }}; width: {{ $u(52) }}; height: 0; border-top: {{ $u(2) }} solid #f0c846; }
+.cert-lead { top: {{ $u(220) }}; color: #5f7185; font-size: {{ $u(13) }}; line-height: {{ $u(18) }}; }
+.cert-name { top: {{ $u(254) }}; color: #0a2d4b; font-family: 'PPX Lora', serif; font-style: italic; line-height: {{ $u(41.8) }}; white-space: nowrap; }
+.cert-name-rule { position: absolute; top: {{ $u(304) }}; left: {{ $u(185.74) }}; width: {{ $u(265) }}; height: 0; border-top: {{ $u(1) }} solid #e2e8f0; }
+.cert-text { position: absolute; top: {{ $u(322) }}; left: {{ $u(96.24) }}; width: {{ $u(444) }}; color: #2a3340; font-size: {{ $u(13) }}; line-height: {{ $u(22.1) }}; text-align: center; }
+.cert-strong { color: #0a2d4b; }
+.cert-fields-line { top: {{ $u(420) }}; }
 .cert .cert-fields { margin: 0 auto; border-collapse: collapse; }
-.cert .cert-fields td { padding: 0 24pt; text-align: center; white-space: nowrap; }
-.cert-label { color: #98a3b0; font-size: 8pt; letter-spacing: 0.5pt; line-height: 12pt; }
-.cert-value { color: #0f2f4f; font-family: 'PPX Poppins', sans-serif; font-size: 12.5pt; line-height: 20pt; }
-.cert-sign { position: absolute; top: 620pt; width: 170pt; text-align: center; }
-.cert-sign-left { left: 82pt; }
-.cert-sign-right { left: 360pt; }
-.cert-sign-name { height: 30pt; color: #0f2f4f; font-family: 'PPX Lora', serif; font-size: 21pt; font-style: italic; line-height: 30pt; white-space: nowrap; }
-.cert-sign-image { height: 30pt; }
-.cert .cert-sign-rule { height: 0; margin: 2pt 18pt 4pt; border-top: 0.75pt solid #c9d2dc; }
-.cert-sign-title { color: #7a8696; font-size: 8pt; line-height: 11pt; }
-.cert-seal { position: absolute; top: 591pt; left: 267pt; width: 73.5pt; height: 73.5pt; border: 2.25pt solid #c9a23a; border-radius: 39pt; background: #fbf6e6; text-align: center; }
-.cert-seal-icon { position: absolute; top: 19pt; left: 27.75pt; width: 18pt; height: 18pt; }
-.cert-seal-text { position: absolute; top: 42pt; left: 0; width: 73.5pt; color: #c9a23a; font-family: 'PPX Poppins', sans-serif; font-size: 5.25pt; letter-spacing: 0.6pt; line-height: 8pt; text-align: center; }
-.cert-qr { position: absolute; top: 592pt; left: 407.5pt; width: 75pt; text-align: center; }
-.cert-qr-centered { top: 490pt; left: 268.5pt; }
-.cert-qr-image { width: 62pt; height: 62pt; }
-.cert-qr-text { color: #7a8696; font-size: 7.5pt; line-height: 10pt; }
-.cert-footer { top: 705pt; color: #98a3b0; font-size: 8.75pt; line-height: 13pt; }
-.cert .cert-footer-icon { width: 10pt; height: 10pt; margin-right: 4pt; vertical-align: -1.5pt; }
+.cert .cert-fields td { padding: 0 {{ $u(24) }}; text-align: center; white-space: nowrap; }
+.cert-label { color: #9aa7b4; font-size: {{ $u(10.5) }}; letter-spacing: {{ $u(0.525) }}; line-height: {{ $u(16) }}; }
+.cert-value { color: #1c2b3a; font-family: 'PPX Poppins', sans-serif; font-size: {{ $u(14) }}; line-height: {{ $u(24) }}; }
+.cert-sign { position: absolute; top: {{ $u(635) }}; width: {{ $u(176) }}; text-align: center; }
+.cert-sign-left { left: {{ $u(85) }}; }
+.cert-sign-right { left: {{ $u(375) }}; }
+.cert-sign-name { height: {{ $u(32) }}; color: #0a2d4b; font-family: 'PPX Lora', serif; font-size: {{ $u(22) }}; font-style: italic; line-height: {{ $u(32) }}; white-space: nowrap; }
+.cert-sign-image { height: {{ $u(32) }}; }
+.cert .cert-sign-rule { height: 0; margin: {{ $u(2) }} {{ $u(16) }} {{ $u(4) }}; border-top: {{ $u(1) }} solid #e6ddc4; }
+.cert-sign-title { color: #9aa7b4; font-size: {{ $u(10.5) }}; line-height: {{ $u(14) }}; }
+.cert-seal { position: absolute; top: {{ $u(628) }}; left: {{ $u(289.24) }}; width: {{ $u(58) }}; height: {{ $u(58) }}; }
+.cert-qr { position: absolute; top: {{ $u(620) }}; left: {{ $u(420) }}; width: {{ $u(86) }}; text-align: center; }
+.cert-qr-centered { top: {{ $u(510) }}; left: {{ $u(275.24) }}; }
+.cert-qr-image { width: {{ $u(66) }}; height: {{ $u(66) }}; }
+.cert-qr-text { color: #9aa7b4; font-size: {{ $u(9) }}; line-height: {{ $u(12) }}; }
+.cert-footer { top: {{ $u(724) }}; color: #9aa7b4; font-size: {{ $u(10.5) }}; line-height: {{ $u(19) }}; }
+.cert .cert-footer-icon { width: {{ $u(19) }}; height: {{ $u(19) }}; margin-right: {{ $u(5) }}; vertical-align: {{ $u(-5) }}; }

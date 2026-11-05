@@ -11,19 +11,26 @@
         @font-face { font-family: 'PPX Poppins'; font-style: normal; font-weight: normal; src: url('{{ $fontPath('Poppins-SemiBold.ttf') }}') format('truetype'); }
         body { margin: 0; }
         @include('pdf.certificate-styles')
-        {{-- dompdf multiplies line-height by the font's height ratio (Open Sans 1.498, Poppins 1.65, Lora 1.408),
-             and draws text lower in its box. These undo that, so the page matches the HTML preview. --}}
-        .cert-title { line-height: 9.1pt; }
-        .cert-lead { line-height: 10.68pt; }
-        .cert-name { line-height: 42.6pt; }
-        .cert-text { line-height: 15.02pt; }
-        .cert-label { line-height: 8pt; }
-        .cert-value { line-height: 12.12pt; }
-        .cert-sign-name { line-height: 21.3pt; }
-        .cert-sign-title { line-height: 7.34pt; }
-        .cert-seal-text { line-height: 4.85pt; }
-        .cert-qr-text { line-height: 6.67pt; }
-        .cert-footer { line-height: 8.68pt; }
+        {{-- dompdf multiplies line-height by the font's height ratio (Open Sans 1.498, Poppins 1.65, Lora 1.408).
+             These divide by it, so the page matches the HTML preview. --}}
+        @php($u = \App\Services\Certificates\CertificateGeneratorService::points(...))
+        .cert-title { line-height: {{ $u(18 / 1.65) }}; }
+        .cert-lead { line-height: {{ $u(18 / 1.498) }}; }
+        .cert-name { line-height: {{ $u(41.8 / 1.408) }}; }
+        .cert-text { line-height: {{ $u(22.1 / 1.498) }}; }
+        .cert-label { line-height: {{ $u(16 / 1.498) }}; }
+        .cert-value { line-height: {{ $u(24 / 1.65) }}; }
+        .cert-sign-name { line-height: {{ $u(32 / 1.408) }}; }
+        .cert-sign-title { line-height: {{ $u(14 / 1.498) }}; }
+        .cert-qr-text { line-height: {{ $u(12 / 1.498) }}; }
+        .cert-footer { line-height: {{ $u(19 / 1.498) }}; }
+        {{-- dompdf also sets text a little lower in its box. --}}
+        .cert-title { top: {{ $u(148) }}; }
+        .cert-text { top: {{ $u(320) }}; }
+        .cert-fields-line { top: {{ $u(418) }}; }
+        .cert-sign { top: {{ $u(633) }}; }
+        .cert-qr-text { margin-top: {{ $u(3) }}; }
+        .cert-footer { top: {{ $u(722) }}; }
     </style>
 </head>
 <body>

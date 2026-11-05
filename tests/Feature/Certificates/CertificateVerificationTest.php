@@ -95,6 +95,41 @@ class CertificateVerificationTest extends TestCase
             ->assertDontSee('Valid certificate');
     }
 
+    public function test_the_short_addresses_show_a_form_that_leads_to_the_result(): void
+    {
+        $profile = $this->member()->memberProfile;
+
+        $this->get('/verify')->assertRedirect('/verify-certificate');
+
+        $this->get('/verify-certificate')->assertOk()
+            ->assertSee('Certificate ID')
+            ->assertSee('name="code"', false)
+            ->assertDontSee('Valid certificate');
+
+        $this->get('/verify-certificate?code='.urlencode(' '.$profile->certificate_code.' '))
+            ->assertRedirect(route('certificates.verify', $profile->certificate_code));
+
+        $this->followingRedirects()->get('/verify-certificate?code='.$profile->certificate_code)
+            ->assertOk()
+            ->assertSee('Valid certificate');
+    }
+
+    public function test_the_form_refuses_a_malformed_id_and_escapes_it(): void
+    {
+        $this->get('/verify-certificate?code='.urlencode('<script>alert(1)</script>'))->assertOk()
+            ->assertSee('letters, numbers and dashes only')
+            ->assertDontSee('<script>alert(1)', false);
+    }
+
+    public function test_the_form_is_rate_limited_as_well(): void
+    {
+        foreach (range(1, config('portal.verification.requests_per_minute')) as $i) {
+            $this->get('/verify-certificate')->assertOk();
+        }
+
+        $this->get('/verify-certificate')->assertTooManyRequests();
+    }
+
     public function test_lowercase_code_is_accepted(): void
     {
         $profile = $this->member()->memberProfile;

@@ -72,7 +72,7 @@ class CertificateGenerationTest extends TestCase
         $this->assertStringContainsString('April 2019', $html);
         $this->assertStringContainsString('Mar 14, 2027', $html);
         $this->assertStringContainsString('2026–2027', $html);
-        $this->assertStringContainsString(preg_replace('#^https?://#', '', route('certificates.verify', $profile->certificate_code)), $html);
+        $this->assertStringContainsString(parse_url(route('certificates.verify.form'), PHP_URL_HOST).'/verify · Certificate ID '.$profile->certificate_code, $html);
         $this->assertStringContainsString('data:image/png;base64,', $html); // the QR code and the logo
         $this->assertStringNotContainsString($profile->npn, $html);
     }
@@ -116,7 +116,30 @@ class CertificateGenerationTest extends TestCase
         $profile = $this->member()->memberProfile;
         $profile->forceFill(['first_name' => str_repeat('Maximiliana', 3), 'last_name' => str_repeat('Featherstonehaugh', 2)])->saveQuietly();
 
-        $this->assertLessThan(45, $this->service->document($profile->fresh())['nameSize']);
+        $this->assertLessThan((float) CertificateGeneratorService::points(38), $this->service->document($profile->fresh())['nameSize']);
+    }
+
+    public function test_the_design_values_are_figmas_on_its_636_px_frame(): void
+    {
+        $this->assertSame('36.538pt', CertificateGeneratorService::points(38));
+        $this->assertSame('612pt', CertificateGeneratorService::points(636.48));
+
+        $styles = view('pdf.certificate-styles')->render();
+
+        foreach (['#14508c', '#5f7185', '#0a2d4b', '#2a3340', '#9aa7b4', '#1c2b3a', '#f0c846', '#e6ddc4'] as $color) {
+            $this->assertStringContainsString($color, $styles);
+        }
+
+        $this->assertStringContainsString('letter-spacing: '.CertificateGeneratorService::points(2.64), $styles);
+        $this->assertStringContainsString('line-height: '.CertificateGeneratorService::points(22.1), $styles);
+    }
+
+    public function test_only_the_pdf_uses_the_background_image_and_the_preview_uses_real_css(): void
+    {
+        $profile = $this->member()->memberProfile;
+
+        $this->assertStringNotContainsString('cert-background"', view('pdf.certificate-body', $this->service->document($profile))->render());
+        $this->assertFileExists(resource_path('views/pdf/images/certificate-background.png'));
     }
 
     public function test_creates_the_font_cache_directory_when_missing(): void

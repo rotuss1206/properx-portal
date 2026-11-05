@@ -29,7 +29,20 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 8;
+    private const TEMPLATE_VERSION = 9;
+
+    /**
+     * The design's frame in Figma is 636.48 px wide (the mockup at 0.78); the page is 612 pt.
+     */
+    private const FIGMA_WIDTH = 636.48;
+
+    /**
+     * Figma's pixels as points on the page.
+     */
+    public static function points(float $figmaPixels): string
+    {
+        return round($figmaPixels * 612 / self::FIGMA_WIDTH, 3).'pt';
+    }
 
     /**
      * @var array<string, string> attribute => human-readable name
@@ -119,6 +132,8 @@ class CertificateGeneratorService
 
         $pdf = Pdf::loadView('pdf.certificate', $this->viewData($data) + [
             'fontPath' => fn (string $file) => self::chrootPath('fonts/'.$file),
+            // dompdf has no box-shadow or gradients; the preview uses real CSS for them.
+            'backgroundImage' => self::embedded('certificate-background.png', 'image/png'),
         ])
             ->setPaper('letter', 'portrait');
 
@@ -151,7 +166,6 @@ class CertificateGeneratorService
             'signatureImage' => $this->signatureImage(),
             'logoImage' => self::embedded('logo-color.png', 'image/png'),
             'sealImage' => self::embedded('seal.svg', 'image/svg+xml'),
-            'diamondImage' => self::embedded('diamond.svg', 'image/svg+xml'),
             'linkImage' => self::embedded('link.svg', 'image/svg+xml'),
         ];
     }
@@ -212,18 +226,18 @@ class CertificateGeneratorService
     }
 
     /**
-     * The name stays on one line: the mockup's size in points for most, smaller for long names.
+     * The name stays on one line: Figma's 38 px for most, smaller for long names. In points.
      */
-    private static function nameSize(string $name): int
+    private static function nameSize(string $name): float
     {
         $length = mb_strlen($name);
 
-        return match (true) {
-            $length <= 24 => 45,
-            $length <= 34 => 32,
-            $length <= 48 => 24,
-            default => 18,
-        };
+        return (float) self::points(match (true) {
+            $length <= 30 => 38,
+            $length <= 42 => 28,
+            $length <= 56 => 21,
+            default => 16,
+        });
     }
 
     /**

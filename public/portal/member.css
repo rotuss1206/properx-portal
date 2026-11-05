@@ -738,7 +738,7 @@ body.ppx-member {
 
 .ppx-cert__stage-icon { width: 22px; height: 22px; }
 
-.ppx-cert__paper { position: relative; width: 100%; max-width: 514px; aspect-ratio: 612 / 791; margin: 0 auto; overflow: hidden; background: #fff; box-shadow: 0 10px 28px rgba(15, 59, 102, 0.22); }
+.ppx-cert__paper { position: relative; width: 100%; max-width: 514px; aspect-ratio: 612 / 791; margin: 0 auto; overflow: hidden; background: #fff; box-shadow: 0 12px 40px 0 rgba(16, 40, 70, 0.14); }
 
 /* Real size, scaled to the column; values without JavaScript per width below. */
 .ppx-cert__page { position: absolute; top: 0; left: 0; width: 612pt; height: 791pt; transform: scale(var(--ppx-cert-scale, 0.63)); transform-origin: 0 0; }

@@ -293,8 +293,10 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
   limit applies to their preview.
 - Certificate (`/member/certificate`, mockups `Certificate Generate.jpg`, `Certificate.jpg`): `Member\CertificateController`.
   The preview and the PDF share `resources/views/pdf/certificate-body.blade.php` and `certificate-styles.blade.php`, so
-  change them together and bump `TEMPLATE_VERSION`. `pdf/certificate.blade.php` adds only dompdf's line-height corrections
-  (dompdf multiplies line-height by the font's height ratio). Fonts: TTF in `resources/views/pdf/fonts`, the same Lora in
+  change them together and bump `TEMPLATE_VERSION`. `pdf/certificate.blade.php` adds only dompdf's text corrections
+  (dompdf multiplies line-height by the font's height ratio). Values are Figma's, in pixels of its 636.48 px wide frame,
+  through `CertificateGeneratorService::points()`. dompdf has no box-shadow or gradients: the PDF uses
+  `pdf/images/certificate-background.png`; after moving the frames run `php scripts/certificate-background.php`. Fonts: TTF in `resources/views/pdf/fonts`, the same Lora in
   `public/portal/fonts`. In a Blade template `word@if` is not a directive: keep a space or a line break before it. Compare
   with `gswin64c -sDEVICE=png16m -r96` beside the preview after a change.
 - License documents (`/member/license-documents`, mockups `Documents Management.jpg` and `Container.jpg`):

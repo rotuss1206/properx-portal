@@ -5,11 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title>@yield('title') · ProPerX Alliance</title>
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}">
+    <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('components.css') }}">
     <style>
-        :root { --navy: #1e3a5f; --gold: #c8a24a; --muted: #6b7280; }
+        :root { --navy: #0a2d4b; --gold: #f0c846; --muted: #5f7185; }
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px;
-               font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f3f4f6; color: #1f2937; }
+               font-family: 'Open Sans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--ppx-page); color: #1f2937; }
+        h1 { font-family: 'Poppins', system-ui, sans-serif; font-weight: 600; color: var(--navy); }
+        .verify-form { display: grid; gap: 14px; justify-items: start; margin-top: 18px; }
+        .verify-form .ppx-field { width: 100%; }
+        .verify-form .ppx-field__error { margin: -6px 0 0; }
         .card { width: 100%; max-width: 520px; background: #fff; border-radius: 12px; border-top: 6px solid var(--navy);
                 box-shadow: 0 10px 30px rgba(15, 23, 42, .08); padding: 32px; }
         .brand { display: block; width: auto; height: 44px; }
@@ -24,6 +30,7 @@
         p { line-height: 1.5; color: #374151; }
         .footer { margin-top: 28px; font-size: 12px; color: var(--muted); border-top: 1px solid #e5e7eb; padding-top: 14px; }
         code { font-size: 13px; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+        .again { margin: 18px 0 0; font-size: 13px; }
     </style>
 </head>
 <body>

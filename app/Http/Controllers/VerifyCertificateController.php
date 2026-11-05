@@ -6,6 +6,8 @@ use App\Enums\LicenseStatus;
 use App\Models\MemberProfile;
 use App\Services\Certificates\CertificateGeneratorService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 /**
  * Public certificate check (QR code target). Discloses only name and validity dates;
@@ -13,6 +15,26 @@ use Illuminate\Contracts\View\View;
  */
 class VerifyCertificateController extends Controller
 {
+    private const CODE_PATTERN = '/^[A-Za-z0-9\-]{1,40}$/';
+
+    /**
+     * The short address printed on the certificate: a form for the Certificate ID, which leads to
+     * the same result page as the QR code.
+     */
+    public function form(Request $request): View|RedirectResponse
+    {
+        $code = preg_replace('/\s+/', '', (string) $request->query('code', ''));
+
+        if ($code !== '' && preg_match(self::CODE_PATTERN, $code)) {
+            return redirect()->route('certificates.verify', $code);
+        }
+
+        return view('certificates.verify-form', [
+            'code' => mb_substr($code, 0, 40),
+            'error' => $code === '' ? null : 'Enter the Certificate ID as printed: letters, numbers and dashes only.',
+        ]);
+    }
+
     public function __invoke(string $code): View
     {
         $profile = MemberProfile::with(['user:id,created_at', 'agency'])

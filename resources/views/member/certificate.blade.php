@@ -77,6 +77,9 @@
             @font-face { font-family: 'PPX Open Sans'; font-style: normal; font-weight: normal; src: url('{{ asset('portal/fonts/open-sans-latin-400-normal.woff2') }}') format('woff2'); }
             @font-face { font-family: 'PPX Poppins'; font-style: normal; font-weight: normal; src: url('{{ asset('portal/fonts/poppins-latin-600-normal.woff2') }}') format('woff2'); }
             @include('pdf.certificate-styles')
+            {{-- Real CSS here; in the PDF these are the image pdf/images/certificate-background.png. --}}
+            .ppx-cert__page .cert-frame { background: #fff; box-shadow: 0 {{ \App\Services\Certificates\CertificateGeneratorService::points(12) }} {{ \App\Services\Certificates\CertificateGeneratorService::points(40) }} 0 rgba(16, 40, 70, .14); }
+            .ppx-cert__page .cert-frame-gold { background: linear-gradient(180deg, #fff 0%, #fcfbf6 100%); }
         </style>
     @endif
 </x-member.layout>
