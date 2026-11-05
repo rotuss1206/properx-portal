@@ -7,29 +7,28 @@
 
     @if ($editing === 'license')
         @php
-            $fields = $profile->fullLicense() ? ['npn', 'license_state', 'license_type', 'license_number', 'license_expires_at'] : ['npn', 'license_state'];
+            $fields = $profile->fullLicense() ? ['license_number', 'license_type', 'license_state', 'license_expires_at'] : ['license_state'];
             $warned = (bool) session('license_review_warning');
-            $focus = collect($fields)->first(fn ($field) => $errors->has($field)) ?? 'npn';
+            $focus = collect($fields)->first(fn ($field) => $errors->has($field) || $errors->has($field.'.*')) ?? $fields[0];
+            // After a failed save the boxes show what was sent, even when nothing was ticked.
+            $selectedTypes = session()->hasOldInput() ? (array) old('license_type', []) : $member->licenseTypeList();
         @endphp
         <form class="ppx-form" method="POST" action="{{ route('member.profile.license') }}" novalidate>
             @csrf
             @method('PATCH')
 
             @if ($warned)
-                <div class="ppx-notice ppx-notice--warning ppx-profile__notice" id="ppx-license-warning" role="alert">
-                    <strong>Your license will go back to review.</strong>
-                    Changing your NPN, state, license number or expiration date sets your license verification to "Pending review" until ProPerX has checked it again.
-                </div>
-                <input type="hidden" name="confirm_review" value="1">
+                @include('member.profile.review-warning')
             @endif
 
-            <x-ppx.form-row name="npn" label="National Producer Number" :value="old('npn', $member->npn)" inputmode="numeric" hint="7 to 10 digits." required :autofocus="! $warned && $focus === 'npn'" />
+            @if ($profile->fullLicense())
+                <x-ppx.form-row name="license_number" label="License number" :value="old('license_number', $member->license_number)" hint="Optional." :autofocus="! $warned && $focus === 'license_number'" />
+                <x-ppx.check-group name="license_type" label="License type" :options="$member->licenseTypeOptions()" :selected="$selectedTypes" hint="Choose all that you hold." :autofocus="! $warned && $focus === 'license_type'" />
+            @endif
+
             <x-ppx.form-row name="license_state" label="Resident state" type="select" :options="$states" :value="old('license_state', $member->license_state)" required :autofocus="! $warned && $focus === 'license_state'" />
 
             @if ($profile->fullLicense())
-                @php($types = array_combine($licenseTypes, $licenseTypes) + array_filter([$member->license_type => $member->license_type]))
-                <x-ppx.form-row name="license_type" label="License type" type="select" :options="$types" :value="old('license_type', $member->license_type)" required :autofocus="! $warned && $focus === 'license_type'" />
-                <x-ppx.form-row name="license_number" label="License number" :value="old('license_number', $member->license_number)" required :autofocus="! $warned && $focus === 'license_number'" />
                 <x-ppx.form-row name="license_expires_at" label="Expiration date" type="date" :value="old('license_expires_at', $member->license_expires_at?->format('Y-m-d'))" required :autofocus="! $warned && $focus === 'license_expires_at'" />
             @endif
 
@@ -38,7 +37,6 @@
         </form>
     @elseif ($profile->holdsLicense())
         <dl class="ppx-kv">
-            <div class="ppx-kv__row"><dt>National Producer Number</dt><dd>{{ $member->npn ?: '—' }}</dd></div>
             @if ($profile->fullLicense())
                 <div class="ppx-kv__row"><dt>License number</dt><dd>{{ $member->license_number ?: '—' }}</dd></div>
                 <div class="ppx-kv__row"><dt>License type</dt><dd>{{ $member->license_type ?: '—' }}</dd></div>

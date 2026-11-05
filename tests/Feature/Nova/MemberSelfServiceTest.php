@@ -92,6 +92,19 @@ class MemberSelfServiceTest extends TestCase
         $this->assertFalse($settings[NotificationCategory::Announcements->value]);
     }
 
+    public function test_novas_form_keeps_a_license_type_off_its_list(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+        $profile->forceFill(['license_type' => 'Life, Health, Annuity'])->save();
+
+        $field = collect($this->actingAs($member)->getJson("/nova-api/member-profiles/{$profile->id}/update-fields")->assertOk()->json('fields'))
+            ->firstWhere('attribute', 'license_type');
+
+        $this->assertSame('Life, Health, Annuity', $field['value']);
+        $this->assertContains('Life, Health, Annuity', array_column($field['options'], 'value'));
+    }
+
     public function test_member_cannot_update_another_profile(): void
     {
         $member = $this->member();

@@ -1,6 +1,6 @@
-<x-ppx.card title="Account & security" heading="h2" id="security" class="ppx-profile__section">
+<x-ppx.card title="Security" heading="h2" id="security" class="ppx-profile__section">
     @unless ($editing === 'security')
-        <x-slot:action>@include('member.profile.edit-button', ['section' => 'security', 'name' => 'account and security', 'label' => 'Manage', 'icon' => 'sliders'])</x-slot:action>
+        <x-slot:action>@include('member.profile.edit-button', ['section' => 'security', 'name' => 'security', 'label' => 'Manage', 'icon' => 'sliders'])</x-slot:action>
     @endunless
 
     @include('member.profile.section-open', ['section' => 'security'])
@@ -11,13 +11,6 @@
     @endphp
 
     <dl class="ppx-kv">
-        <div class="ppx-kv__row">
-            <dt>Email</dt>
-            <dd>
-                {{ $email }}
-                <span class="ppx-kv__note">This is your sign-in. To change it, contact ProPerX.</span>
-            </dd>
-        </div>
         @unless ($editing === 'security')
             <div class="ppx-kv__row">
                 <dt>Password</dt>

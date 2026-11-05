@@ -239,7 +239,8 @@ shared styles in `public/portal/header.css`, data from `App\Support\PortalHeader
    `notification-preferences-panel`).
 4. Header: `GlobalSearch`, `UserMenu` and `ThemeDropdown` are still global components rendered by
    `layouts/MainHeader.vue`, the bell button still has `dusk="notifications-dropdown"`, the store action `logout`
-   still exists, and pages still set their title through Inertia's `<Head>` ("<title> - <app name>").
+   still exists, and pages still set their title through Inertia's `<Head>` ("<title> - <app name>"). On User
+   Security, "Disable" must still be the only `ConfirmsPassword` with `button-state="danger"`, and it must not show.
 5. Sign in as `member01@properx.test`, a staff account and on a phone width: the sidebar, the active item, collapse,
    the mobile drawer, the Renewal due card, the header title, search (staff), bell and account menu all work, and
    the browser console shows no "ProPerX sidebar failed" or "ProPerX header failed" message. If either fails, Nova's
@@ -288,8 +289,12 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
   Documents tab). Remove a page from both when it is built here.
 - Profile (`/member/profile`): `Member\ProfileController` + `App\Member\ProfilePage` (who may edit what) +
   `App\Member\ProfileRules`. Plain forms, one section open at a time (`?edit=section`), no Livewire: phones, addresses
-  and passwords must not travel in a component snapshot. `MemberProfile::LICENSE_REVIEW_FIELDS` changed by a member
-  (also through Nova) send the license back to `pending_review`; staff's edits do not. The email link
+  and passwords must not travel in a component snapshot. Layout as in the mockup: email under Contact (read-only), NPN
+  under Business, license number, type(s), state and expiry under License. License types are checkboxes
+  (`MemberProfile::LICENSE_TYPE_CHOICES`, the site's list) stored comma-separated like the intake does, no migration; a
+  stored value off the list stays on the form until the member unticks it, and Nova's select keeps it too.
+  `MemberProfile::LICENSE_REVIEW_FIELDS` changed by a member (also through Nova) send the license back to
+  `pending_review` after a warning in either section; staff's edits do not. The email link
   `LicenseExpiryReminder::preferencesUrl()` carries `?section=notifications` because an anchor does not survive sign-in.
 - Menu: `App\Member\MemberMenu` (agency people see no License documents; only the principal sees Billing). The sidebar
   reuses the Nova sidebar's classes (`public/portal/sidebar.css`) and the Renewal due card and person from

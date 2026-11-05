@@ -16,6 +16,8 @@ class TwoFactorEnforcementTest extends TestCase
 {
     use CreatesPortalUsers, RefreshDatabase;
 
+    private const DISABLE_URL = '/nova/user-security/two-factor-authentication';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -93,6 +95,75 @@ class TwoFactorEnforcementTest extends TestCase
             ->assertOk();
 
         $this->getJson('/nova-api/member-profiles')->assertOk();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function people(): array
+    {
+        return ['a member' => ['member'], 'staff' => ['staff']];
+    }
+
+    #[DataProvider('people')]
+    public function test_two_factor_cannot_be_turned_off_while_it_is_required(string $who): void
+    {
+        $user = $who === 'member' ? $this->member() : $this->staff(Role::ExecutiveDirector);
+
+        $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->delete(self::DISABLE_URL)
+            ->assertForbidden();
+
+        $this->deleteJson(self::DISABLE_URL)->assertForbidden();
+
+        $this->assertTrue($user->fresh()->hasConfirmedTwoFactor());
+        $this->assertNotNull($user->fresh()->two_factor_recovery_codes);
+    }
+
+    public function test_two_factor_stays_on_outside_local_even_with_the_flag_off(): void
+    {
+        config(['portal.require_two_factor' => false]);
+        $this->app->detectEnvironment(fn () => 'production');
+        $member = $this->member();
+
+        $this->actingAs($member)
+            ->withSession(['auth.password_confirmed_at' => time(), '_token' => 'csrf'])
+            ->withHeader('X-CSRF-TOKEN', 'csrf')
+            ->deleteJson(self::DISABLE_URL)
+            ->assertForbidden();
+
+        $this->assertTrue($member->fresh()->hasConfirmedTwoFactor());
+    }
+
+    public function test_locally_with_the_flag_off_two_factor_can_be_turned_off(): void
+    {
+        config(['portal.require_two_factor' => false]);
+        $this->app->detectEnvironment(fn () => 'local');
+        $staff = $this->staff(Role::ExecutiveDirector);
+
+        $this->actingAs($staff)
+            ->withSession(['auth.password_confirmed_at' => time(), '_token' => 'csrf'])
+            ->withHeader('X-CSRF-TOKEN', 'csrf')
+            ->deleteJson(self::DISABLE_URL)
+            ->assertOk();
+
+        $this->assertFalse($staff->fresh()->hasConfirmedTwoFactor());
+    }
+
+    public function test_the_user_security_page_is_told_to_hide_disable_only_while_required(): void
+    {
+        $staff = $this->staff(Role::ExecutiveDirector);
+
+        $header = fn () => $this->actingAs($staff)->get('/nova/user-security')->assertOk()
+            ->viewData('page')['props']['novaConfig']['portalHeader'];
+
+        $this->assertTrue($header()['twoFactorLocked']);
+
+        config(['portal.require_two_factor' => false]);
+        $this->app->detectEnvironment(fn () => 'local');
+
+        $this->assertFalse($header()['twoFactorLocked']);
     }
 
     public function test_api_service_account_is_not_asked_for_two_factor(): void

@@ -30,8 +30,8 @@ final class ActivityFeed
     /** Profile fields grouped as the profile page's cards. */
     private const PROFILE_SECTIONS = [
         'Contact information' => ['first_name', 'last_name', 'phone', 'address'],
-        'Business details' => ['firm_name'],
-        'License information' => ['npn', 'license_number', 'license_state', 'license_type', 'license_expires_at'],
+        'Business details' => ['firm_name', 'npn'],
+        'License information' => ['license_number', 'license_state', 'license_type', 'license_expires_at'],
     ];
 
     /**

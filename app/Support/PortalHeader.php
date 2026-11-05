@@ -16,7 +16,7 @@ final class PortalHeader
 {
     /**
      * @param  'member'|'nova'  $area
-     * @return array{date: string, dateIso: string, initials: string, name: string, profileUrl: ?string, securityUrl: string, search: bool, icons: string, unread: int}
+     * @return array{date: string, dateIso: string, initials: string, name: string, profileUrl: ?string, securityUrl: string, search: bool, icons: string, unread: int, twoFactorLocked: bool}
      */
     public static function for(User $user, string $area): array
     {
@@ -36,6 +36,8 @@ final class PortalHeader
             'icons' => PortalAsset::url('img/icons.svg'),
             // Member area bell (database notifications); Nova's bell counts Nova's own.
             'unread' => $area === 'member' ? $user->unreadNotifications()->count() : 0,
+            // Nova's User Security page offers no "Disable" then (App\Auth\KeepRequiredTwoFactor refuses it).
+            'twoFactorLocked' => $user->requiresTwoFactor(),
         ];
     }
 

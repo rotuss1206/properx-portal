@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Auth\KeepRequiredTwoFactor;
 use App\Auth\LoginRateLimiter;
 use App\Mail\AcsTransportFactory;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\LoginRateLimiter as FortifyLoginRateLimiter;
 use Laravel\Nova\Nova;
 use Livewire\Livewire;
@@ -24,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // 5 failed logins per 15 minutes per IP (Spec 8).
         $this->app->bind(FortifyLoginRateLimiter::class, LoginRateLimiter::class);
+
+        $this->app->bind(DisableTwoFactorAuthentication::class, KeepRequiredTwoFactor::class);
     }
 
     /**

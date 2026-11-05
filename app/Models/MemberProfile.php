@@ -53,6 +53,12 @@ class MemberProfile extends Model
     ];
 
     /**
+     * What properx.org's application form offers ("License Type(s) Held"). A member may hold several:
+     * license_type keeps them comma-separated, as the intake stores them.
+     */
+    public const LICENSE_TYPE_CHOICES = ['Life', 'Health', 'Property & Casualty', 'Annuity', 'Variable'];
+
+    /**
      * What staff verified: a member changing one of these sends the license back to review.
      */
     public const LICENSE_REVIEW_FIELDS = ['npn', 'license_state', 'license_number', 'license_expires_at'];
@@ -106,6 +112,40 @@ class MemberProfile extends Model
                 }
             }
         });
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function licenseTypeList(): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', (string) $this->license_type))));
+    }
+
+    /**
+     * The site's choices plus whatever this member already holds, so an older value is never lost.
+     *
+     * @return list<string>
+     */
+    public function licenseTypeOptions(): array
+    {
+        return array_values(array_unique([...self::LICENSE_TYPE_CHOICES, ...$this->licenseTypeList()]));
+    }
+
+    /**
+     * The stored form of the chosen types. The same set keeps its stored spelling, so saving
+     * without a change changes nothing.
+     *
+     * @param  array<int, string>  $types
+     */
+    public function licenseTypeValue(array $types): string
+    {
+        $types = array_values(array_unique($types));
+        $current = $this->licenseTypeList();
+
+        return array_diff($types, $current) === [] && array_diff($current, $types) === []
+            ? (string) $this->license_type
+            : implode(', ', $types);
     }
 
     private static function actorIsMember(): bool

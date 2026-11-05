@@ -53,7 +53,6 @@ class ProfileController extends Controller
             'membership' => Overview::for($user)->membership(),
             'editing' => $page->editing($request->query('edit')),
             'states' => UsStates::ALL,
-            'licenseTypes' => MemberProfile::LICENSE_TYPES,
             'newCodes' => $request->session()->get('recovery_codes_new') ? $user->recoveryCodes() : null,
         ])->header('Cache-Control', 'no-store, private');
     }
@@ -71,33 +70,42 @@ class ProfileController extends Controller
     {
         $profile = $this->editableProfile($request, 'business');
 
-        $profile->fill($this->validated($request, 'business', ProfileRules::business()))->save();
+        $profile->fill($this->validated($request, 'business', ProfileRules::business($profile, $request->all())));
 
-        return $this->saved('business', 'Business details saved.');
+        return $this->saveAfterReviewWarning($request, $profile, 'business', 'Business details saved.');
     }
 
-    /**
-     * Two steps when the change would send the license back to review: the form comes back with
-     * the warning, and only "Save and send for review" stores it.
-     */
     public function updateLicense(Request $request): RedirectResponse
     {
         $profile = $this->editableProfile($request, 'license');
         $validated = $this->validated($request, 'license', ProfileRules::license($profile, $request->all()));
 
+        if (isset($validated['license_type'])) {
+            $validated['license_type'] = $profile->licenseTypeValue($validated['license_type']);
+        }
+
         $profile->fill($validated);
+
+        return $this->saveAfterReviewWarning($request, $profile, 'license', 'License information saved.');
+    }
+
+    /**
+     * Two steps when the change would send the license back to review (the NPN is in Business, the
+     * rest in License): the form comes back with the warning, and only "Save and send for review"
+     * stores it.
+     */
+    private function saveAfterReviewWarning(Request $request, MemberProfile $profile, string $section, string $message): RedirectResponse
+    {
         $returnsToReview = $profile->isDirty(MemberProfile::LICENSE_REVIEW_FIELDS)
             && ProfilePage::for($request->user())->licenseCanReturnToReview();
 
         if ($returnsToReview && ! $request->boolean('confirm_review')) {
-            return redirect($this->editUrl('license'))->withInput()->with('license_review_warning', true);
+            return redirect($this->editUrl($section))->withInput()->with('license_review_warning', true);
         }
 
         $profile->save();
 
-        return $this->saved('license', $returnsToReview
-            ? 'License information saved. ProPerX will review it again.'
-            : 'License information saved.');
+        return $this->saved($section, $returnsToReview ? $message.' ProPerX will review your license again.' : $message);
     }
 
     public function updateNotifications(Request $request): RedirectResponse

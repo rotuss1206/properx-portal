@@ -217,8 +217,10 @@ class MemberProfile extends Resource
                 ->hideFromIndex()
                 ->filterable(),
 
+            // Members hold several ("Life, Health", from the application or the profile page): the
+            // stored value stays on the list, or saving this form would blank it.
             self::individualLicenseOnly(Select::make('License Type')
-                ->options(array_combine(\App\Models\MemberProfile::LICENSE_TYPES, \App\Models\MemberProfile::LICENSE_TYPES))
+                ->options(collect(\App\Models\MemberProfile::LICENSE_TYPES)->push($this->resource?->license_type)->filter()->unique()->mapWithKeys(fn (string $type) => [$type => $type])->all())
                 ->rules('nullable', 'max:100')
                 ->filterable()),
 

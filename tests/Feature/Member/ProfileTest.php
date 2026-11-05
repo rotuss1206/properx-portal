@@ -37,18 +37,25 @@ class ProfileTest extends TestCase
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function licenseInput(MemberProfile $profile, array $changes = []): array
     {
         return [
-            'npn' => $profile->npn,
             'license_state' => $profile->license_state,
-            'license_type' => $profile->license_type,
+            'license_type' => $profile->licenseTypeList(),
             'license_number' => $profile->license_number,
             'license_expires_at' => $profile->license_expires_at->format('Y-m-d'),
             ...$changes,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function businessInput(MemberProfile $profile, array $changes = []): array
+    {
+        return ['firm_name' => $profile->firm_name, 'npn' => $profile->npn, ...$changes];
     }
 
     private function verified(User $member): MemberProfile
@@ -97,9 +104,9 @@ class ProfileTest extends TestCase
         $this->actingAs($member)->get(route('member.profile'))->assertOk()
             ->assertHeader('Cache-Control', 'no-store, private')
             ->assertSee($profile->fullName())
-            ->assertSeeInOrder(['Contact information', 'Business details', 'License information', 'Account &amp; security', 'Notifications'], false)
-            ->assertSee($member->email)
-            ->assertSee($profile->npn)
+            // As in docs/design/Main.jpg: the email under Contact, the NPN under Business.
+            ->assertSeeInOrder(['Contact information', $member->email, 'Business details', 'National Producer Number', $profile->npn, 'License information', 'Resident state', 'Security', 'Two-factor authentication', 'Notifications'], false)
+            ->assertDontSee('Account &amp; security', false)
             ->assertSee('8 available')
             ->assertSee('Enabled')
             ->assertDontSee('name="first_name"', false)
@@ -109,6 +116,11 @@ class ProfileTest extends TestCase
             ->assertSee('name="first_name"', false)
             ->assertSee(route('member.profile').'#contact', false)
             ->assertDontSee('name="npn"', false);
+
+        $this->get(route('member.profile', ['edit' => 'business']))->assertOk()
+            ->assertSee('name="firm_name"', false)
+            ->assertSee('name="npn"', false)
+            ->assertDontSee('name="license_state"', false);
 
         $this->get(route('member.profile', ['edit' => 'nonsense']))->assertOk()->assertDontSee('name="first_name"', false);
     }
@@ -252,12 +264,50 @@ class ProfileTest extends TestCase
     {
         $member = $this->member();
 
-        $this->actingAs($member)->patch(route('member.profile.business'), ['firm_name' => 'Mercer Insurance Group'])
+        $this->actingAs($member)->patch(route('member.profile.business'), $this->businessInput($member->memberProfile, ['firm_name' => 'Mercer Insurance Group']))
             ->assertRedirect(route('member.profile').'#business');
 
         $this->assertSame('Mercer Insurance Group', $member->memberProfile->fresh()->firm_name);
         $this->assertSame(['firm_name'], AuditLog::where('action', 'profile_updated')->sole()->details['fields']);
         $this->auditValuesLeak('Mercer Insurance');
+    }
+
+    public function test_an_npn_is_one_to_ten_digits_and_unique_as_on_the_site(): void
+    {
+        $member = $this->member();
+        $other = $this->member();
+        $profile = $member->memberProfile;
+
+        $this->actingAs($member);
+
+        foreach (['1', '1234567', '1234567890'] as $npn) {
+            $this->patch(route('member.profile.business'), $this->businessInput($profile, ['npn' => $npn]))->assertSessionHasNoErrors();
+            $this->assertSame($npn, $profile->fresh()->npn);
+        }
+
+        foreach (['12345678901', '12ab', '123 456'] as $npn) {
+            $this->patch(route('member.profile.business'), $this->businessInput($profile, ['npn' => $npn]))
+                ->assertRedirect(route('member.profile', ['edit' => 'business']))
+                ->assertSessionHasErrors(['npn' => 'The NPN must be up to 10 digits, numbers only.']);
+        }
+
+        $this->patch(route('member.profile.business'), $this->businessInput($profile, ['npn' => $other->memberProfile->npn]))
+            ->assertSessionHasErrors(['npn' => 'This NPN is already registered in the portal. Please contact ProPerX.']);
+    }
+
+    public function test_an_old_npn_or_none_at_all_does_not_block_the_firm_name(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+
+        $profile->forceFill(['npn' => 'OLD-123'])->save();
+        $this->actingAs($member)->patch(route('member.profile.business'), ['firm_name' => 'First', 'npn' => 'OLD-123'])->assertSessionHasNoErrors();
+        $this->assertSame('First', $profile->fresh()->firm_name);
+
+        $profile->fresh()->forceFill(['npn' => null])->save();
+        $member->setRelation('memberProfile', $profile->fresh());
+        $this->patch(route('member.profile.business'), ['firm_name' => 'Second', 'npn' => ''])->assertSessionHasNoErrors();
+        $this->assertSame('Second', $profile->fresh()->firm_name);
     }
 
     // License
@@ -269,30 +319,31 @@ class ProfileTest extends TestCase
         $oldNpn = $profile->npn;
 
         foreach ([
-            ['npn' => '12345678'],
-            ['license_state' => $profile->license_state === 'TX' ? 'OH' : 'TX'],
-            ['license_number' => 'NEW-123'],
-            ['license_expires_at' => today()->addYears(3)->format('Y-m-d')],
-        ] as $change) {
+            ['business', ['npn' => '12345678']],
+            ['license', ['license_state' => $profile->license_state === 'TX' ? 'OH' : 'TX']],
+            ['license', ['license_number' => 'NEW-123']],
+            ['license', ['license_number' => '']],
+            ['license', ['license_expires_at' => today()->addYears(3)->format('Y-m-d')]],
+        ] as [$section, $change]) {
             $profile = $this->verified($member);
             $storedNpn = $profile->npn;
-            $input = $this->licenseInput($profile, $change);
+            $input = $section === 'business' ? $this->businessInput($profile, $change) : $this->licenseInput($profile, $change);
 
-            $this->actingAs($member)->patch(route('member.profile.license'), $input)
-                ->assertRedirect(route('member.profile', ['edit' => 'license']))
+            $this->actingAs($member)->patch(route('member.profile.'.$section), $input)
+                ->assertRedirect(route('member.profile', ['edit' => $section]))
                 ->assertSessionHas('license_review_warning');
 
             // Nothing is stored before the confirmation.
             $this->assertSame(LicenseVerification::Verified, $profile->fresh()->license_verification);
             $this->assertSame($storedNpn, $profile->fresh()->npn);
 
-            $this->get(route('member.profile', ['edit' => 'license']))
+            $this->get(route('member.profile', ['edit' => $section]))
                 ->assertSee('Your license will go back to review.')
                 ->assertSee('Save and send for review')
                 ->assertSee('name="confirm_review"', false);
 
-            $this->patch(route('member.profile.license'), $input + ['confirm_review' => '1'])
-                ->assertRedirect(route('member.profile').'#license');
+            $this->patch(route('member.profile.'.$section), $input + ['confirm_review' => '1'])
+                ->assertRedirect(route('member.profile').'#'.$section);
 
             $this->assertSame(LicenseVerification::PendingReview, $profile->fresh()->license_verification, json_encode(array_keys($change)));
         }
@@ -306,14 +357,91 @@ class ProfileTest extends TestCase
     {
         $member = $this->member();
         $profile = $this->verified($member);
-        $type = $profile->license_type === 'Life Only' ? 'Personal Lines' : 'Life Only';
 
-        $this->actingAs($member)->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => $type]))
+        $this->actingAs($member)->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => ['Annuity']]))
             ->assertRedirect(route('member.profile').'#license')
             ->assertSessionMissing('license_review_warning');
 
-        $this->assertSame($type, $profile->fresh()->license_type);
+        $this->assertSame('Annuity', $profile->fresh()->license_type);
         $this->assertSame(LicenseVerification::Verified, $profile->fresh()->license_verification);
+    }
+
+    public function test_several_license_types_are_kept_comma_separated_as_the_intake_stores_them(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+
+        $this->actingAs($member)->get(route('member.profile', ['edit' => 'license']))->assertOk()
+            ->assertSeeInOrder(['value="Life"', 'value="Health"', 'value="Property &amp; Casualty"', 'value="Annuity"', 'value="Variable"'], false)
+            ->assertSee('name="license_type[]"', false);
+
+        $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => ['Life', 'Health']]))->assertSessionHasNoErrors();
+        $this->assertSame('Life, Health', $profile->fresh()->license_type);
+
+        $this->get(route('member.profile'))->assertSee('Life, Health');
+
+        $form = $this->get(route('member.profile', ['edit' => 'license']))->getContent();
+        $this->assertMatchesRegularExpression('/value="Life"\s+checked/', $form);
+        $this->assertMatchesRegularExpression('/value="Health"\s+checked/', $form);
+        $this->assertDoesNotMatchRegularExpression('/value="Annuity"\s+checked/', $form);
+    }
+
+    public function test_an_existing_license_type_is_not_lost(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['license_type' => 'Health, Life & Health'])->save();
+        $profile = $this->verified($member);
+        AuditLog::query()->delete();
+
+        // Off the site's list, yet still on the form, ticked.
+        $form = $this->actingAs($member)->get(route('member.profile', ['edit' => 'license']))->getContent();
+        $this->assertMatchesRegularExpression('/value="Life &amp; Health"\s+checked/', $form);
+
+        // Saved as it came, in any order, and that is no change at all.
+        $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => ['Life & Health', 'Health']]))->assertSessionHasNoErrors();
+        $this->assertSame('Health, Life & Health', $profile->fresh()->license_type);
+        $this->assertSame(0, AuditLog::where('action', 'profile_updated')->count());
+
+        // Editing something else keeps it.
+        $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_number' => 'NEW-1', 'confirm_review' => '1']))->assertSessionHasNoErrors();
+        $this->assertSame('Health, Life & Health', $profile->fresh()->license_type);
+
+        // Taken off by the member, it no longer validates or shows.
+        $this->patch(route('member.profile.license'), $this->licenseInput($profile->fresh(), ['license_type' => ['Health', 'Variable']]))->assertSessionHasNoErrors();
+        $this->assertSame('Health, Variable', $profile->fresh()->license_type);
+        $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => ['Life & Health']]))
+            ->assertSessionHasErrors(['license_type.0' => 'Choose your license types from the list.']);
+    }
+
+    public function test_the_license_number_is_optional_as_on_the_site(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+
+        $this->actingAs($member)->get(route('member.profile', ['edit' => 'license']))
+            ->assertDontSee('id="ppx-default-license_number" required', false);
+
+        $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_number' => '']))->assertSessionHasNoErrors();
+        $this->assertNull($profile->fresh()->license_number);
+
+        $this->get(route('member.profile'))->assertOk()->assertSee('License number');
+    }
+
+    public function test_a_failed_save_keeps_what_was_ticked(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+
+        $form = $this->actingAs($member)->followingRedirects()
+            ->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => ['Annuity'], 'license_state' => 'ZZ']))
+            ->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/value="Annuity"\s+checked/', $form);
+
+        $form = $this->followingRedirects()->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => []]))
+            ->assertOk()->assertSee('Choose at least one license type.')->getContent();
+
+        $this->assertDoesNotMatchRegularExpression('/name="license_type\[\]"[^>]+checked/', $form);
     }
 
     public function test_a_license_already_in_review_is_saved_without_the_warning(): void
@@ -358,25 +486,25 @@ class ProfileTest extends TestCase
     public function test_license_errors_are_written_for_people(): void
     {
         $member = $this->member();
-        $other = $this->member();
         $profile = $member->memberProfile;
 
         $this->actingAs($member)->patch(route('member.profile.license'), $this->licenseInput($profile, [
-            'npn' => '12ab',
             'license_state' => 'ZZ',
-            'license_type' => 'Astrology',
-            'license_number' => '',
+            'license_type' => ['Astrology'],
             'license_expires_at' => 'soon',
         ]))->assertSessionHasErrors([
-            'npn' => 'The NPN must be 7 to 10 digits, numbers only.',
             'license_state' => 'Choose your resident state from the list.',
-            'license_type' => 'Choose your license type from the list.',
-            'license_number' => 'Enter your license number.',
+            'license_type.0' => 'Choose your license types from the list.',
             'license_expires_at' => 'Enter the expiration date as a full date, e.g. 09/30/2027.',
         ]);
 
-        $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['npn' => $other->memberProfile->npn]))
-            ->assertSessionHasErrors(['npn' => 'This NPN is already registered in the portal. Please contact ProPerX.']);
+        foreach ([[], null] as $none) {
+            $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => $none]))
+                ->assertSessionHasErrors(['license_type' => 'Choose at least one license type.']);
+        }
+
+        $this->patch(route('member.profile.license'), $this->licenseInput($profile, ['license_type' => 'Life']))
+            ->assertSessionHasErrors(['license_type' => 'Choose your license types from the list.']);
     }
 
     // Agency people
@@ -395,20 +523,31 @@ class ProfileTest extends TestCase
             ->assertDontSee('Expiration date');
 
         $this->get(route('member.profile', ['edit' => 'license']))->assertOk()
-            ->assertSee('name="npn"', false)
+            ->assertSee('name="license_state"', false)
+            ->assertDontSee('name="npn"', false)
+            ->assertDontSee('license_type[]', false)
             ->assertDontSee('name="license_number"', false)
             ->assertDontSee('name="license_expires_at"', false);
 
+        $this->get(route('member.profile', ['edit' => 'business']))->assertOk()
+            ->assertSee('name="npn"', false)
+            ->assertSee($profile->agency->legal_name);
+
+        $this->patch(route('member.profile.business'), ['npn' => '23456789', 'confirm_review' => '1'])
+            ->assertRedirect(route('member.profile').'#business');
+
         $this->patch(route('member.profile.license'), [
-            'npn' => '23456789',
+            'npn' => '34567890',
             'license_state' => 'OH',
             'license_number' => 'FORGED',
+            'license_type' => ['Life'],
             'license_expires_at' => '2099-01-01',
             'confirm_review' => '1',
         ])->assertRedirect(route('member.profile').'#license');
 
         $profile->refresh();
         $this->assertSame('23456789', $profile->npn);
+        $this->assertSame('OH', $profile->license_state);
         $this->assertSame($number, $profile->license_number);
     }
 
@@ -417,7 +556,7 @@ class ProfileTest extends TestCase
         $person = $this->agencyPerson();
 
         $this->actingAs($person)->patch(route('member.profile.contact'), ['first_name' => 'Jordan', 'last_name' => 'Mercer'])->assertSessionHasNoErrors();
-        $this->patch(route('member.profile.business'), ['firm_name' => 'Own Firm'])->assertSessionHasNoErrors();
+        $this->patch(route('member.profile.business'), $this->businessInput($person->memberProfile, ['firm_name' => 'Own Firm']))->assertSessionHasNoErrors();
 
         $this->assertSame('Own Firm', $person->memberProfile->fresh()->firm_name);
     }
@@ -426,7 +565,7 @@ class ProfileTest extends TestCase
     {
         $principal = $this->agency(2)->principal()->first();
 
-        $this->actingAs($principal)->patch(route('member.profile.license'), ['npn' => '', 'license_state' => 'TX'])
+        $this->actingAs($principal)->patch(route('member.profile.business'), ['npn' => ''])
             ->assertSessionHasErrors(['npn' => 'Enter your National Producer Number.']);
     }
 
@@ -440,9 +579,12 @@ class ProfileTest extends TestCase
             ->assertDontSee('National Producer Number');
 
         $this->get(route('member.profile', ['edit' => 'license']))->assertOk()->assertDontSee('name="npn"', false);
+        $this->get(route('member.profile', ['edit' => 'business']))->assertOk()->assertDontSee('name="npn"', false);
 
-        $this->patch(route('member.profile.license'), ['npn' => '23456789', 'license_state' => 'OH'])->assertForbidden();
+        $this->patch(route('member.profile.license'), ['license_state' => 'OH'])->assertForbidden();
+        $this->patch(route('member.profile.business'), ['firm_name' => 'Own Firm', 'npn' => '23456789'])->assertSessionHasNoErrors();
         $this->assertNull($employee->memberProfile->fresh()->npn);
+        $this->assertSame('Own Firm', $employee->memberProfile->fresh()->firm_name);
 
         $this->patch(route('member.profile.contact'), ['first_name' => 'Jordan', 'last_name' => 'Mercer'])->assertSessionHasNoErrors();
     }
@@ -575,8 +717,9 @@ class ProfileTest extends TestCase
         $member = $this->member();
         $email = $member->email;
 
-        $this->actingAs($member)->get(route('member.profile', ['edit' => 'security']))->assertOk()
+        $this->actingAs($member)->get(route('member.profile', ['edit' => 'contact']))->assertOk()
             ->assertSee($email)
+            ->assertSee('This is your sign-in.')
             ->assertDontSee('name="email"', false);
 
         $this->patch(route('member.profile.contact'), ['first_name' => 'Jordan', 'last_name' => 'Mercer', 'email' => 'forged@example.test']);
@@ -657,5 +800,9 @@ class ProfileTest extends TestCase
 
         $this->assertContains('Notification preferences updated', $feed->pluck('title'));
         $this->assertSame('Contact information', $feed->firstWhere('title', 'Profile updated')['detail']);
+
+        AuditLog::query()->where('action', 'profile_updated')->delete();
+        $this->patch(route('member.profile.business'), ['npn' => '4567', 'confirm_review' => '1'])->assertSessionHasNoErrors();
+        $this->assertSame('Business details', ActivityFeed::for($member->fresh())->firstWhere('title', 'Profile updated')['detail']);
     }
 }

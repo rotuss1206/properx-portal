@@ -6,6 +6,7 @@ use App\Models\MemberProfile;
 use App\Rules\UniqueBlindIndex;
 use App\Rules\UsPhone;
 use App\Support\UsStates;
+use Closure;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -32,33 +33,49 @@ final class ProfileRules
     /**
      * @return array<string, array<int, mixed>>
      */
-    public static function business(): array
+    public static function business(MemberProfile $profile, array $input): array
     {
-        return ['firm_name' => ['nullable', 'string', 'max:255']];
+        $rules = ['firm_name' => ['nullable', 'string', 'max:255']];
+
+        // As on properx.org: 1 to 10 digits. An NPN cannot be cleared (Agency::principalProblem()
+        // needs the principal's), but a record without one can still change its firm name.
+        if (! $profile->isAgencyEmployee()) {
+            $rules['npn'] = [filled($profile->npn) ? 'required' : 'nullable', 'string', 'regex:/^\d{1,10}$/', new UniqueBlindIndex(MemberProfile::class, 'npn', $profile->getKey())];
+        }
+
+        return self::unlessUnchanged($profile, $input, ['npn'], $rules);
     }
 
     /**
-     * Agency people hold NPN and resident state only (Agency spec 3.5). The principal's NPN stays
-     * required anyway through "required": Agency::principalProblem() needs it.
+     * Agency people hold a resident state only here (Agency spec 3.5). The license number is
+     * optional: properx.org's application does not ask for it.
      *
      * @return array<string, array<int, mixed>>
      */
     public static function license(MemberProfile $profile, array $input): array
     {
-        $rules = [
-            'npn' => ['required', 'string', 'regex:/^\d{7,10}$/', new UniqueBlindIndex(MemberProfile::class, 'npn', $profile->getKey())],
-            'license_state' => ['required', Rule::in(array_keys(UsStates::ALL))],
-        ];
+        $rules = ['license_state' => ['required', Rule::in(array_keys(UsStates::ALL))]];
 
         if ($profile->agency_id === null) {
             $rules += [
-                'license_number' => ['required', 'string', 'max:50'],
-                'license_type' => ['required', Rule::in(MemberProfile::LICENSE_TYPES)],
+                'license_number' => ['nullable', 'string', 'max:50'],
+                'license_type' => ['required', 'array', self::fitsLicenseTypeColumn(...)],
+                'license_type.*' => ['string', Rule::in($profile->licenseTypeOptions())],
                 'license_expires_at' => ['required', 'date_format:Y-m-d'],
             ];
         }
 
-        return self::unlessUnchanged($profile, $input, ['npn', 'license_state', 'license_type'], $rules);
+        return self::unlessUnchanged($profile, $input, ['license_state'], $rules);
+    }
+
+    /**
+     * The types are stored in one column of 100 characters; nothing may be cut off.
+     */
+    private static function fitsLicenseTypeColumn(string $attribute, mixed $value, Closure $fail): void
+    {
+        if (is_array($value) && mb_strlen(implode(', ', array_filter($value, 'is_string'))) > 100) {
+            $fail('Please choose fewer license types.');
+        }
     }
 
     /**
@@ -81,12 +98,13 @@ final class ProfileRules
             'first_name.required' => 'Enter your first name.',
             'last_name.required' => 'Enter your last name.',
             'npn.required' => 'Enter your National Producer Number.',
-            'npn.regex' => 'The NPN must be 7 to 10 digits, numbers only.',
+            'npn.regex' => 'The NPN must be up to 10 digits, numbers only.',
             'license_state.required' => 'Choose your resident state.',
             'license_state.in' => 'Choose your resident state from the list.',
-            'license_number.required' => 'Enter your license number.',
-            'license_type.required' => 'Choose your license type.',
-            'license_type.in' => 'Choose your license type from the list.',
+            'license_type.required' => 'Choose at least one license type.',
+            'license_type.array' => 'Choose your license types from the list.',
+            'license_type.*.string' => 'Choose your license types from the list.',
+            'license_type.*.in' => 'Choose your license types from the list.',
             'license_expires_at.required' => 'Enter the date your license expires.',
             'license_expires_at.date_format' => 'Enter the expiration date as a full date, e.g. 09/30/2027.',
             'current_password.required' => 'Enter your current password.',

@@ -311,10 +311,6 @@
 
 .ppx-kv { margin: 0; padding: 0 22px 8px; }
 
-.ppx-kv--joined { padding-top: 0; }
-
-.ppx-kv:has(+ .ppx-kv--joined) { padding-bottom: 0; }
-
 .ppx-kv__row {
     display: grid;
     grid-template-columns: 212px minmax(0, 1fr);
@@ -324,8 +320,6 @@
 }
 
 .ppx-kv__row:first-child { border-top: 0; }
-
-.ppx-kv--joined .ppx-kv__row:first-child { border-top: 1px solid var(--ppx-line); }
 
 .ppx-kv__row dt { color: var(--ppx-muted); font-size: 13px; line-height: 21px; }
 
@@ -349,6 +343,16 @@
 .ppx-form__label { padding-top: 10px; color: var(--ppx-muted); font-size: 13px; line-height: 20px; }
 
 .ppx-form__control { min-width: 0; max-width: 420px; }
+
+.ppx-form__static { padding-top: 10px; color: var(--ppx-ink); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+
+.ppx-checks { display: flex; flex-wrap: wrap; gap: 4px 18px; padding-top: 6px; }
+
+.ppx-check { display: inline-flex; align-items: center; gap: 8px; min-height: 28px; color: var(--ppx-ink); font-size: 14px; line-height: 20px; cursor: pointer; }
+
+.ppx-check input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--ppx-navy); cursor: pointer; }
+
+.ppx-check input:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 2px; }
 
 .ppx-form__actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 0 0 212px; }
 
@@ -434,6 +438,11 @@
     .ppx-form__label { padding: 0 0 4px; }
 
     .ppx-form__control { max-width: none; }
+
+    .ppx-form__static,
+    .ppx-checks { padding-top: 0; }
+
+    .ppx-check { min-height: 36px; }
 
     .ppx-form__actions { padding-left: 0; }
 

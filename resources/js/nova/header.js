@@ -8,7 +8,8 @@
  *   - UserMenu     -> avatar with Profile, Security and Sign out;
  *   - ThemeDropdown -> nothing (not in the design);
  *   - NotificationCenter -> the member area's bell and notifications panel (public/portal/
- *     notify.js opens it, notify.css styles it) with Nova's own notifications.
+ *     notify.js opens it, notify.css styles it) with Nova's own notifications;
+ *   - ConfirmsPassword -> the same, minus User Security's "Disable" while 2FA is required.
  * Render functions only (no unsafe-eval). If a swapped component throws, Nova's original
  * renders and html.ppx-nova-header is removed, so Nova's header comes back (for the panel
  * only html.ppx-nova-notify, so Nova's own notification center returns). Depends on Nova 5
@@ -327,17 +328,35 @@
         },
     }
 
+    // Nova's User Security page: "Disable" is the only password-confirmed button in the danger
+    // state (passkeys are off). Two-factor authentication is mandatory, so it is not drawn; the
+    // server refuses the request anyway (App\Auth\KeepRequiredTwoFactor).
+    function withoutDisable(original) {
+        return {
+            name: 'PortalConfirmsPassword',
+            inheritAttrs: false,
+
+            render: function () {
+                var state = this.$attrs['button-state'] || this.$attrs.buttonState
+
+                return state === 'danger' ? null : h(original, this.$attrs, this.$slots)
+            },
+        }
+    }
+
     var replacements = {
         GlobalSearch: function (original) { return headerMain(original) },
         UserMenu: function () { return AccountMenu },
         ThemeDropdown: function () { return Nothing },
         // Without public/portal/notify.js Nova's own notification center stays.
         NotificationCenter: function (original) { return window.PortalNotify ? NotificationPanel : original },
+        ConfirmsPassword: function (original) { return data.twoFactorLocked ? withoutDisable(original) : original },
     }
 
-    // What a failing component takes back with it: the whole header, or only the panel.
+    // What a failing component takes back with it: the whole header, only the panel, or nothing.
     var fallbacks = {
         NotificationCenter: function () { notifyLayout(false) },
+        ConfirmsPassword: function () {},
     }
 
     var replaced = {}
@@ -368,7 +387,7 @@
             },
 
             render: function () {
-                return h(this.failed ? original : portal, this.$attrs)
+                return h(this.failed ? original : portal, this.$attrs, this.$slots)
             },
         }
     }
