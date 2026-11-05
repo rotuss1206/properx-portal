@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['original_filename', 'mime_type', 'size', 'document_type', 'uploaded_at', 'verification_status', 'admin_notes', 'rejection_reason', 'license_number', 'license_state', 'license_expires_at'])]
+#[Fillable(['original_filename', 'mime_type', 'size', 'document_type', 'uploaded_at', 'verification_status', 'admin_notes', 'rejection_reason', 'license_number', 'license_state', 'license_issued_at', 'license_expires_at'])]
 #[Hidden(['stored_filename'])]
 #[ObservedBy(DocumentObserver::class)]
 class LicenseDocument extends Model implements DownloadableDocument
@@ -45,6 +45,7 @@ class LicenseDocument extends Model implements DownloadableDocument
             'admin_notes' => 'encrypted', // internal, never shown to the member
             'rejection_reason' => 'encrypted', // written for the member
             'license_number' => 'encrypted',
+            'license_issued_at' => 'date',
             'license_expires_at' => 'date',
             'verification_status' => VerificationStatus::class,
         ];

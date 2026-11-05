@@ -31,7 +31,7 @@
 .ppx-card__title {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     margin: 0;
     color: var(--ppx-ink);
     font-family: var(--ppx-heading);
@@ -41,10 +41,10 @@
 
 .ppx-card__title::before {
     flex: none;
-    width: 3px;
-    height: 18px;
+    width: 4px;
+    height: 16px;
     border-radius: 2px;
-    background: var(--ppx-green);
+    background: var(--ppx-card-marker);
     content: '';
 }
 
@@ -308,6 +308,8 @@
     color: var(--ppx-ink);
     font: inherit;
 }
+
+select.ppx-field__input { padding-right: 40px; background: var(--ppx-surface) url('img/select-chevron.svg') no-repeat right 14px center; appearance: none; }
 
 .ppx-field__input:focus { border-color: var(--ppx-blue-focus); outline: none; box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.18); }
 

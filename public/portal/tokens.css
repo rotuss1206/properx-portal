@@ -32,7 +32,8 @@
     --ppx-yellow-signin: #fad250;      /* sign-in button */
     --ppx-yellow-badge: #fbd24e;       /* sign-in "Member portal" badge */
     --ppx-yellow-hover: #f6c731;
-    --ppx-green: #4e9a2c;              /* card title bar, success icons */
+    --ppx-green: #4e9a2c;              /* success icons */
+    --ppx-card-marker: #5fa528;        /* the mark beside card titles */
     --ppx-green-50: #eaf4e1;
     --ppx-green-700: #3f7d22;
     --ppx-danger: #b42318;             /* form errors */

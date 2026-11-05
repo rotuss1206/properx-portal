@@ -34,7 +34,11 @@ class LicenseDocumentsTest extends TestCase
 {
     use CreatesPortalUsers, RefreshDatabase;
 
-    private const PAGE_FROM = ['from' => 'page', 'document_type' => 'resident', 'license_state' => 'OH', 'license_expires_at' => '2027-09-30'];
+    private const PAGE_FROM = ['from' => 'page', 'document_type' => 'resident', 'license_number' => 'OH-2019-4471', 'license_issued_at' => '2024-10-01', 'license_expires_at' => '2027-09-30'];
+
+    private const WRONG_FORMAT = 'Unsupported format — upload a PDF, JPG or PNG.';
+
+    private const TOO_LARGE = 'Too large — the file may not be larger than 10 MB.';
 
     protected function setUp(): void
     {
@@ -199,7 +203,7 @@ class LicenseDocumentsTest extends TestCase
         $member = $this->member();
         $member->memberProfile->forceFill(['license_verification' => LicenseVerification::Verified])->save();
 
-        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'document_type' => 'non_resident'])
+        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'document_type' => 'non_resident', 'license_state' => 'IN'])
             ->assertSessionHas('status');
 
         $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
@@ -244,9 +248,10 @@ class LicenseDocumentsTest extends TestCase
         $form = $this->actingAs($member->fresh())->get(route('member.license-documents.upload'))->assertOk()
             ->assertSee('value="OH-2019-4471"', false)
             ->assertSee('value="2027-09-30"', false)
+            ->assertSee('data-profile-value="OH-2019-4471"', false)
             ->getContent();
 
-        $this->assertMatchesRegularExpression('/<option value="OH"\s+selected/', $form);
+        $this->assertDoesNotMatchRegularExpression('/<option value="OH"\s+selected/', $form);
     }
 
     public function test_license_details_stay_with_the_document_and_the_profile_keeps_its_own(): void
@@ -258,13 +263,14 @@ class LicenseDocumentsTest extends TestCase
         $this->actingAs($member)->post(route('member.license-documents.store'), [
             'file' => $this->pdf(),
             ...self::PAGE_FROM,
-            'license_number' => 'OH-2019-4471',
+            'license_state' => 'FORGED',
         ])->assertSessionHasNoErrors();
 
         $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
         $this->assertSame('OH-2019-4471', $document->license_number);
         $this->assertStringNotContainsString('OH-2019', (string) $document->getRawOriginal('license_number'));
-        $this->assertSame('OH', $document->license_state);
+        $this->assertSame('TX', $document->license_state, 'A resident license is in the state of the profile.');
+        $this->assertSame('2024-10-01', $document->license_issued_at->toDateString());
         $this->assertSame('2027-09-30', $document->license_expires_at->toDateString());
 
         $profile = $member->memberProfile->fresh();
@@ -276,37 +282,162 @@ class LicenseDocumentsTest extends TestCase
 
         $this->get(route('member.license-documents', ['document' => $document->id]))->assertOk()
             ->assertSee('OH-2019-4471')
-            ->assertSee('<dt>State</dt><dd>Ohio</dd>', false)
+            ->assertSee('<dt>State</dt><dd>Texas</dd>', false)
+            ->assertSee('<dt>Issued</dt><dd>1 Oct 2024</dd>', false)
             ->assertSee('<dt>Expires</dt><dd>30 Sep 2027</dd>', false);
 
         $this->actingAs($this->staff(Role::MembershipCoordinator))->getJson("/nova-api/license-documents/{$document->id}")->assertOk()
             ->assertSee('OH-2019-4471')
-            ->assertSee('Ohio')
+            ->assertSee('Texas')
+            ->assertSee('2024-10-01')
             ->assertSee('2027-09-30');
     }
 
-    public function test_the_license_number_is_optional_but_state_and_expiry_are_not(): void
+    public function test_a_license_needs_its_number_and_both_dates(): void
     {
-        $member = $this->member();
-        $this->actingAs($member);
+        $this->actingAs($this->member());
 
-        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM])->assertSessionHasNoErrors();
-        $this->assertNull(LicenseDocument::query()->whereBelongsTo($member)->sole()->license_number);
-
-        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'from' => 'page', 'document_type' => 'resident', 'license_state' => '', 'license_expires_at' => ''])
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'from' => 'page', 'document_type' => 'resident', 'license_number' => '', 'license_issued_at' => '', 'license_expires_at' => ''])
             ->assertSessionHasErrors([
-                'license_state' => 'Choose the state of this license.',
+                'license_number' => 'Enter the license number.',
+                'license_issued_at' => 'Enter the date this license was issued.',
                 'license_expires_at' => 'Enter the date this license expires.',
             ]);
 
-        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'license_state' => 'ZZ', 'license_expires_at' => 'soon', 'license_number' => str_repeat('9', 51)])
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'license_issued_at' => 'soon', 'license_expires_at' => 'later', 'license_number' => str_repeat('9', 51)])
             ->assertSessionHasErrors([
-                'license_state' => 'Choose the state from the list.',
+                'license_issued_at' => 'Enter the issue date as a full date, e.g. 10/01/2024.',
                 'license_expires_at' => 'Enter the expiration date as a full date, e.g. 09/30/2027.',
                 'license_number' => 'The license number may not be longer than 50 characters.',
             ]);
 
-        $this->assertSame(1, LicenseDocument::query()->count());
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'license_issued_at' => today()->addDay()->toDateString(), 'license_expires_at' => today()->addYear()->toDateString()])
+            ->assertSessionHasErrors(['license_issued_at' => 'The issue date cannot be in the future.']);
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'license_issued_at' => '2025-01-01', 'license_expires_at' => '2024-01-01'])
+            ->assertSessionHasErrors(['license_expires_at' => 'The expiration date cannot be before the issue date.']);
+
+        $this->assertSame(0, LicenseDocument::query()->count());
+    }
+
+    public function test_staff_see_the_issue_date_in_nova(): void
+    {
+        $member = $this->member();
+        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM])->assertSessionHasNoErrors();
+        $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
+
+        $staff = $this->staff(Role::MembershipCoordinator);
+
+        $fields = collect($this->actingAs($staff)->getJson("/nova-api/license-documents/{$document->getKey()}")->assertOk()->json('resource.fields'));
+
+        $this->assertSame('2024-10-01', $fields->firstWhere('attribute', 'license_issued_at')['value']);
+    }
+
+    public function test_a_non_resident_license_asks_for_its_own_state(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['license_state' => 'TX'])->save();
+        $member = $member->fresh();
+        $this->actingAs($member);
+        $input = [...self::PAGE_FROM, 'document_type' => 'non_resident'];
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...$input])
+            ->assertSessionHasErrors(['license_state' => 'Choose the state of this license.']);
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...$input, 'license_state' => 'ZZ'])
+            ->assertSessionHasErrors(['license_state' => 'Choose the state from the list.']);
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...$input, 'license_state' => 'IN'])->assertSessionHasNoErrors();
+
+        $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
+        $this->assertSame('IN', $document->license_state);
+        $this->assertSame('TX', $member->memberProfile->fresh()->license_state);
+    }
+
+    public function test_a_supporting_file_keeps_no_license_details(): void
+    {
+        $member = $this->member();
+
+        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'from' => 'page', 'document_type' => 'other', 'license_number' => 'IGNORED'])
+            ->assertSessionHasNoErrors();
+
+        $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
+        $this->assertNull($document->license_number);
+        $this->assertNull($document->license_issued_at);
+        $this->assertNull($document->license_expires_at);
+    }
+
+    // Several files
+
+    public function test_each_file_becomes_its_own_document_with_the_same_details(): void
+    {
+        $member = $this->member();
+
+        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => [$this->pdf('one.pdf'), $this->pdf('two.pdf')], ...self::PAGE_FROM])
+            ->assertRedirect(route('member.license-documents'))
+            ->assertSessionHas('status');
+
+        $documents = LicenseDocument::query()->whereBelongsTo($member)->orderBy('id')->get();
+        $this->assertSame(['one.pdf', 'two.pdf'], $documents->pluck('original_filename')->all());
+        $this->assertSame(['OH-2019-4471', 'OH-2019-4471'], $documents->pluck('license_number')->all());
+        $this->assertNotSame($documents[0]->stored_filename, $documents[1]->stored_filename);
+        $this->assertSame(2, AuditLog::where('action', 'document_uploaded')->count());
+    }
+
+    public function test_mixed_files_keep_the_good_ones_and_name_the_rejected(): void
+    {
+        $member = $this->member();
+
+        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => [
+            $this->pdf('good.pdf'),
+            UploadedFile::fake()->createWithContent('scan.tiff', "II*\0".str_repeat("\0", 64)),
+            UploadedFile::fake()->create('huge.pdf', 10241, 'application/pdf'),
+        ], ...self::PAGE_FROM])
+            ->assertRedirect(route('member.license-documents'))
+            ->assertSessionHas('status')
+            ->assertSessionHas('document_error', fn (string $error) => str_contains($error, 'scan.tiff: '.self::WRONG_FORMAT) && str_contains($error, 'huge.pdf: '.self::TOO_LARGE));
+
+        $this->assertSame(['good.pdf'], LicenseDocument::query()->whereBelongsTo($member)->get()->pluck('original_filename')->all());
+        $this->assertStringNotContainsString('scan.tiff', AuditLog::query()->get()->toJson());
+    }
+
+    public function test_when_every_file_is_refused_nothing_is_saved_and_the_page_lists_why(): void
+    {
+        $this->actingAs($this->member())->from(route('member.license-documents.upload'))->followingRedirects()
+            ->post(route('member.license-documents.store'), ['file' => [
+                UploadedFile::fake()->createWithContent('a.txt', 'text'),
+                UploadedFile::fake()->createWithContent('b.txt', 'text'),
+            ], ...self::PAGE_FROM])
+            ->assertOk()
+            ->assertSee('a.txt: '.self::WRONG_FORMAT)
+            ->assertSee('b.txt: '.self::WRONG_FORMAT)
+            ->assertSee('Rejected');
+
+        $this->assertSame(0, LicenseDocument::query()->count());
+    }
+
+    public function test_one_file_at_a_time_as_the_page_sends_them_gets_json(): void
+    {
+        $this->actingAs($this->member());
+
+        $this->post(route('member.license-documents.store'), ['file' => UploadedFile::fake()->createWithContent('a.txt', 'text'), ...self::PAGE_FROM], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.file.0', self::WRONG_FORMAT);
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM], ['Accept' => 'application/json'])->assertCreated();
+    }
+
+    public function test_the_page_matches_the_mockup_and_promises_only_what_is_true(): void
+    {
+        $this->actingAs($this->member())->get(route('member.license-documents.upload'))->assertOk()
+            ->assertSee('Uploaded files')
+            ->assertSee('or click to browse from your device')
+            ->assertSee('name="file[]" multiple', false)
+            ->assertSee('Issue date')
+            ->assertSee('Expiration date')
+            ->assertDontSee('(optional)')
+            ->assertDontSee('Selected file')
+            ->assertDontSee('TLS 1.3')
+            ->assertDontSee('scanned for viruses');
     }
 
     public function test_the_dashboards_short_form_takes_the_details_from_the_profile(): void
@@ -435,7 +566,7 @@ class LicenseDocumentsTest extends TestCase
         ] as $file) {
             $this->post(route('member.license-documents.store'), ['file' => $file, ...self::PAGE_FROM])
                 ->assertRedirect(route('member.license-documents.upload'))
-                ->assertSessionHasErrors(['file' => 'Upload a PDF, JPG or PNG file.']);
+                ->assertSessionHasErrors(['file' => self::WRONG_FORMAT]);
         }
 
         $this->assertSame(0, LicenseDocument::count());
@@ -447,7 +578,7 @@ class LicenseDocumentsTest extends TestCase
         $this->actingAs($member);
 
         $this->post(route('member.license-documents.store'), ['file' => UploadedFile::fake()->create('big.pdf', 10241, 'application/pdf'), ...self::PAGE_FROM])
-            ->assertSessionHasErrors(['file' => 'The file may not be larger than 10 MB.']);
+            ->assertSessionHasErrors(['file' => self::TOO_LARGE]);
         $this->post(route('member.license-documents.store'), self::PAGE_FROM)
             ->assertSessionHasErrors(['file' => 'Choose a file to upload.']);
         $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'document_type' => ''])
@@ -468,10 +599,10 @@ class LicenseDocumentsTest extends TestCase
 
         $this->call('POST', route('member.license-documents.store'), [], [], [], $tooLarge + ['HTTP_ACCEPT' => 'application/json'])
             ->assertStatus(413)
-            ->assertJson(['message' => 'The file may not be larger than 10 MB.']);
+            ->assertJson(['message' => self::TOO_LARGE]);
 
         $this->get(route('member.license-documents.upload', ['too_large' => 1]))->assertOk()
-            ->assertSee('The file may not be larger than 10 MB.');
+            ->assertSee(self::TOO_LARGE);
     }
 
     public function test_the_upload_page_shows_a_refused_file_in_its_row(): void
@@ -479,8 +610,8 @@ class LicenseDocumentsTest extends TestCase
         $this->actingAs($this->member())->from(route('member.license-documents.upload'))->followingRedirects()
             ->post(route('member.license-documents.store'), ['file' => UploadedFile::fake()->createWithContent('a.txt', 'text'), ...self::PAGE_FROM])
             ->assertOk()
-            ->assertSee('data-state="error"', false)
-            ->assertSee('Upload a PDF, JPG or PNG file.');
+            ->assertSee('is-rejected', false)
+            ->assertSee(self::WRONG_FORMAT);
     }
 
     public function test_the_upload_page_promises_a_malware_scan_only_when_there_is_one(): void

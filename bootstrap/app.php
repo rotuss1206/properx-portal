@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Member\LicenseDocumentController;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\DisableRememberMe;
 use App\Http\Middleware\EnsureMemberArea;
@@ -60,7 +61,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return $request->expectsJson()
-                ? response()->json(['message' => 'The file may not be larger than 10 MB.'], 413)
+                ? response()->json(['message' => LicenseDocumentController::TOO_LARGE], 413)
                 : redirect()->route('member.license-documents.upload', ['too_large' => 1]);
         });
 

@@ -134,7 +134,7 @@ icons from one SVG sprite.
 | `sidebar` | Same markup and classes as the Nova sidebar (`ppx-sidebar__*`): logo, collapse (same `localStorage` key `ppx-sidebar-collapsed`), "MENU", items, Renewal due card (`App\Support\RenewalNotice`), person (`App\Support\PortalSidebar`). The `.ppx-sidebar` styles move from `resources/css/nova/sidebar.css` into `public/portal/sidebar.css`, shared by Nova and the area; Nova keeps only its layout overrides. Items come from `App\Member\MemberMenu` (same order and visibility rules as `SidebarMenu::memberItems`, one source for both). |
 | `header` | Page title or breadcrumb ("License documents / Upload document"), today's date (`PORTAL_SCHEDULE_TIMEZONE`), bell with unread count (opens the notifications panel), avatar menu (Profile, Security, Sign out). Search (`member_area.header_search = true`): the member's own documents and the published library, suggestions under the field, Enter opens the results page; the query is sent by POST and kept in the session, never in a URL or a log. |
 | `icon` | `<svg><use href="/portal/img/icons.svg#name"/></svg>`, `currentColor`. One sprite (`public/portal/img/icons.svg`) built from the Nova sidebar paths and `docs/design/icons`; the Nova sidebar switches to the same sprite, so the paths live in one place. |
-| `card` | White, `--ppx-radius-lg`, title with the 3 px green bar on the left, optional header action (link "View all", outline button "Edit"), optional footer. Variants: `hero` (navy gradient, white text), `info` (`--ppx-blue-50`). |
+| `card` | White, `--ppx-radius-lg`, title with the green mark on the left (4 x 16 px, radius 2, `#5FA528`), optional header action (link "View all", outline button "Edit"), optional footer. Variants: `hero` (navy gradient, white text), `info` (`--ppx-blue-50`). |
 | `kv-list` | Label / value rows of the profile and the document panel. |
 | `table` | Document tables: icon tile + name + secondary line, type, status badge, date, action (download / view / chevron). Header row `--ppx-table-head`; selectable rows (document panel); stacked on phones; built-in empty state. |
 | `badge` | Pill with a dot: `success`, `warning`, `danger`, `neutral`. Enum → variant map in PHP (`App\Member\Badges`). |
@@ -328,7 +328,7 @@ announcements), saved to `notification_settings` with the same policy as the Nov
 | 4.9 | The area is off. | `member_area.enabled = env('MEMBER_AREA_ENABLED', false)` |
 | 4.10 | "Founding member" badge hidden for individual members (shown for agency people of a founding-rate agency). | `member_area.founding_badge_individuals = false` |
 | 4.11 | Header search: own documents and the library only (no site-wide search). | `member_area.header_search = true` |
-| 4.12 | License upload page asks for the document type and, for a license, number (optional), state and expiry, prefilled from the profile and kept with the document; the dashboard's short form asks for the type only. | `member_area.license_document_types` (resident, non-resident, other) |
+| 4.12 | License upload page takes several files, each its own document, and asks for the document type and, for a license, number, issue date and expiry (required; number and expiry start from the profile for a resident license), and the state only for a non-resident license; kept with the document. The dashboard's short form asks for the type only. | `member_area.license_document_types` (resident, non-resident, other) |
 
 ---
 
@@ -459,7 +459,7 @@ Each stage: tests, Pint, commit, push; the area stays behind `MEMBER_AREA_ENABLE
 | 5 | "Download all" invoices | Dropped; "View all in Stripe" opens the Customer Portal. |
 | 6 | Email in the profile | Read-only. |
 | 7 | License documents page | License documents only; Tax / Certificate filters in the dashboard Documents tab. |
-| 8 | Upload metadata | Document type (resident license / non-resident license / other); for a license also number (optional, encrypted), state and expiry, kept with the document. They never overwrite the profile, and neither does an approved document. Uploading a license sets `license_verification` to pending review; "other" does not. |
+| 8 | Upload metadata | Document type (resident license / non-resident license / other); for a license also number (encrypted), issue date, expiry and state (the profile's, except on a non-resident license), kept with the document; the dashboard's short form takes them from the profile, without an issue date. They never overwrite the profile, and neither does an approved document. Uploading a license sets `license_verification` to pending review; "other" does not. |
 | 9 | Middle name on the certificate | Not added; first and last name. |
 | 10 | Header search | Shown: own documents (license, tax, certificate) and the library (`App\Member\MemberSearch`). |
 | 11 | Certificate wording | "Membership valid through Mar 12, 2027" (date = `paid_through_at`); no "2026 membership term". |

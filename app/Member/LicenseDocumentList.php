@@ -21,7 +21,7 @@ final class LicenseDocumentList
     private const FORMATS = ['application/pdf' => 'PDF', 'image/jpeg' => 'JPG', 'image/png' => 'PNG'];
 
     /**
-     * @return Collection<int, array{id: int, name: string, type: string, status: string, variant: string, statusKey: string, uploadedAt: ?CarbonInterface, size: string, format: string, reason: ?string, canWithdraw: bool, downloadUrl: string, number: ?string, state: ?string, expiresAt: ?CarbonInterface, preview: ?string, previewUrl: string}>
+     * @return Collection<int, array{id: int, name: string, type: string, status: string, variant: string, statusKey: string, uploadedAt: ?CarbonInterface, size: string, format: string, reason: ?string, canWithdraw: bool, downloadUrl: string, number: ?string, state: ?string, issuedAt: ?CarbonInterface, expiresAt: ?CarbonInterface, preview: ?string, previewUrl: string}>
      */
     public static function for(User $user): Collection
     {
@@ -50,6 +50,7 @@ final class LicenseDocumentList
                     'downloadUrl' => route('member.documents.download', ['type' => 'license', 'document' => $document->getKey()]),
                     'number' => $document->license_number,
                     'state' => $document->license_state === null ? null : (UsStates::ALL[$document->license_state] ?? $document->license_state),
+                    'issuedAt' => $document->license_issued_at,
                     'expiresAt' => $document->license_expires_at,
                     'preview' => self::previewKind($document),
                     'previewUrl' => route('member.license-documents.preview', $document->getKey()),

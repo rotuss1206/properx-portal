@@ -1,118 +1,40 @@
 /*
- * Upload forms of the member area (form[data-ppx-upload]: the dashboard's panel and
- * resources/views/member/license-documents/upload.blade.php): drag & drop, the chosen file, and
- * progress while it uploads (XHR with the same form fields; the server answers JSON). Without
- * JavaScript the form posts as usual. DOM APIs only (CSP: no inline handlers, no eval). Checks here
- * are hints; the server checks size and type again, by content.
- *
- * The upload page also has a file row ([data-ppx-upload-row]) whose data-state is empty, selected,
- * uploading or error; public/portal/member.css shows the matching parts.
+ * The dashboard's short upload form (form[data-ppx-upload], resources/views/member/dashboard.blade.php):
+ * drag & drop, the chosen file's name, and a progress bar while it uploads (XHR with the same form
+ * fields; the server answers JSON). Without JavaScript the form posts as usual. DOM APIs only (CSP).
+ * Checks here are hints; the server checks size and type again, by content.
  */
 (function () {
     var MAX_BYTES = 10 * 1024 * 1024
     var TYPES = ['application/pdf', 'image/jpeg', 'image/png']
-    var FORMATS = { 'application/pdf': 'PDF', 'image/jpeg': 'JPG', 'image/png': 'PNG' }
+    var WRONG_FORMAT = 'Unsupported format — upload a PDF, JPG or PNG.'
+    var TOO_LARGE = 'Too large — the file may not be larger than 10 MB.'
 
     function init(form) {
         var input = form.querySelector('[data-ppx-upload-input]')
         var fileLine = form.querySelector('[data-ppx-upload-file]')
-        var meta = form.querySelector('[data-ppx-upload-meta]')
-        var row = form.querySelector('[data-ppx-upload-row]')
-        var percent = form.querySelector('[data-ppx-upload-percent]')
-        var clear = form.querySelector('[data-ppx-upload-clear]')
         var progress = form.querySelector('[data-ppx-upload-progress]')
         var error = form.querySelector('[data-ppx-upload-error]')
         var submit = form.querySelector('[type="submit"]')
-        var fieldErrors = form.querySelectorAll('[data-ppx-field-error]')
-        var typeSelect = form.querySelector('[data-ppx-upload-type]')
-        var license = form.querySelector('[data-ppx-upload-license]')
-
-        // A supporting file ("other") has no license details: hidden, and not sent.
-        function toggleLicense() {
-            var isLicense = typeSelect.getAttribute('data-license-types').split(',').indexOf(typeSelect.value) !== -1
-
-            license.hidden = !isLicense
-            license.querySelectorAll('input, select').forEach(function (field) { field.disabled = !isLicense })
-        }
-
-        if (typeSelect && license) {
-            typeSelect.addEventListener('change', toggleLicense)
-            toggleLicense()
-        }
-
-        function clearFieldErrors() {
-            fieldErrors.forEach(function (element) {
-                element.textContent = ''
-                element.hidden = true
-            })
-        }
-
-        // Errors of the other fields go under those fields; the file stays chosen. True if any did.
-        function showFieldErrors(errors) {
-            var first = null
-
-            fieldErrors.forEach(function (element) {
-                var name = element.getAttribute('data-ppx-field-error')
-
-                if (errors[name]) {
-                    element.textContent = errors[name][0]
-                    element.hidden = false
-                    first = first || form.querySelector('[name="' + name + '"]')
-                }
-            })
-
-            if (first) {
-                first.focus()
-            }
-
-            return first !== null
-        }
-
-        function state(name) {
-            if (row) {
-                row.setAttribute('data-state', name)
-            }
-        }
 
         function showError(message) {
             error.textContent = message
             error.hidden = !message
-
-            if (message) {
-                state('error')
-            }
         }
 
-        // The hint for the chosen file, or '' when it looks fine.
         function problem(file) {
             if (file.type && TYPES.indexOf(file.type) === -1) {
-                return 'Upload a PDF, JPG or PNG file.'
+                return WRONG_FORMAT
             }
 
-            return file.size > MAX_BYTES ? 'The file may not be larger than 10 MB.' : ''
+            return file.size > MAX_BYTES ? TOO_LARGE : ''
         }
 
         function describe() {
             var file = input.files && input.files[0]
-            var size = ''
 
-            if (file) {
-                size = file.size < 1048576 ? Math.max(1, Math.round(file.size / 1024)) + ' KB' : (file.size / 1048576).toFixed(1) + ' MB'
-            }
-
-            if (meta) {
-                fileLine.textContent = file ? file.name : ''
-                meta.textContent = file ? size + ' · ' + (FORMATS[file.type] || 'File') : ''
-            } else {
-                fileLine.textContent = file ? file.name + ' · ' + size : ''
-            }
-
-            showError('')
-            state(file ? 'selected' : 'empty')
-
-            if (file && problem(file)) {
-                showError(problem(file))
-            }
+            fileLine.textContent = file ? file.name + ' · ' + (file.size / 1048576).toFixed(1) + ' MB' : ''
+            showError(file ? problem(file) : '')
         }
 
         function fail(message) {
@@ -124,15 +46,6 @@
 
         input.addEventListener('change', describe)
 
-        if (clear) {
-            clear.addEventListener('click', function () {
-                input.value = ''
-                describe()
-                input.focus()
-            })
-        }
-
-        // Drag & drop onto the whole form.
         ;['dragenter', 'dragover'].forEach(function (name) {
             form.addEventListener(name, function (event) {
                 event.preventDefault()
@@ -168,7 +81,6 @@
                 return
             }
 
-            // Not worth sending: the server would refuse it after the whole upload.
             if (problem(file)) {
                 fail(problem(file))
 
@@ -184,17 +96,11 @@
             progress.value = 0
             submit.disabled = true
             showError('')
-            clearFieldErrors()
-            state('uploading')
 
             xhr.upload.addEventListener('progress', function (e) {
                 if (e.lengthComputable) {
                     progress.value = Math.round((e.loaded / e.total) * 100)
                     progress.textContent = progress.value + '%'
-
-                    if (percent) {
-                        percent.textContent = progress.value < 100 ? 'Uploading · ' + progress.value + '%' : 'Saving securely…'
-                    }
                 }
             })
 
@@ -213,17 +119,9 @@
                     return
                 }
 
-                if (body.errors && !body.errors.file && showFieldErrors(body.errors)) {
-                    progress.hidden = true
-                    submit.disabled = false
-                    state('selected')
-
-                    return
-                }
-
                 var messages = body.errors ? Object.keys(body.errors).map(function (key) { return body.errors[key][0] }) : []
                 var known = {
-                    413: 'The file may not be larger than 10 MB.',
+                    413: TOO_LARGE,
                     419: 'Your session has expired. Reload the page and try again.',
                     429: 'Too many uploads in a short time. Wait a minute and try again.',
                 }

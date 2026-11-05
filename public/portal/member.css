@@ -785,24 +785,26 @@ body.ppx-member {
 
 .ppx-upload__lead { margin: 0 0 20px; color: var(--ppx-muted); font-size: 14px; }
 
-.ppx-upload { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; max-width: 960px; }
+.ppx-upload { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 22px; max-width: 960px; }
 
-.ppx-upload__main { display: grid; flex: 3 1 440px; gap: 20px; min-width: 0; }
+.ppx-upload__main { display: grid; flex: 540 1 440px; gap: 20px; min-width: 0; }
 
-.ppx-upload__side { display: grid; flex: 2 1 320px; gap: 20px; min-width: 0; }
+.ppx-upload__side { display: grid; flex: 398 1 320px; gap: 20px; min-width: 0; }
 
 .ppx-upload .ppx-card + .ppx-card { margin-top: 0; }
 
-.ppx-upload .ppx-card__header { padding: 14px 20px; }
+.ppx-upload .ppx-card__header { padding: 16px 20px; }
 
 .ppx-upload__zone {
     display: grid;
     justify-items: center;
     margin: 20px;
-    padding: 40px 20px 36px;
-    border: 2px dashed var(--ppx-border);
-    border-radius: var(--ppx-radius);
+    padding: 40px 20px 38px;
+    border: 2px dashed #cdd6e0;
+    border-radius: 14px;
+    background: #f1f4f8;
     text-align: center;
+    cursor: pointer;
 }
 
 .ppx-upload.is-dragging .ppx-upload__zone { border-style: solid; border-color: var(--ppx-navy-500); background: var(--ppx-blue-50); }
@@ -813,57 +815,74 @@ body.ppx-member {
 
 .ppx-upload__zone-title { margin: 16px 0 6px; color: var(--ppx-ink); font-family: var(--ppx-heading); font-size: 16px; font-weight: 600; }
 
-.ppx-upload__zone-text { margin: 0 0 14px; color: var(--ppx-muted); font-size: 13px; }
+.ppx-upload__zone-text { margin: 0 0 12px; color: var(--ppx-muted); font-size: 13px; }
 
 .ppx-upload__browse { position: relative; }
 
-.ppx-upload__zone-hint { margin: 18px 0 0; color: var(--ppx-subtle); font-size: 12px; }
+.ppx-upload__zone-hint { margin: 12px 0 0; color: var(--ppx-subtle); font-size: 12px; }
 
 .ppx-upload__files { padding: 14px 20px 18px; }
+
+.ppx-upload__none { margin: 0; color: var(--ppx-muted); font-size: 13px; }
+
+.ppx-upload__none[hidden] { display: none; }
+
+.ppx-upload__list,
+.ppx-upload__server-errors { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+
+.ppx-upload__list:empty { display: none; }
+
+.ppx-upload__server-errors[hidden] { display: none; }
+
+.ppx-upload__message { margin: 12px 0 0; color: var(--ppx-text); font-size: 13px; }
+
+.ppx-upload__message[hidden] { display: none; }
 
 .ppx-upload-file {
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px;
-    padding: 14px;
+    padding: 13px 14px;
     border: 1px solid var(--ppx-line);
-    border-radius: var(--ppx-radius);
+    border-radius: var(--ppx-radius-input);
 }
 
-.ppx-upload-file__icon { width: 40px; height: 40px; }
+.ppx-upload-file__icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: #edf0f5; color: var(--ppx-navy-500); }
+
+.ppx-upload-file__svg { width: 22px; height: 22px; }
 
 .ppx-upload-file__text { min-width: 0; overflow-wrap: anywhere; }
 
-.ppx-upload-file__none { grid-column: 1 / -1; margin: 0; color: var(--ppx-muted); font-size: 13px; }
+.ppx-upload-file__line { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
 
-.ppx-upload-file__line { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin: 0; }
+.ppx-upload-file__name { flex: 0 1 auto; min-width: 0; color: var(--ppx-ink); font-size: 14px; font-weight: 600; line-height: 20px; }
 
-.ppx-upload-file__name { min-width: 0; color: var(--ppx-ink); font-size: 14px; font-weight: 600; }
+.ppx-upload-file__badge { gap: 4px; }
 
-.ppx-upload-file__meta,
-.ppx-upload-file__percent { margin: 0; color: var(--ppx-muted); font-size: 12px; line-height: 18px; }
+.ppx-upload-file__badge-icon { width: 18px; height: 18px; margin: -2px 0; }
 
-.ppx-upload-file__progress { display: block; width: 100%; height: 6px; margin-top: 6px; accent-color: var(--ppx-navy-500); }
+.ppx-upload-file__percent { margin-left: auto; color: var(--ppx-muted); font-size: 12px; line-height: 20px; white-space: nowrap; }
 
-.ppx-upload-file__error { margin: 2px 0 0; color: var(--ppx-badge-danger-fg); font-size: 12.5px; line-height: 18px; }
+.ppx-upload-file__meta { margin: 0; color: var(--ppx-muted); font-size: 12px; line-height: 18px; }
 
-.ppx-upload-file__clear { width: 32px; height: 32px; }
+.ppx-upload-file__progress { display: block; width: 100%; height: 6px; margin-top: 7px; overflow: hidden; border: 0; border-radius: 3px; background: #f1f4f9; appearance: none; }
 
-/* What shows in which state (public/portal/upload.js sets data-state). */
-.ppx-upload-file[data-state="empty"] > :not(.ppx-upload-file__none),
-.ppx-upload-file:not([data-state="empty"]) .ppx-upload-file__none,
-.ppx-upload-file:not([data-state="error"]) .ppx-upload-file__rejected,
-.ppx-upload-file:not([data-state="uploading"]) .ppx-upload-file__percent,
-.ppx-upload-file:not([data-state="uploading"]) .ppx-upload-file__progress,
-.ppx-upload-file[data-state="uploading"] .ppx-upload-file__meta,
-.ppx-upload-file[data-state="uploading"] .ppx-upload-file__clear { display: none; }
+.ppx-upload-file__progress::-webkit-progress-bar { border-radius: 3px; background: #f1f4f9; }
 
-.ppx-upload-file[data-state="error"] { border-color: var(--ppx-badge-danger-bg); background: #fdf4f4; }
+.ppx-upload-file__progress::-webkit-progress-value { border-radius: 3px; background: #14508c; }
 
-.ppx-upload-file[data-state="error"] .ppx-doc-table__icon { background: var(--ppx-badge-danger-bg); color: var(--ppx-badge-danger-fg); }
+.ppx-upload-file__progress::-moz-progress-bar { border-radius: 3px; background: #14508c; }
 
-.ppx-upload__details { padding: 16px 20px 20px; }
+.ppx-upload-file__error { margin: 0; color: var(--ppx-badge-danger-fg); font-size: 12.5px; line-height: 18px; }
+
+.ppx-upload-file.is-rejected { border-color: #f6dad9; background: #fdf4f5; }
+
+.ppx-upload-file.is-rejected .ppx-upload-file__icon { background: #f6dad9; color: var(--ppx-badge-danger-fg); }
+
+.ppx-upload__details { padding: 18px 20px 20px; }
+
+.ppx-upload__details .ppx-field__input { height: 44px; }
 
 .ppx-upload__details .ppx-field__error { margin: 6px 0 0; }
 
@@ -871,13 +890,17 @@ body.ppx-member {
 
 .ppx-upload__license { display: grid; gap: 14px; margin-top: 14px; }
 
-.ppx-upload__license[hidden] { display: none; }
+.ppx-upload__license[hidden],
+.ppx-upload__license [hidden] { display: none; }
 
-.ppx-upload__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ppx-upload__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 
-.ppx-upload__optional { color: var(--ppx-muted); font-weight: 400; }
+/* A date input has a wide intrinsic width of its own, which would push out of a narrow column. */
+.ppx-upload__pair .ppx-field { min-width: 0; }
 
-.ppx-upload__secure { padding: 16px 18px; border: 1px solid var(--ppx-line); border-radius: var(--ppx-radius-lg); background: var(--ppx-blue-50); }
+.ppx-upload__pair .ppx-field__input { width: 100%; min-width: 0; }
+
+.ppx-upload__secure { padding: 16px 18px; border: 1px solid #ccdcec; border-radius: var(--ppx-radius-lg); background: #dce9f2; }
 
 .ppx-upload__secure-title { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; color: var(--ppx-ink); font-family: var(--ppx-heading); font-size: 14px; font-weight: 600; }
 
@@ -885,11 +908,13 @@ body.ppx-member {
 
 .ppx-upload__secure-svg { width: 18px; height: 18px; }
 
-.ppx-upload__secure-list { display: grid; gap: 6px; margin: 0; padding: 0 0 0 18px; color: var(--ppx-text); font-size: 13px; line-height: 19px; list-style: none; }
+.ppx-upload__secure-list { display: grid; gap: 3px; margin: 0; padding: 0 0 0 18px; color: var(--ppx-text); font-size: 13px; line-height: 19px; list-style: none; }
 
-.ppx-upload__actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; }
+.ppx-upload__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 .ppx-upload__actions .ppx-btn { width: 100%; height: 46px; }
+
+.ppx-upload__actions .ppx-btn--primary { box-shadow: 0 6px 16px rgba(16, 42, 75, 0.14); }
 
 /* Tablets and phones */
 

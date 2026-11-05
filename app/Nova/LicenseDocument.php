@@ -109,6 +109,8 @@ class LicenseDocument extends Resource
 
             Text::make('License State', fn () => UsStates::ALL[$this->resource->license_state] ?? $this->resource->license_state)->onlyOnDetail(),
 
+            Date::make('License Issued At')->onlyOnDetail(),
+
             Date::make('License Expires At')->onlyOnDetail(),
 
             Text::make('Type', 'mime_type')->onlyOnDetail(),

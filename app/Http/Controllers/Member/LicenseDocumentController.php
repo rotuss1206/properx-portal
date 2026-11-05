@@ -17,8 +17,10 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -32,10 +34,14 @@ use Throwable;
  * DocumentVault like Nova uploads, encrypted, and leave only through the signed download route.
  * DocumentObserver audits uploads and deletions (ids only). Who sees the page: MemberMenu::visible
  * (no agency people, closed while the membership is restricted). With an XHR request (the progress
- * bar in public/portal/upload.js) store() answers JSON.
+ * bars in public/portal/upload-page.js and upload.js) store() answers JSON.
  */
 class LicenseDocumentController extends Controller
 {
+    public const WRONG_FORMAT = 'Unsupported format — upload a PDF, JPG or PNG.';
+
+    public const TOO_LARGE = 'Too large — the file may not be larger than 10 MB.';
+
     private const STORAGE_DOWN = 'Document storage is temporarily unavailable, so nothing was saved. Please try again in a few minutes.';
 
     public function index(Request $request): Response
@@ -82,86 +88,153 @@ class LicenseDocumentController extends Controller
     {
         abort_unless(Overview::for($request->user())->canUpload(), Response::HTTP_FORBIDDEN);
 
-        $profile = $request->user()->memberProfile;
-        $fromPage = $request->input('from') === 'page';
-        $isLicense = in_array($request->input('document_type'), LicenseDocument::LICENSE_TYPES, true);
-        $needed = $isLicense ? 'required' : 'nullable';
+        $type = $request->input('document_type');
+        $details = $this->validatedDetails($request);
 
-        $validated = $request->validate([
-            'file' => ['required', ...DocumentVault::uploadRules()],
-            'document_type' => ['required', Rule::in(array_keys(config('portal.member_area.license_document_types')))],
-            // The dashboard's short form asks for the type only; see $details below.
-            ...($fromPage ? [
-                'license_number' => ['nullable', 'string', 'max:50'],
-                'license_state' => [$needed, Rule::in(array_keys(UsStates::ALL))],
-                'license_expires_at' => [$needed, 'date_format:Y-m-d'],
-            ] : []),
-        ], [
-            'license_state.required' => 'Choose the state of this license.',
-            'license_state.in' => 'Choose the state from the list.',
-            'license_expires_at.required' => 'Enter the date this license expires.',
-            'license_expires_at.date_format' => 'Enter the expiration date as a full date, e.g. 09/30/2027.',
-            'license_number.max' => 'The license number may not be longer than 50 characters.',
-            'file.required' => 'Choose a file to upload.',
-            'file.uploaded' => 'The file could not be uploaded. It may not be larger than 10 MB.',
-            'file.file' => 'Choose a file to upload.',
-            'file.max' => 'The file may not be larger than 10 MB.',
-            'file.mimes' => 'Upload a PDF, JPG or PNG file.',
-            'file.mimetypes' => 'Upload a PDF, JPG or PNG file.',
-            'document_type.required' => 'Choose the document type.',
-            'document_type.in' => 'Choose the document type from the list.',
-        ]);
+        // Each file becomes its own document with the same details. public/portal/upload-page.js sends
+        // one at a time, for a progress bar per file; without JavaScript they all arrive here at once.
+        $files = array_values(array_filter(Arr::wrap($request->file('file'))));
 
-        // A malware scan belongs here, before storing, once portal.member_area.malware_scan is on.
-        try {
-            $storage->ensureAvailable('license');
-            $stored = $vault->store($validated['file'], LicenseDocument::DIRECTORY, encrypt: true);
-        } catch (InvalidArgumentException) {
-            throw ValidationException::withMessages(['file' => 'Upload a PDF, JPG or PNG file.']);
-        } catch (Throwable $e) {
-            Log::warning('License document upload failed', ['user_id' => $request->user()->getKey(), 'error' => $e::class]);
-
-            return $request->expectsJson()
-                ? response()->json(['message' => self::STORAGE_DOWN], Response::HTTP_SERVICE_UNAVAILABLE)
-                : back()->withInput($request->only('document_type'))->withErrors(['file' => self::STORAGE_DOWN]);
+        if ($files === []) {
+            throw ValidationException::withMessages(['file' => 'Choose a file to upload.']);
         }
 
-        // Kept with the document; the profile is not overwritten. A form without these fields
-        // takes them from the profile, and a supporting file has none unless they were given.
-        $details = $fromPage
-            ? ['license_number' => $validated['license_number'] ?? null, 'license_state' => $validated['license_state'] ?? null, 'license_expires_at' => $validated['license_expires_at'] ?? null]
-            : ($isLicense ? ['license_number' => $profile?->license_number, 'license_state' => $profile?->license_state, 'license_expires_at' => $profile?->license_expires_at] : []);
+        $saved = null;
+        $rejected = [];
 
-        $document = (new LicenseDocument)->forceFill([
-            ...$details,
-            'user_id' => $request->user()->getKey(),
-            'stored_filename' => $stored->path,
-            'original_filename' => $stored->originalName,
-            'mime_type' => $stored->mimeType,
-            'size' => $stored->size,
-            'document_type' => $validated['document_type'],
-            'uploaded_at' => now(),
-            'verification_status' => VerificationStatus::Pending,
-        ]);
-        $document->save();
+        foreach ($files as $file) {
+            $problem = $this->fileProblem($file);
+
+            if ($problem !== null) {
+                $rejected[] = count($files) > 1 ? $file->getClientOriginalName().': '.$problem : $problem;
+
+                continue;
+            }
+
+            // A malware scan belongs here, before storing, once portal.member_area.malware_scan is on.
+            try {
+                $storage->ensureAvailable('license');
+                $stored = $vault->store($file, LicenseDocument::DIRECTORY, encrypt: true);
+            } catch (InvalidArgumentException) {
+                $rejected[] = count($files) > 1 ? $file->getClientOriginalName().': '.self::WRONG_FORMAT : self::WRONG_FORMAT;
+
+                continue;
+            } catch (Throwable $e) {
+                Log::warning('License document upload failed', ['user_id' => $request->user()->getKey(), 'error' => $e::class]);
+
+                return $request->expectsJson()
+                    ? response()->json(['message' => self::STORAGE_DOWN], Response::HTTP_SERVICE_UNAVAILABLE)
+                    : back()->withInput($request->except('file'))->withErrors(['file' => self::STORAGE_DOWN]);
+            }
+
+            $saved = (new LicenseDocument)->forceFill([
+                ...$details,
+                'user_id' => $request->user()->getKey(),
+                'stored_filename' => $stored->path,
+                'original_filename' => $stored->originalName,
+                'mime_type' => $stored->mimeType,
+                'size' => $stored->size,
+                'document_type' => $type,
+                'uploaded_at' => now(),
+                'verification_status' => VerificationStatus::Pending,
+            ]);
+            $saved->save();
+        }
+
+        if ($saved === null) {
+            throw ValidationException::withMessages(['file' => $rejected]);
+        }
 
         // A new license waits for staff, and so does the member's license status (MemberProfileObserver
         // audits it). A supporting file ("other") leaves that status alone.
-        if ($isLicense) {
-            $profile?->update(['license_verification' => LicenseVerification::PendingReview]);
+        if (in_array($type, LicenseDocument::LICENSE_TYPES, true)) {
+            $request->user()->memberProfile?->update(['license_verification' => LicenseVerification::PendingReview]);
         }
 
         $target = $request->input('from') === 'page'
-            ? route('member.license-documents', ['document' => $document->getKey()])
+            ? route('member.license-documents', count($files) === 1 ? ['document' => $saved->getKey()] : [])
             : route('member.dashboard');
-        $message = 'Document uploaded. ProPerX will review it shortly.';
+        $message = 'Upload complete. ProPerX will review your documents shortly.';
 
-        // The progress bar's script follows "redirect" itself; the page there shows the same notice.
+        // The script follows "redirect" itself; the page there shows the same notice.
         $request->session()->flash('status', $message);
+
+        if ($rejected !== []) {
+            $request->session()->flash('document_error', 'Not saved: '.implode(' ', $rejected));
+        }
 
         return $request->expectsJson()
             ? response()->json(['message' => $message, 'redirect' => $target], Response::HTTP_CREATED)
             : redirect($target);
+    }
+
+    /**
+     * What is kept with the documents; the profile is not overwritten. The upload page asks for it (a
+     * resident license's state is the profile's, another state's license asks for its own); the
+     * dashboard's short form takes it from the profile; a supporting file has none.
+     *
+     * @return array<string, mixed>
+     */
+    private function validatedDetails(Request $request): array
+    {
+        $profile = $request->user()->memberProfile;
+        $type = $request->input('document_type');
+        $isLicense = in_array($type, LicenseDocument::LICENSE_TYPES, true);
+        $fromPage = $request->input('from') === 'page';
+
+        $validated = $request->validate([
+            'document_type' => ['required', Rule::in(array_keys(config('portal.member_area.license_document_types')))],
+            ...($fromPage && $isLicense ? [
+                'license_number' => ['required', 'string', 'max:50'],
+                'license_issued_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
+                'license_expires_at' => ['required', 'date_format:Y-m-d', 'after_or_equal:license_issued_at'],
+            ] : []),
+            ...($fromPage && $type === 'non_resident' ? [
+                'license_state' => ['required', Rule::in(array_keys(UsStates::ALL))],
+            ] : []),
+        ], [
+            'document_type.required' => 'Choose the document type.',
+            'document_type.in' => 'Choose the document type from the list.',
+            'license_number.required' => 'Enter the license number.',
+            'license_number.max' => 'The license number may not be longer than 50 characters.',
+            'license_issued_at.required' => 'Enter the date this license was issued.',
+            'license_issued_at.date_format' => 'Enter the issue date as a full date, e.g. 10/01/2024.',
+            'license_issued_at.before_or_equal' => 'The issue date cannot be in the future.',
+            'license_expires_at.required' => 'Enter the date this license expires.',
+            'license_expires_at.date_format' => 'Enter the expiration date as a full date, e.g. 09/30/2027.',
+            'license_expires_at.after_or_equal' => 'The expiration date cannot be before the issue date.',
+            'license_state.required' => 'Choose the state of this license.',
+            'license_state.in' => 'Choose the state from the list.',
+        ]);
+
+        if (! $isLicense) {
+            return [];
+        }
+
+        return $fromPage
+            ? [
+                'license_number' => $validated['license_number'],
+                'license_state' => $validated['license_state'] ?? $profile?->license_state,
+                'license_issued_at' => $validated['license_issued_at'],
+                'license_expires_at' => $validated['license_expires_at'],
+            ]
+            : ['license_number' => $profile?->license_number, 'license_state' => $profile?->license_state, 'license_expires_at' => $profile?->license_expires_at];
+    }
+
+    /**
+     * Why this file cannot be kept, in words for people; type by content, whatever it is called.
+     */
+    private function fileProblem(mixed $file): ?string
+    {
+        $validator = Validator::make(['file' => $file], ['file' => ['required', ...DocumentVault::uploadRules()]], [
+            'file.uploaded' => 'The file could not be uploaded. It may not be larger than 10 MB.',
+            'file.file' => 'Choose a file to upload.',
+            'file.max' => self::TOO_LARGE,
+            'file.mimes' => self::WRONG_FORMAT,
+            'file.mimetypes' => self::WRONG_FORMAT,
+        ]);
+
+        return $validator->fails() ? $validator->errors()->first('file') : null;
     }
 
     /**

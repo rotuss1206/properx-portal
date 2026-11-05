@@ -49,6 +49,9 @@
             @if ($document['state'])
                 <div class="ppx-docs__fact"><dt>State</dt><dd>{{ $document['state'] }}</dd></div>
             @endif
+            @if ($document['issuedAt'])
+                <div class="ppx-docs__fact"><dt>Issued</dt><dd>{{ $document['issuedAt']->format('j M Y') }}</dd></div>
+            @endif
             @if ($document['expiresAt'])
                 <div class="ppx-docs__fact"><dt>Expires</dt><dd>{{ $document['expiresAt']->format('j M Y') }}</dd></div>
             @endif
