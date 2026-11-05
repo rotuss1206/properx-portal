@@ -121,6 +121,8 @@ return [
         ],
 
         'certificate' => [
+            // Letter portrait, as in the mockups; landscape exists for comparison only.
+            'orientation' => 'portrait',
             // "Membership valid through": paid_through ("paid_through_at", yearly from the
             // payment date) or license_expiry (today's rule). Falls back to the license
             // expiry while there is no Stripe date.

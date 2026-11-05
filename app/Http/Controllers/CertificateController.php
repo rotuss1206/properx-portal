@@ -7,7 +7,9 @@ use App\Exceptions\StorageUnavailableException;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Services\Certificates\CertificateGeneratorService;
+use App\Services\Certificates\CertificateOptions;
 use App\Services\Documents\StorageHealth;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,10 +22,10 @@ use Throwable;
 class CertificateController extends Controller
 {
     /**
-     * The "Download certificate" button on the profile page: checks access and eligibility,
-     * then hands over a fresh short-lived signed download link.
+     * "Generate & download" and the download buttons: checks access and eligibility, then hands
+     * over a fresh short-lived signed download link carrying the member's choices.
      */
-    public function open(MemberProfile $memberProfile, CertificateGeneratorService $certificates): Response
+    public function open(Request $request, MemberProfile $memberProfile, CertificateGeneratorService $certificates): Response
     {
         Gate::authorize('downloadCertificate', $memberProfile);
 
@@ -33,21 +35,21 @@ class CertificateController extends Controller
             return response()->view('certificates.unavailable', ['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        return redirect()->to(CertificateGeneratorService::downloadUrl($memberProfile));
+        return redirect()->to(CertificateGeneratorService::downloadUrl($memberProfile, CertificateOptions::fromRequest($request)));
     }
 
     /**
      * Storage that does not answer gives a fast "temporarily unavailable" page (503), not a
      * gateway timeout, and is not audited as a download.
      */
-    public function download(MemberProfile $memberProfile, CertificateGeneratorService $certificates, StorageHealth $storage): Response
+    public function download(Request $request, MemberProfile $memberProfile, CertificateGeneratorService $certificates, StorageHealth $storage): Response
     {
         Gate::authorize('downloadCertificate', $memberProfile);
 
         $storage->ensureAvailable('certificate', $memberProfile->getKey());
 
         try {
-            $certificate = $certificates->generate($memberProfile);
+            $certificate = $certificates->generate($memberProfile, CertificateOptions::fromRequest($request));
             $response = Storage::disk($certificate->disk)->download($certificate->path, $certificate->filename, [
                 'Content-Type' => 'application/pdf',
                 'Cache-Control' => 'private, no-store',
@@ -58,7 +60,7 @@ class CertificateController extends Controller
             throw new StorageUnavailableException('certificate', $memberProfile->getKey(), $e);
         }
 
-        AuditLog::record('certificate_downloaded', $memberProfile);
+        AuditLog::record('certificate_downloaded', $memberProfile, details: $certificate->auditDetails);
 
         return $response;
     }

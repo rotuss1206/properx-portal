@@ -1,17 +1,16 @@
 <?php
 
 /*
- * Draws resources/views/pdf/images/certificate-background.png: what dompdf cannot draw itself on the
- * certificate, the first frame's box-shadow and the inner frame's gradient. The HTML preview uses real
+ * Draws resources/views/pdf/images/certificate-background(-landscape).png: what dompdf cannot draw itself
+ * on the certificate, the first frame's box-shadow and the inner frame's gradient. The HTML preview uses real
  * CSS for both (resources/views/member/certificate.blade.php). Run once by hand when the frames move:
  *
  *     php scripts/certificate-background.php
  *
- * Geometry in Figma pixels on the 636.48 px wide frame, as in resources/views/pdf/certificate-styles.blade.php.
+ * Geometry in Figma pixels of its frame, as in CertificateGeneratorService::layout() and
+ * resources/views/pdf/certificate-styles.blade.php.
  */
 
-const WIDTH = 636.48;
-const HEIGHT = 822.64;
 const SCALE = 2; // px of the image per Figma px
 
 // The first frame, its shadow: 0 12px 40px rgba(16, 40, 70, .14). CSS blur 40 = Gaussian sigma 20.
@@ -39,35 +38,41 @@ function erf(float $x): float
     return $x >= 0 ? $y : -$y;
 }
 
-$pixelWidth = (int) round(WIDTH * SCALE);
-$pixelHeight = (int) round(HEIGHT * SCALE);
-$image = imagecreatetruecolor($pixelWidth, $pixelHeight);
+function draw(float $width, float $height, string $file): void
+{
+    $pixelWidth = (int) round($width * SCALE);
+    $pixelHeight = (int) round($height * SCALE);
+    $image = imagecreatetruecolor($pixelWidth, $pixelHeight);
 
-for ($py = 0; $py < $pixelHeight; $py++) {
-    $y = ($py + 0.5) / SCALE;
-    $shadowY = coverage($y, FIRST_INSET + SHADOW_OFFSET_Y, HEIGHT - FIRST_INSET + SHADOW_OFFSET_Y);
-    $gradient = ($y - INNER_INSET) / (HEIGHT - 2 * INNER_INSET);
-    $inner = [(int) round(255 - 3 * $gradient), (int) round(255 - 4 * $gradient), (int) round(255 - 9 * $gradient)];
+    for ($py = 0; $py < $pixelHeight; $py++) {
+        $y = ($py + 0.5) / SCALE;
+        $shadowY = coverage($y, FIRST_INSET + SHADOW_OFFSET_Y, $height - FIRST_INSET + SHADOW_OFFSET_Y);
+        $gradient = ($y - INNER_INSET) / ($height - 2 * INNER_INSET);
+        $inner = [(int) round(255 - 3 * $gradient), (int) round(255 - 4 * $gradient), (int) round(255 - 9 * $gradient)];
 
-    for ($px = 0; $px < $pixelWidth; $px++) {
-        $x = ($px + 0.5) / SCALE;
+        for ($px = 0; $px < $pixelWidth; $px++) {
+            $x = ($px + 0.5) / SCALE;
 
-        $inFirst = $x >= FIRST_INSET && $x <= WIDTH - FIRST_INSET && $y >= FIRST_INSET && $y <= HEIGHT - FIRST_INSET;
-        $inInner = $x >= INNER_INSET && $x <= WIDTH - INNER_INSET && $y >= INNER_INSET && $y <= HEIGHT - INNER_INSET;
+            $inFirst = $x >= FIRST_INSET && $x <= $width - FIRST_INSET && $y >= FIRST_INSET && $y <= $height - FIRST_INSET;
+            $inInner = $x >= INNER_INSET && $x <= $width - INNER_INSET && $y >= INNER_INSET && $y <= $height - INNER_INSET;
 
-        if ($inInner) {
-            [$r, $g, $b] = $inner;
-        } elseif ($inFirst) {
-            [$r, $g, $b] = [255, 255, 255];
-        } else {
-            $alpha = SHADOW_ALPHA * coverage($x, FIRST_INSET, WIDTH - FIRST_INSET) * $shadowY;
-            [$r, $g, $b] = [(int) round(255 + (16 - 255) * $alpha), (int) round(255 + (40 - 255) * $alpha), (int) round(255 + (70 - 255) * $alpha)];
+            if ($inInner) {
+                [$r, $g, $b] = $inner;
+            } elseif ($inFirst) {
+                [$r, $g, $b] = [255, 255, 255];
+            } else {
+                $alpha = SHADOW_ALPHA * coverage($x, FIRST_INSET, $width - FIRST_INSET) * $shadowY;
+                [$r, $g, $b] = [(int) round(255 + (16 - 255) * $alpha), (int) round(255 + (40 - 255) * $alpha), (int) round(255 + (70 - 255) * $alpha)];
+            }
+
+            imagesetpixel($image, $px, $py, ($r << 16) | ($g << 8) | $b);
         }
-
-        imagesetpixel($image, $px, $py, ($r << 16) | ($g << 8) | $b);
     }
+
+    imagepng($image, dirname(__DIR__).'/resources/views/pdf/images/'.$file, 9);
+
+    echo "{$file}: {$pixelWidth}x{$pixelHeight}\n";
 }
 
-imagepng($image, dirname(__DIR__).'/resources/views/pdf/images/certificate-background.png', 9);
-
-echo "{$pixelWidth}x{$pixelHeight}\n";
+draw(636.48, 822.64, 'certificate-background.png');
+draw(823.68, 635.2, 'certificate-background-landscape.png');

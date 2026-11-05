@@ -143,6 +143,9 @@ class AuditLog extends Resource
                 ($details['enabled'] ?? []) !== [] ? 'Turned on: '.implode(', ', array_map(fn (string $category) => Str::headline($category), $details['enabled'])) : null,
                 ($details['disabled'] ?? []) !== [] ? 'Turned off: '.implode(', ', array_map(fn (string $category) => Str::headline($category), $details['disabled'])) : null,
             ])) ?: null,
+            'certificate_generated', 'certificate_downloaded' => isset($details['format'])
+                ? strtoupper((string) $details['format']).', term '.($details['term'] ?? '—').': member ID '.(($details['member_id'] ?? false) ? 'on' : 'off').', join date '.(($details['join_date'] ?? false) ? 'on' : 'off').', QR '.(($details['qr'] ?? false) ? 'on' : 'off')
+                : null,
             'agency_tier_changed' => self::fromTo('Tier', AgencyTier::tryFrom((string) ($details['from'] ?? ''))?->label(), AgencyTier::tryFrom((string) ($details['to'] ?? ''))?->label(), $details['reason'] ?? null),
             'agency_rate_type_changed' => self::fromTo('Rate type', RateType::tryFrom((string) ($details['from'] ?? ''))?->label(), RateType::tryFrom((string) ($details['to'] ?? ''))?->label(), $details['reason'] ?? null),
             default => null,

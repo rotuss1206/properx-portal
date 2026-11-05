@@ -31,6 +31,7 @@ class PdfHardeningTest extends TestCase
             resource_path('views/pdf/images/seal.svg'),
             resource_path('views/pdf/images/link.svg'),
             resource_path('views/pdf/images/certificate-background.png'),
+            resource_path('views/pdf/images/certificate-background-landscape.png'),
             resource_path('views/pdf/fonts/Lora-Italic.ttf'),
             resource_path('views/pdf/fonts/OpenSans-Regular.ttf'),
             resource_path('views/pdf/fonts/Poppins-SemiBold.ttf'),

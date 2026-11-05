@@ -1,10 +1,9 @@
 /*
- * Scales the certificate preview on /member/certificate to its column. The page is laid out at its
- * real size, 612 pt (816 px) wide, as in the PDF. DOM APIs only (CSP).
+ * /member/certificate: scales the preview to its column (the page is laid out at its real size, as in
+ * the PDF) and shows the options at once, without a round trip. The form posts nothing here; "Generate
+ * & download" sends the same choices to the server. DOM APIs only (CSP).
  */
 (function () {
-    var PAGE_WIDTH = 816
-
     document.addEventListener('DOMContentLoaded', function () {
         var paper = document.querySelector('[data-ppx-cert-paper]')
         var page = document.querySelector('[data-ppx-cert-page]')
@@ -14,7 +13,7 @@
         }
 
         function fit() {
-            page.style.setProperty('--ppx-cert-scale', String(paper.clientWidth / PAGE_WIDTH))
+            page.style.setProperty('--ppx-cert-scale', String(paper.clientWidth / page.offsetWidth))
         }
 
         fit()
@@ -23,6 +22,32 @@
             new ResizeObserver(fit).observe(paper)
         } else {
             window.addEventListener('resize', fit)
+        }
+
+        function parts(name) {
+            return page.querySelectorAll('[data-ppx-cert="' + name + '"]')
+        }
+
+        document.querySelectorAll('[data-ppx-cert-toggle]').forEach(function (toggle) {
+            function apply() {
+                parts(toggle.getAttribute('data-ppx-cert-toggle')).forEach(function (part) {
+                    part.hidden = !toggle.checked
+                })
+            }
+
+            toggle.addEventListener('change', apply)
+            apply()
+        })
+
+        var term = document.querySelector('[data-ppx-cert-term]')
+
+        if (term) {
+            term.addEventListener('change', function () {
+                var option = term.options[term.selectedIndex]
+
+                parts('term').forEach(function (part) { part.textContent = option.getAttribute('data-term') })
+                parts('valid-through').forEach(function (part) { part.textContent = option.getAttribute('data-date') })
+            })
         }
     })
 })()

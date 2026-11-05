@@ -6,8 +6,10 @@ use App\Enums\PaymentStatus;
 use App\Enums\PersonType;
 use App\Enums\Role;
 use App\Models\AuditLog;
+use App\Models\StripeEvent;
 use App\Models\User;
 use App\Services\Certificates\CertificateGeneratorService;
+use App\Services\Certificates\CertificateOptions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesPortalUsers;
@@ -53,11 +55,171 @@ class CertificatePageTest extends TestCase
             ->assertSee('Mar 14, 2027')
             ->assertSee($profile->certificate_code)
             ->assertSee('CERTIFICATE OF MEMBERSHIP')
-            ->assertSee('Scan to verify')
-            ->assertSee('Active')
             ->assertSee(route('certificates.open', $profile), false)
-            ->assertSee(route('certificates.verify', $profile->certificate_code), false)
-            ->assertSee(route('member.profile').'#contact', false);
+            ->assertSee('Live preview');
+    }
+
+    public function test_the_options_and_format_are_as_in_the_mockup(): void
+    {
+        $member = $this->member();
+        $content = $this->actingAs($member)->get(route('member.certificate'))->assertOk()
+            ->assertSee('Certificate options')
+            ->assertSee('Membership term')
+            ->assertSee('Include member ID')
+            ->assertSee('Show '.$member->memberProfile->member_number.' on the certificate')
+            ->assertSee('Include join date')
+            ->assertSee('Include verification QR')
+            ->assertSee('PDF — Letter, portrait')
+            ->assertSee('PNG image')
+            ->assertSee('coming soon')
+            ->assertDontSee('Certificate details')
+            ->assertDontSee('Something not right?')
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/name="member_id" value="1"[^>]*checked/', $content);
+        $this->assertMatchesRegularExpression('/name="join_date" value="1"[^>]*checked/', $content);
+        $this->assertDoesNotMatchRegularExpression('/name="qr" value="1"[^>]*checked/', $content);
+        $this->assertMatchesRegularExpression('/name="format" value="png"\s+disabled/', $content);
+
+        // Every part is there for the live preview; the QR starts hidden.
+        $this->assertMatchesRegularExpression('/class="cert-qr"\s+data-ppx-cert="qr"\s+hidden/', $content);
+    }
+
+    public function test_the_chosen_options_reach_the_signed_download_and_each_combination_has_its_own_file(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+        $this->actingAs($member);
+
+        $signed = $this->get(route('certificates.open', [$profile, 'member_id' => 0, 'join_date' => 1, 'qr' => 1, 'format' => 'pdf']))->assertRedirect()->headers->get('Location');
+
+        parse_str((string) parse_url($signed, PHP_URL_QUERY), $query);
+        $this->assertSame(['0', '1', '1'], [$query['member_id'], $query['join_date'], $query['qr']]);
+
+        $this->get($signed)->assertOk();
+
+        $log = AuditLog::where('action', 'certificate_generated')->sole();
+        $this->assertSame(false, $log->details['member_id']);
+        $this->assertSame(true, $log->details['qr']);
+        $this->assertSame('pdf', $log->details['format']);
+        $this->assertSame(false, AuditLog::where('action', 'certificate_downloaded')->sole()->details['member_id']);
+
+        $service = app(CertificateGeneratorService::class);
+        $withQr = $service->generate($profile, new CertificateOptions(qr: true));
+        $without = $service->generate($profile, new CertificateOptions(qr: false));
+        $defaults = $service->generate($profile);
+
+        $this->assertNotSame($withQr->path, $without->path);
+        $this->assertFalse($without->fromCache);
+        $this->assertSame($without->path, $defaults->path);
+        $this->assertTrue($defaults->fromCache);
+        $this->assertTrue($service->generate($profile, new CertificateOptions(qr: true))->fromCache, 'Another combination must not drop this one.');
+    }
+
+    public function test_a_tampered_download_link_is_refused(): void
+    {
+        $member = $this->member();
+        $this->actingAs($member);
+
+        $signed = CertificateGeneratorService::downloadUrl($member->memberProfile, new CertificateOptions(qr: false));
+
+        $this->get(str_replace('qr=0', 'qr=1', $signed))->assertForbidden();
+    }
+
+    public function test_the_pdf_prints_only_what_was_chosen_and_always_the_number(): void
+    {
+        $profile = $this->member()->memberProfile;
+        $service = app(CertificateGeneratorService::class);
+
+        $html = view('pdf.certificate-body', $service->document($profile, new CertificateOptions(memberId: false, joinDate: false, qr: false)))->render();
+        $this->assertStringNotContainsString('MEMBER ID', $html);
+        $this->assertStringNotContainsString('MEMBER SINCE', $html);
+        $this->assertStringNotContainsString('cert-qr', $html);
+        $this->assertStringContainsString('Certificate ID '.$profile->certificate_code, $html);
+
+        $html = view('pdf.certificate-body', $service->document($profile, new CertificateOptions(qr: true)))->render();
+        $this->assertStringContainsString('MEMBER ID', $html);
+        $this->assertStringContainsString('MEMBER SINCE', $html);
+        $this->assertStringContainsString('cert-qr-image', $html);
+    }
+
+    public function test_only_the_current_term_without_a_payment_history(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+        $profile->forceFill(['paid_through_at' => '2027-03-14 12:00:00'])->saveQuietly();
+
+        $this->assertSame(['2026–2027'], array_column(app(CertificateGeneratorService::class)->terms($profile->fresh()), 'label'));
+    }
+
+    public function test_earlier_terms_come_from_the_payment_history(): void
+    {
+        $member = $this->member();
+        $profile = $member->memberProfile;
+        $profile->forceFill(['paid_through_at' => '2027-03-14 12:00:00'])->saveQuietly();
+        $profile = $profile->fresh();
+
+        foreach (['evt_1' => '2024-03-14 12:00:30', 'evt_2' => '2026-03-14 12:00:30'] as $id => $paidAt) {
+            StripeEvent::create(['id' => $id, 'type' => 'invoice.paid', 'member_profile_id' => $profile->id, 'outcome' => 'processed', 'event_created_at' => $paidAt]);
+        }
+
+        $service = app(CertificateGeneratorService::class);
+        $terms = $service->terms($profile);
+
+        // 2025 has no payment, so that term is not offered.
+        $this->assertSame(['2027-03-14', '2025-03-14'], array_column($terms, 'value'));
+
+        $document = $service->document($profile, new CertificateOptions(termEnd: '2025-03-14'));
+        $this->assertSame('2025-03-14', $document['validThrough']);
+        $this->assertSame('2024–2025', $document['term']);
+
+        // A term this member does not have means the current one.
+        $forged = $service->document($profile, new CertificateOptions(termEnd: '2020-01-01'));
+        $this->assertSame('2027-03-14', $forged['validThrough']);
+
+        $this->actingAs($member->fresh())->get(route('member.certificate'))->assertOk()
+            ->assertSee('value="2025-03-14"', false)
+            ->assertSee('data-date="Mar 14, 2025"', false);
+    }
+
+    public function test_one_signature_stands_with_the_seal_and_the_second_only_when_set(): void
+    {
+        $profile = $this->member()->memberProfile;
+        $service = app(CertificateGeneratorService::class);
+
+        $html = view('pdf.certificate-body', $service->document($profile))->render();
+        $this->assertStringContainsString('cert--one-signature', $html);
+        $this->assertStringNotContainsString('cert-sign-right', $html);
+
+        config(['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']]);
+        $html = view('pdf.certificate-body', $service->document($profile))->render();
+        $this->assertStringNotContainsString('cert--one-signature', $html);
+        $this->assertStringContainsString('R. Alvarez', $html);
+    }
+
+    public function test_there_are_no_decorative_corners_and_the_seal_is_a_rounded_square(): void
+    {
+        $profile = $this->member()->memberProfile;
+
+        $this->assertStringNotContainsString('corner', view('pdf.certificate-body', app(CertificateGeneratorService::class)->document($profile))->render());
+
+        $styles = view('pdf.certificate-styles')->render();
+        $this->assertStringNotContainsString('corner', $styles);
+        $this->assertMatchesRegularExpression('/\.cert-seal \{[^}]*border-radius: '.preg_quote(CertificateGeneratorService::points(28.86)).'/', $styles);
+        $this->assertMatchesRegularExpression('/\.cert-seal \{[^}]*background: #fffdf6/', $styles);
+    }
+
+    public function test_landscape_is_available_by_config_and_off_by_default(): void
+    {
+        $profile = $this->member()->memberProfile;
+        $service = app(CertificateGeneratorService::class);
+
+        $this->assertSame('portrait', CertificateGeneratorService::orientation());
+
+        config(['portal.member_area.certificate.orientation' => 'landscape']);
+        $certificate = $service->generate($profile);
+
+        $this->assertMatchesRegularExpression('#/MediaBox\s*\[\s*0(\.0+)?\s+0(\.0+)?\s+792(\.0+)?\s+612(\.0+)?\s*\]#', Storage::disk($certificate->disk)->get($certificate->path));
     }
 
     public function test_looking_at_the_page_generates_and_audits_nothing(): void
@@ -97,14 +259,14 @@ class CertificatePageTest extends TestCase
         $profile = $member->memberProfile;
 
         $this->actingAs($member)->get(route('member.certificate'))->assertOk()
-            ->assertSee('Your certificate is not available')
+            ->assertSee('Certificate unavailable')
             ->assertSee('while the membership is inactive')
             ->assertSee('Canceled')
             ->assertSee('ppx-cert__renew', false)
             ->assertSee('https://pay.example.test/portal', false)
             ->assertSee(route('member.profile'), false)
             ->assertDontSee('CERTIFICATE OF MEMBERSHIP')
-            ->assertDontSee('Download PDF')
+            ->assertDontSee('Generate & download')
             ->assertDontSee($profile->certificate_code)
             ->assertDontSee(route('certificates.open', $profile), false);
 
@@ -116,14 +278,14 @@ class CertificatePageTest extends TestCase
         $this->actingAs($this->member('expired'))->get(route('member.certificate'))->assertOk()
             ->assertSee('the license expired on')
             ->assertDontSee('ppx-cert__renew', false)
-            ->assertDontSee('Download PDF');
+            ->assertDontSee('Generate & download');
 
         $incomplete = $this->member();
         $incomplete->memberProfile->forceFill(['license_expires_at' => null])->saveQuietly();
 
         $this->actingAs($incomplete->fresh())->get(route('member.certificate'))->assertOk()
             ->assertSee('license expiry date')
-            ->assertDontSee('Download PDF');
+            ->assertDontSee('Generate & download');
     }
 
     public function test_an_ended_period_gets_no_certificate_also_during_the_grace_period(): void
@@ -145,7 +307,7 @@ class CertificatePageTest extends TestCase
             ->assertSee('Your membership period has ended — renew to get your certificate.')
             ->assertSee('ppx-cert__renew', false)
             ->assertSee('https://pay.example.test/portal', false)
-            ->assertDontSee('Download PDF')
+            ->assertDontSee('Generate & download')
             ->assertDontSee('CERTIFICATE OF MEMBERSHIP')
             ->assertDontSee($profile->certificate_code);
 
@@ -194,7 +356,7 @@ class CertificatePageTest extends TestCase
         $member = $this->member();
         $member->memberProfile->forceFill(['paid_through_at' => today(), 'license_expires_at' => now()->addYear()])->saveQuietly();
 
-        $this->actingAs($member->fresh())->get(route('member.certificate'))->assertOk()->assertSee('Download PDF');
+        $this->actingAs($member->fresh())->get(route('member.certificate'))->assertOk()->assertSee('Generate & download');
     }
 
     public function test_agency_people_get_it_as_before_with_the_agencys_date(): void
@@ -207,7 +369,7 @@ class CertificatePageTest extends TestCase
         $this->actingAs($person->user)->get(route('member.certificate'))->assertOk()
             ->assertSee('CERTIFICATE OF MEMBERSHIP')
             ->assertSee('Aug 31, 2027')
-            ->assertSee('Download PDF')
+            ->assertSee('Generate & download')
             ->assertDontSee('href="'.route('member.license-documents').'"', false);
     }
 
