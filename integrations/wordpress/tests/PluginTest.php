@@ -443,6 +443,15 @@ class PluginTest extends TestCase {
 		}
 	}
 
+	public function test_the_header_names_the_author_and_no_personal_address(): void {
+		$header = file_get_contents( dirname( __DIR__ ) . '/properx-portal/properx-portal.php' );
+
+		$this->assertMatchesRegularExpression( '/^ \* Author:\s+KEENEY$/m', $header );
+		$this->assertStringNotContainsString( 'Author URI', $header );
+		$this->assertStringNotContainsString( 'Plugin URI', $header );
+		$this->assertDoesNotMatchRegularExpression( '/[a-z0-9._-]+@[a-z0-9-]+\.[a-z]{2,}/i', $header );
+	}
+
 	public function test_the_plugin_names_no_people(): void {
 		$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__ ) . '/properx-portal', FilesystemIterator::SKIP_DOTS ) );
 

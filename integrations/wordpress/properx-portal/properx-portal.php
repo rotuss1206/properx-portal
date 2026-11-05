@@ -2,10 +2,10 @@
 /**
  * Plugin Name:       ProPerX Portal
  * Description:       Sends paid Gravity Forms membership applications to the ProPerX member portal and sends one approval email when a member is approved. Settings: Forms > Settings > ProPerX Portal.
- * Version:           2.0.4
+ * Version:           2.0.5
  * Requires at least: 6.0
  * Requires PHP:      8.1
- * Author:            ProPerX Alliance
+ * Author:            KEENEY
  * License:           Proprietary
  *
  * Both features are off until an administrator turns them on. No card data, no files, and no personal
