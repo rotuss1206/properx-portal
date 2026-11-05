@@ -49,7 +49,7 @@ Press **Test connection**.
 
 ## 6. Turn on sending
 
-Look at the **Setup checklist** at the top of the page. When everything above the last line is green, tick **Send paid applications to the portal** and press **Save settings**.
+Look at the **Setup checklist** at the top of the page. Red lines come first. When "Sending to the portal is on" is the only red line left, tick **Send paid applications to the portal** and press **Save settings**. The checklist then folds into one line, "All checks passed"; click it to see the list.
 
 Leave **Approval email** off until the client has approved the text ([emails.md](emails.md)). While it is off, members get the two old emails, as they do today.
 

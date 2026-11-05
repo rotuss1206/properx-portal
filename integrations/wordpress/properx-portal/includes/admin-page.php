@@ -72,6 +72,32 @@ function properx_portal_handle_settings_post() {
 	return $outcome;
 }
 
+/**
+ * All green: one line that opens on a click. Otherwise the whole list, with what needs doing on top.
+ *
+ * @param list<array{label: string, ok: bool, help: string}> $items
+ */
+function properx_portal_print_checklist( array $items ) {
+	$view = properx_portal_checklist_view( $items );
+	$list = '<ul class="ppx-portal-check">';
+
+	foreach ( $view['items'] as $item ) {
+		$list .= sprintf(
+			'<li class="%s"><strong>%s %s</strong>%s</li>',
+			$item['ok'] ? 'is-ok' : 'is-bad',
+			$item['ok'] ? '&#10003;' : '&#10007;',
+			esc_html( $item['label'] ),
+			'' === $item['help'] ? '' : '<span>' . esc_html( $item['help'] ) . '</span>'
+		);
+	}
+
+	$list .= '</ul>';
+
+	echo $view['all_ok']
+		? '<details class="ppx-portal-passed"><summary>&#10003; All checks passed</summary>' . $list . '</details>'
+		: $list;
+}
+
 function properx_portal_settings_page() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( 'Only an administrator can open this page.' );
@@ -94,6 +120,8 @@ function properx_portal_settings_page() {
 		.ppx-portal-check li.is-bad { border-color: #c62828; background: #fdecea; color: #8e1c1c; }
 		.ppx-portal-check strong { display: block; }
 		.ppx-portal-check span { display: block; margin-top: 2px; font-size: 13px; }
+		.ppx-portal-passed summary { padding: 10px 14px; border-left: 4px solid #2e7d32; border-radius: 4px; background: #edf7ed; color: #1b5e20; font-weight: 600; cursor: pointer; }
+		.ppx-portal-passed[open] summary { margin-bottom: 8px; }
 	</style>';
 
 	echo '<div class="gform-settings-panel"><div class="gform-settings-panel__content ppx-portal-settings">';
@@ -115,19 +143,8 @@ function properx_portal_settings_page() {
 		);
 	}
 
-	echo '<h3>Setup checklist</h3><ul class="ppx-portal-check">';
-
-	foreach ( properx_portal_checklist_items( properx_portal_checklist_facts() ) as $item ) {
-		printf(
-			'<li class="%s"><strong>%s %s</strong>%s</li>',
-			$item['ok'] ? 'is-ok' : 'is-bad',
-			$item['ok'] ? '&#10003;' : '&#10007;',
-			esc_html( $item['label'] ),
-			'' === $item['help'] ? '' : '<span>' . esc_html( $item['help'] ) . '</span>'
-		);
-	}
-
-	echo '</ul>';
+	echo '<h3>Setup checklist</h3>';
+	properx_portal_print_checklist( properx_portal_checklist_items( properx_portal_checklist_facts() ) );
 
 	echo '<h3>Connection</h3><form method="post" autocomplete="off">';
 	wp_nonce_field( 'properx_portal_save' );

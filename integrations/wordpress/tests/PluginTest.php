@@ -219,6 +219,24 @@ class PluginTest extends TestCase {
 		}
 	}
 
+	public function test_all_green_is_reported_as_passed_in_the_setup_order(): void {
+		$items = properx_portal_checklist_items( $this->greenFacts() );
+		$view  = properx_portal_checklist_view( $items );
+
+		$this->assertTrue( $view['all_ok'] );
+		$this->assertSame( $items, $view['items'] );
+	}
+
+	public function test_red_lines_come_first_and_keep_their_order(): void {
+		$items = properx_portal_checklist_items( array_merge( $this->greenFacts(), array( 'test_ok' => false, 'environment' => 'local' ) ) );
+		$view  = properx_portal_checklist_view( $items );
+
+		$this->assertFalse( $view['all_ok'] );
+		$this->assertSame( array( 'This is not a local environment', 'Test connection succeeded' ), array_column( array_slice( $view['items'], 0, 2 ), 'label' ) );
+		$this->assertSame( 'Portal URL and secret are set', $view['items'][2]['label'] );
+		$this->assertCount( 7, $view['items'] );
+	}
+
 	public function test_a_changed_url_or_secret_needs_a_new_test(): void {
 		properx_portal_apply_settings_form( array( 'url' => 'https://portal.test', 'secret' => self::SECRET ) );
 		$first = properx_portal_connection_fingerprint();
@@ -242,8 +260,8 @@ class PluginTest extends TestCase {
 
 	// Approval email
 
-	private function email(): array {
-		return properx_portal_approval_email( 'https://site.test/wp-login.php?action=rp&key=abc&login=x', 'https://site.test/plans/', 'https://site.test/wp-login.php' );
+	private function email( string $first_name = 'Taylor' ): array {
+		return properx_portal_approval_email( 'https://site.test/wp-login.php?action=rp&key=abc&login=x', 'https://site.test/plans/', 'https://site.test/wp-login.php', $first_name );
 	}
 
 	public function test_the_email_has_the_agreed_subject_links_and_both_parts(): void {
@@ -254,7 +272,7 @@ class PluginTest extends TestCase {
 		foreach ( array( $email['html'], $email['text'] ) as $part ) {
 			$this->assertStringContainsString( 'https://site.test/plans/', $part );
 			$this->assertStringContainsString( 'https://my-benefits.net/2027-group-health-coverage-enrollment-form/', $part );
-			$this->assertStringContainsString( '(440) 776-7379', $part );
+			$this->assertStringContainsString( '+1 (888) 388-1720', $part );
 			$this->assertStringContainsString( 'action=rp', $part );
 			$this->assertStringContainsString( 'Ready to enroll?', str_replace( array( '&ldquo;', '&rdquo;' ), '', $part ) );
 			$this->assertStringNotContainsString( 'ProPerx', $part );
@@ -265,6 +283,25 @@ class PluginTest extends TestCase {
 		$this->assertStringNotContainsString( '<', $email['text'] );
 	}
 
+	public function test_the_email_greets_by_first_name_safely_and_has_a_fallback(): void {
+		$email = $this->email( 'Taylor' );
+		$this->assertStringContainsString( '>Hi Taylor,</p>', $email['html'] );
+		$this->assertStringStartsWith( "Hi Taylor,
+", $email['text'] );
+
+		$this->assertStringStartsWith( "Hi there,
+", $this->email( '  ' )['text'] );
+		$this->assertStringContainsString( '>Hi there,</p>', $this->email( '' )['html'] );
+
+		$html = $this->email( '<b>Bad</b>' )['html'];
+		$this->assertStringNotContainsString( '<b>Bad', $html );
+		$this->assertStringContainsString( '&lt;b&gt;Bad', $html );
+	}
+
+	public function test_the_phone_link_dials_the_shown_number(): void {
+		$this->assertStringContainsString( 'href="tel:+18883881720"', $this->email()['html'] );
+	}
+
 	public function test_the_draft_for_the_client_says_the_same_as_the_plugin(): void {
 		$email = $this->email();
 		$draft = file_get_contents( dirname( __DIR__, 3 ) . '/docs/wordpress/emails.md' );
@@ -272,16 +309,17 @@ class PluginTest extends TestCase {
 		$this->assertStringContainsString( $email['subject'], $draft );
 
 		$sentences = array(
+			'Hi Taylor,',
 			'Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.',
 			'Once you are signed in, the 2027 plans page shows the "Ready to enroll?" section.',
 			"Compare the five plans and open the full summary for any you're considering. Find your monthly rate by your age and who you're covering. Then complete the enrollment form; have your plan choice and the details for anyone you're covering ready.",
 			'Enrollment is subject to final plan approval and ProPerX Alliance membership requirements.',
-			'Call us at (440) 776-7379.',
+			'Call us at +1 (888) 388-1720.',
 		);
 
 		foreach ( $sentences as $sentence ) {
 			$this->assertStringContainsString( $sentence, $email['text'] );
-			$this->assertStringContainsString( $sentence, $draft );
+			$this->assertStringContainsString( str_replace( 'Taylor', '{first name}', $sentence ), $draft );
 		}
 	}
 

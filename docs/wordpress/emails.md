@@ -12,6 +12,8 @@ It goes out only while Forms > Settings > ProPerX Portal > **Approval email** is
 
 **Body** (HTML with the ProPerX Alliance logo, and the same words as plain text):
 
+> Hi {first name},
+>
 > Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.
 >
 > **1. Set your password and sign in**
@@ -28,7 +30,7 @@ It goes out only while Forms > Settings > ProPerX Portal > **Approval email** is
 > Enrollment is subject to final plan approval and ProPerX Alliance membership requirements.
 >
 > **4. Questions?**
-> Call us at (440) 776-7379.
+> Call us at +1 (888) 388-1720.
 
 ### Where the words come from
 
@@ -36,14 +38,13 @@ It goes out only while Forms > Settings > ProPerX Portal > **Approval email** is
 |---|---|
 | Item 3 and the small print | The members' block "Ready to enroll?" on the plans page (page 919), lightly joined into one paragraph |
 | Enrollment form link | The same block |
-| Phone | The /apply page: "Call us at (440) 776-7379" |
+| Phone | The same block's "Need help?" line |
+| Greeting | The member's first name from the application; "Hi there," if there is none |
 | "Lost your password?" sentence | The KEENEY plugin's current email |
 
-### Questions for the client
+### Question for the client
 
-1. **The name of the section.** Signed-in Active Members see "Ready to enroll?" on the plans page. "How to enroll" is the version for everyone else, and it has no enrollment form link. The email therefore says "Ready to enroll?". If the client prefers "How to enroll", the page's heading has to change too.
-2. **The phone number.** The email uses the /apply page's number, (440) 776-7379. The plans page itself offers +1 (888) 388-1720 for enrollment help. Which one should members see?
-3. **No greeting by name.** The email starts without a name, because emails from the portal project carry no personal data. The old emails said "Hi <first name>". Is that acceptable?
+**The name of the section.** Signed-in Active Members see "Ready to enroll?" on the plans page. "How to enroll" is the version for everyone else, and it has no enrollment form link. The email therefore says "Ready to enroll?". If the client prefers "How to enroll", the page's heading has to change too.
 
 ## Other emails
 

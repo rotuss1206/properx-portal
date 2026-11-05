@@ -46,6 +46,22 @@ function properx_portal_checklist_facts() {
 }
 
 /**
+ * How the list is shown: red lines first, otherwise in the setup's order.
+ *
+ * @param list<array{label: string, ok: bool, help: string}> $items
+ * @return array{all_ok: bool, items: list<array{label: string, ok: bool, help: string}>}
+ */
+function properx_portal_checklist_view( array $items ) {
+	$red   = array_values( array_filter( $items, fn ( $item ) => ! $item['ok'] ) );
+	$green = array_values( array_filter( $items, fn ( $item ) => $item['ok'] ) );
+
+	return array(
+		'all_ok' => array() === $red,
+		'items'  => array_merge( $red, $green ),
+	);
+}
+
+/**
  * @param array<string, mixed> $facts
  * @return list<array{label: string, ok: bool, help: string}> Help says what to do; empty once ok.
  */

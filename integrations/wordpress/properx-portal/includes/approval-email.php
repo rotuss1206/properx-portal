@@ -9,7 +9,8 @@
  *   button or by changing the role on the Users screen.
  *
  * Neither the theme nor the KEENEY plugin is edited. With the switch off nothing here runs and both
- * old messages go out as before. The body names no one: it only says what to do next.
+ * old messages go out as before. The body greets the member by first name and otherwise only says
+ * what to do next.
  *
  * The HTML and text parts and the logo reach the message through phpmailer_init, which WordPress
  * and Gravity SMTP's SMTP and PHP Mail connections fire. Its API connections (SendGrid and the like)
@@ -22,8 +23,8 @@ const PROPERX_PORTAL_ROLE_PENDING = 'pending_member';
 const PROPERX_PORTAL_ROLE_ACTIVE  = 'active_member';
 const PROPERX_PORTAL_LOGO_CID     = 'properx-portal-logo';
 
-/** From the /apply page: "Call us at (440) 776-7379". */
-const PROPERX_PORTAL_PHONE         = '(440) 776-7379';
+/** As on the plans page, in its "Need help?" line. */
+const PROPERX_PORTAL_PHONE         = '+1 (888) 388-1720';
 const PROPERX_PORTAL_PLANS_PATH    = '2027-health-plan-options';
 const PROPERX_PORTAL_ENROLLMENT_URL = 'https://my-benefits.net/2027-group-health-coverage-enrollment-form/';
 
@@ -109,7 +110,8 @@ function properx_portal_send_approval_email( WP_User $user ) {
 	$email = properx_portal_approval_email(
 		network_site_url( 'wp-login.php?action=rp&key=' . rawurlencode( $key ) . '&login=' . rawurlencode( $user->user_login ), 'login' ),
 		$plans_page ? get_permalink( $plans_page ) : home_url( '/' . PROPERX_PORTAL_PLANS_PATH . '/' ),
-		wp_login_url()
+		wp_login_url(),
+		(string) $user->first_name
 	);
 
 	$add_parts = function ( $mailer ) use ( $email ) {
@@ -139,7 +141,7 @@ function properx_portal_send_approval_email( WP_User $user ) {
  *
  * @return array{subject: string, html: string, text: string}
  */
-function properx_portal_approval_email( $password_url, $plans_url, $login_url ) {
+function properx_portal_approval_email( $password_url, $plans_url, $login_url, $first_name = '' ) {
 	$navy  = '#14315c';
 	$ink   = '#222222';
 	$muted = '#5b6b7f';
@@ -151,13 +153,16 @@ function properx_portal_approval_email( $password_url, $plans_url, $login_url ) 
 
 	$enrollment = PROPERX_PORTAL_ENROLLMENT_URL;
 	$phone      = PROPERX_PORTAL_PHONE;
-	$tel        = 'tel:+1' . preg_replace( '/\D/', '', $phone );
+	$tel        = 'tel:+' . preg_replace( '/\D/', '', $phone );
+	$name       = trim( (string) $first_name );
+	$greeting   = 'Hi ' . ( '' === $name ? 'there' : $name ) . ',';
 
 	$html = '<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f4f6f9;">'
 		. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;"><tr><td align="center" style="padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">'
 		. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e6ea;border-radius:8px;">'
 		. '<tr><td style="padding:28px 32px 8px;"><img src="cid:' . PROPERX_PORTAL_LOGO_CID . '" width="180" alt="ProPerX Alliance" style="display:block;border:0;font-size:18px;font-weight:bold;color:' . $navy . ';"></td></tr>'
 		. '<tr><td style="padding:16px 32px 8px;">'
+		. '<p style="' . $p . '">' . esc_html( $greeting ) . '</p>'
 		. '<p style="' . $p . '">Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.</p>'
 		. '</td></tr>'
 		. '<tr><td style="padding:8px 32px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
@@ -176,7 +181,8 @@ function properx_portal_approval_email( $password_url, $plans_url, $login_url ) 
 		. '</table></td></tr>'
 		. '</table></td></tr></table></body></html>';
 
-	$text = "Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.\n\n"
+	$text = "{$greeting}\n\n"
+		. "Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.\n\n"
 		. "1. Set your password and sign in\n"
 		. "Once you are signed in, the 2027 plans page shows the \"Ready to enroll?\" section.\n"
 		. "Set your password: {$password_url}\n"
