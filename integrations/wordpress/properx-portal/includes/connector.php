@@ -1,24 +1,8 @@
 <?php
 /**
- * Plugin Name: ProPerX Portal Connector
- * Description: Sends paid Gravity Forms membership applications to the ProPerX member portal.
- * Version:     1.1.0
- * Author:      ProPerX Alliance
- *
- * Must-use plugin: copy this file to wp-content/mu-plugins/. It needs three constants in
- * wp-config.php and does nothing without them:
- *
- *     define( 'PROPERX_PORTAL_URL', 'https://portal.example.org' );
- *     define( 'PROPERX_PORTAL_SECRET', '...' );   // same value as WP_INTAKE_SECRET in the portal
- *     define( 'PROPERX_PORTAL_FORM_ID', 1 );
- *
- * On payment it queues a delivery (Action Scheduler if present, otherwise WP-Cron). Failed
- * deliveries retry with growing pauses for about 24 hours. The result of each attempt is a note
- * on the entry. No card data, no files, and no personal data in notes or logs.
- *
- * Admin: Forms > Settings > ProPerX Portal shows the setup and has "Test connection";
- * "Resend to portal" is in the entry's side panel and in the entry list's bulk actions.
- * WP-CLI: wp properx-portal send --form=1 [--since=YYYY-MM-DD] [--dry-run]
+ * The connector. On payment it queues a delivery (Action Scheduler if present, otherwise WP-Cron).
+ * Failed deliveries retry with growing pauses for about 24 hours. The result of each attempt is a
+ * note on the entry. Nothing is sent while "Send paid applications to the portal" is off.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -46,38 +30,12 @@ const PROPERX_PORTAL_RETRY_DELAYS = array( 300, 900, 3600, 10800, 21600, 43200 )
 const PROPERX_PORTAL_HOOK        = 'properx_portal_send';
 const PROPERX_PORTAL_META_STATUS = 'properx_portal_status';
 
-function properx_portal_is_configured() {
-	return defined( 'PROPERX_PORTAL_URL' ) && '' !== (string) PROPERX_PORTAL_URL
-		&& defined( 'PROPERX_PORTAL_SECRET' ) && '' !== (string) PROPERX_PORTAL_SECRET
-		&& defined( 'PROPERX_PORTAL_FORM_ID' ) && (int) PROPERX_PORTAL_FORM_ID > 0;
+/**
+ * Whether anything may leave for the portal at all.
+ */
+function properx_portal_can_send() {
+	return properx_portal_sending_enabled() && properx_portal_is_configured();
 }
-
-add_action(
-	'admin_notices',
-	function () {
-		if ( ! properx_portal_is_configured() && current_user_can( 'manage_options' ) ) {
-			echo '<div class="notice notice-warning"><p>ProPerX Portal Connector is off: PROPERX_PORTAL_URL, PROPERX_PORTAL_SECRET and PROPERX_PORTAL_FORM_ID must be set in wp-config.php.</p></div>';
-		}
-	}
-);
-
-// Forms > Settings > ProPerX Portal: registered even when unconfigured, to say what is missing.
-add_action(
-	'gform_loaded',
-	function () {
-		if ( is_admin() ) {
-			GFForms::add_settings_page(
-				array(
-					'name'      => 'properx_portal',
-					'tab_label' => 'ProPerX Portal',
-					'title'     => 'ProPerX Portal',
-					'handler'   => 'properx_portal_settings_page',
-				),
-				''
-			);
-		}
-	}
-);
 
 /**
  * What a test request's result means, in words Kevin can act on.
@@ -88,14 +46,14 @@ function properx_portal_test_connection() {
 	$timestamp = (string) time();
 
 	$response = wp_remote_post(
-		rtrim( (string) PROPERX_PORTAL_URL, '/' ) . '/api/intake/ping',
+		properx_portal_url() . '/api/intake/ping',
 		array(
 			'timeout'   => 15,
 			'sslverify' => 'local' !== wp_get_environment_type(),
 			'headers'   => array(
 				'Accept'      => 'application/json',
 				'X-Timestamp' => $timestamp,
-				'X-Signature' => hash_hmac( 'sha256', $timestamp . '.', (string) PROPERX_PORTAL_SECRET ),
+				'X-Signature' => hash_hmac( 'sha256', $timestamp . '.', properx_portal_secret() ),
 			),
 		)
 	);
@@ -111,70 +69,28 @@ function properx_portal_test_connection() {
 			return array( 'ok' => false, 'message' => 'The portal\'s TLS certificate could not be verified from this server.' );
 		}
 
-		return array( 'ok' => false, 'message' => 'Could not connect to the portal. Check PROPERX_PORTAL_URL and this server\'s outbound access.' );
+		return array( 'ok' => false, 'message' => 'Could not connect to the portal. Check the Portal URL and this server\'s outbound access.' );
 	}
 
-	$code = (int) wp_remote_retrieve_response_code( $response );
+	return properx_portal_test_result( (int) wp_remote_retrieve_response_code( $response ) );
+}
 
+/**
+ * @return array{ok: bool, message: string}
+ */
+function properx_portal_test_result( $code ) {
 	switch ( $code ) {
 		case 200:
 			return array( 'ok' => true, 'message' => 'Connected. The portal accepted the signature, so paid applications will reach it.' );
 		case 401:
-			return array( 'ok' => false, 'message' => 'The portal refused the signature (401). PROPERX_PORTAL_SECRET differs from WP_INTAKE_SECRET, or this server\'s clock is more than 5 minutes off.' );
+			return array( 'ok' => false, 'message' => 'The portal refused the signature (401). The Secret differs from WP_INTAKE_SECRET, or this server\'s clock is more than 5 minutes off.' );
 		case 403:
 			return array( 'ok' => false, 'message' => 'Blocked before reaching the portal (403), probably by the WAF. Allow this server\'s outbound IP for /api/intake/*.' );
 		case 404:
-			return array( 'ok' => false, 'message' => 'Not found (404). INTAKE_ENABLED is off on the portal, or PROPERX_PORTAL_URL is wrong.' );
+			return array( 'ok' => false, 'message' => 'Not found (404). INTAKE_ENABLED is off on the portal, or the Portal URL is wrong.' );
 	}
 
 	return array( 'ok' => false, 'message' => 'The portal answered HTTP ' . $code . '. Try again in a few minutes.' );
-}
-
-function properx_portal_settings_page() {
-	$result = null;
-
-	if ( isset( $_POST['properx_portal_test'] ) ) {
-		check_admin_referer( 'properx_portal_test' );
-
-		if ( properx_portal_is_configured() && GFCommon::current_user_can_any( 'gravityforms_edit_settings' ) ) {
-			$result = properx_portal_test_connection();
-		}
-	}
-
-	GFSettings::page_header( 'ProPerX Portal' );
-
-	echo '<div class="gform-settings-panel"><div class="gform-settings-panel__content">';
-
-	foreach ( array( 'PROPERX_PORTAL_URL', 'PROPERX_PORTAL_SECRET', 'PROPERX_PORTAL_FORM_ID' ) as $name ) {
-		$set   = defined( $name ) && '' !== (string) constant( $name );
-		$value = $set && 'PROPERX_PORTAL_SECRET' !== $name ? (string) constant( $name ) : ( $set ? 'set' : 'not set' );
-
-		echo '<p><strong>' . esc_html( $name ) . ':</strong> ' . esc_html( $value ) . '</p>';
-	}
-
-	if ( $result ) {
-		printf(
-			'<div class="alert %s" role="status"><p>%s</p></div>',
-			$result['ok'] ? 'success' : 'error',
-			esc_html( $result['message'] )
-		);
-	}
-
-	if ( properx_portal_is_configured() ) {
-		echo '<form method="post">';
-		wp_nonce_field( 'properx_portal_test' );
-		echo '<p><button type="submit" name="properx_portal_test" value="1" class="button primary">Test connection</button></p></form>';
-	} else {
-		echo '<p>Add the missing constants to wp-config.php to turn the connector on.</p>';
-	}
-
-	echo '</div></div>';
-
-	GFSettings::page_footer();
-}
-
-if ( ! properx_portal_is_configured() ) {
-	return;
 }
 
 // Subscriptions: a card payment, or an ACH payment once Stripe confirms it. One-off payments too,
@@ -184,9 +100,34 @@ add_action( 'gform_post_payment_completed', 'properx_portal_on_paid' );
 add_action( PROPERX_PORTAL_HOOK, 'properx_portal_deliver', 10, 3 );
 
 function properx_portal_on_paid( $entry ) {
-	if ( (int) rgar( $entry, 'form_id' ) === (int) PROPERX_PORTAL_FORM_ID ) {
+	if ( properx_portal_can_send() && (int) rgar( $entry, 'form_id' ) === properx_portal_form_id() ) {
 		properx_portal_schedule( (int) $entry['id'], 0, time() );
 	}
+}
+
+add_filter( 'gform_disable_notification', 'properx_portal_send_start_notification_once', 10, 5 );
+
+/**
+ * Stripe's webhooks can arrive together, and Gravity Forms then starts the subscription twice in the
+ * same second, so an email on the "Subscription Created" event would go out twice. This lets each such
+ * notification go once per entry. add_option() is the atomic part: only one request can create the option.
+ */
+function properx_portal_send_start_notification_once( $is_disabled, $notification, $form, $entry, $data = array() ) {
+	if ( $is_disabled || 'create_subscription' !== rgar( $notification, 'event' ) || (int) rgar( $form, 'id' ) !== properx_portal_form_id() ) {
+		return $is_disabled;
+	}
+
+	$meta = 'properx_portal_sent_' . rgar( $notification, 'id' );
+	$lock = 'properx_portal_lock_' . md5( $entry['id'] . '|' . rgar( $notification, 'id' ) );
+
+	if ( gform_get_meta( $entry['id'], $meta ) || ! add_option( $lock, time(), '', false ) ) {
+		return true;
+	}
+
+	gform_update_meta( $entry['id'], $meta, time() );
+	delete_option( $lock );
+
+	return false;
 }
 
 /**
@@ -255,7 +196,7 @@ function properx_portal_post( $entry ) {
 	$timestamp = (string) time();
 
 	$response = wp_remote_post(
-		rtrim( (string) PROPERX_PORTAL_URL, '/' ) . '/api/intake/individual',
+		properx_portal_url() . '/api/intake/individual',
 		array(
 			'timeout'   => 15,
 			'sslverify' => 'local' !== wp_get_environment_type(),
@@ -263,7 +204,7 @@ function properx_portal_post( $entry ) {
 				'Content-Type' => 'application/json',
 				'Accept'       => 'application/json',
 				'X-Timestamp'  => $timestamp,
-				'X-Signature'  => hash_hmac( 'sha256', $timestamp . '.' . $body, (string) PROPERX_PORTAL_SECRET ),
+				'X-Signature'  => hash_hmac( 'sha256', $timestamp . '.' . $body, properx_portal_secret() ),
 			),
 			'body'      => $body,
 		)
@@ -304,6 +245,13 @@ function properx_portal_deliver( $entry_id, $attempt = 0, $queued_at = 0 ) {
 		return;
 	}
 
+	// Turned off while this was queued. "Resend to portal" sends it later.
+	if ( ! properx_portal_can_send() ) {
+		properx_portal_note( $entry_id, 'Not sent to portal: sending is off.', false );
+
+		return;
+	}
+
 	$result = properx_portal_post( $entry );
 
 	if ( 'ok' === $result['status'] ) {
@@ -332,7 +280,7 @@ function properx_portal_deliver( $entry_id, $attempt = 0, $queued_at = 0 ) {
 add_filter(
 	'gform_entry_detail_meta_boxes',
 	function ( $boxes, $entry, $form ) {
-		if ( (int) rgar( $form, 'id' ) === (int) PROPERX_PORTAL_FORM_ID ) {
+		if ( (int) rgar( $form, 'id' ) === properx_portal_form_id() ) {
 			$boxes['properx_portal'] = array(
 				'title'    => 'ProPerX Portal',
 				'callback' => 'properx_portal_entry_box',
@@ -354,7 +302,9 @@ function properx_portal_entry_box( $args ) {
 
 	echo '<p>Status: ' . esc_html( $status ? $status : 'not sent' ) . '</p>';
 
-	if ( properx_portal_is_paid( $entry ) ) {
+	if ( ! properx_portal_can_send() ) {
+		echo '<p>Sending is off: Forms &gt; Settings &gt; ProPerX Portal.</p>';
+	} elseif ( properx_portal_is_paid( $entry ) ) {
 		echo '<p><a class="button" href="' . esc_url( $url ) . '">Resend to portal</a></p>';
 	} else {
 		echo '<p>Only paid entries are sent.</p>';
@@ -374,7 +324,7 @@ add_action(
 
 		$entry = GFAPI::get_entry( $entry_id );
 
-		if ( ! is_wp_error( $entry ) && properx_portal_is_paid( $entry ) ) {
+		if ( properx_portal_can_send() && ! is_wp_error( $entry ) && properx_portal_is_paid( $entry ) ) {
 			properx_portal_schedule( $entry_id, 0, time() );
 			properx_portal_note( $entry_id, 'Resend to portal queued.', true );
 		}
@@ -389,7 +339,7 @@ add_action(
 add_filter(
 	'gform_entry_list_bulk_actions',
 	function ( $actions, $form_id ) {
-		if ( (int) $form_id === (int) PROPERX_PORTAL_FORM_ID ) {
+		if ( properx_portal_can_send() && (int) $form_id === properx_portal_form_id() ) {
 			$actions['properx_portal_resend'] = 'Resend to portal';
 		}
 
@@ -402,7 +352,7 @@ add_filter(
 add_action(
 	'gform_entry_list_action',
 	function ( $action, $entries, $form_id ) {
-		if ( 'properx_portal_resend' !== $action || (int) $form_id !== (int) PROPERX_PORTAL_FORM_ID || ! GFCommon::current_user_can_any( 'gravityforms_edit_entries' ) ) {
+		if ( 'properx_portal_resend' !== $action || ! properx_portal_can_send() || (int) $form_id !== properx_portal_form_id() || ! GFCommon::current_user_can_any( 'gravityforms_edit_entries' ) ) {
 			return;
 		}
 
@@ -430,84 +380,3 @@ add_action(
 	10,
 	3
 );
-
-/**
- * Paid entries of a form, for the WP-CLI command.
- *
- * @return list<int>
- */
-function properx_portal_paid_entry_ids( $form_id, $since ) {
-	$criteria = array(
-		'status'        => 'active',
-		'field_filters' => array(
-			'mode' => 'any',
-			array( 'key' => 'payment_status', 'value' => 'Active' ),
-			array( 'key' => 'payment_status', 'value' => 'Paid' ),
-		),
-	);
-
-	if ( $since ) {
-		$criteria['start_date'] = $since . ' 00:00:00';
-	}
-
-	$ids = GFAPI::get_entry_ids( $form_id, $criteria, array( 'key' => 'id', 'direction' => 'ASC', 'is_numeric' => true ) );
-
-	return array_map( 'intval', (array) $ids );
-}
-
-/**
- * wp properx-portal send --form=1 [--since=YYYY-MM-DD] [--dry-run]
- *
- * Sends paid entries that were not sent yet, for retries and for moving older applications
- * across. Prints entry ids only.
- */
-function properx_portal_cli_send( $args, $assoc ) {
-	$form_id = isset( $assoc['form'] ) ? (int) $assoc['form'] : 0;
-	$since   = isset( $assoc['since'] ) ? (string) $assoc['since'] : '';
-	$dry_run = ! empty( $assoc['dry-run'] );
-
-	if ( (int) PROPERX_PORTAL_FORM_ID !== $form_id ) {
-		WP_CLI::error( 'Only the configured form can be sent: --form=' . (int) PROPERX_PORTAL_FORM_ID );
-	}
-
-	if ( '' !== $since && ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $since ) ) {
-		WP_CLI::error( '--since must be YYYY-MM-DD.' );
-	}
-
-	$sent    = 0;
-	$failed  = 0;
-	$skipped = 0;
-
-	foreach ( properx_portal_paid_entry_ids( $form_id, $since ) as $entry_id ) {
-		if ( 'sent' === gform_get_meta( $entry_id, PROPERX_PORTAL_META_STATUS ) ) {
-			++$skipped;
-
-			continue;
-		}
-
-		if ( $dry_run ) {
-			WP_CLI::log( 'Would send entry ' . $entry_id );
-			++$sent;
-
-			continue;
-		}
-
-		properx_portal_deliver( $entry_id );
-
-		if ( 'sent' === gform_get_meta( $entry_id, PROPERX_PORTAL_META_STATUS ) ) {
-			WP_CLI::log( 'Sent entry ' . $entry_id );
-			++$sent;
-		} else {
-			WP_CLI::warning( 'Failed entry ' . $entry_id . ' (see the entry notes)' );
-			++$failed;
-		}
-	}
-
-	$prefix = $dry_run ? 'Dry run: would send ' : 'Sent ';
-
-	WP_CLI::success( sprintf( '%s%d, failed %d, already sent %d.', $prefix, $sent, $failed, $skipped ) );
-}
-
-if ( defined( 'WP_CLI' ) && WP_CLI ) {
-	WP_CLI::add_command( 'properx-portal send', 'properx_portal_cli_send' );
-}

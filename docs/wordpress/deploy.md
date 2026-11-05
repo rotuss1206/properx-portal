@@ -35,33 +35,28 @@ The connection is tested in step 5, with a button.
 
 ## 5. Install the plugin on properx.org
 
-1. Upload `integrations/wordpress/properx-portal-connector.php` to `wp-content/mu-plugins/`. Create the folder if it is missing.
-2. In `wp-config.php`, above the "stop editing" line, add:
+The site's side is done in the WordPress admin, with no file access: [INSTALL-site.md](INSTALL-site.md). All portal variables are in [portal-env.example](portal-env.example).
 
-   ```php
-   define( 'PROPERX_PORTAL_URL', 'https://shn-portal.keeney.cloud' );
-   define( 'PROPERX_PORTAL_SECRET', 'the value from step 2' );
-   define( 'PROPERX_PORTAL_FORM_ID', 1 );
-   ```
-
-3. Make sure `WP_ENVIRONMENT_TYPE` is **not** `local`. It is fine if it is absent. `local` turns off TLS verification.
-4. Plugins > Must-Use should list "ProPerX Portal Connector". A yellow notice in wp-admin means a constant is missing.
-5. **Forms > Settings > ProPerX Portal > Test connection.** It sends a signed request that changes nothing and says in plain words what is wrong:
+1. Plugins > Add New > Upload Plugin > `properx-portal-<version>.zip` > Activate.
+2. Forms > Settings > ProPerX Portal: enter the Portal URL (`https://shn-portal.keeney.cloud`) and the Form ID.
+3. **Paste the value from step 2 into Secret yourself** and save. It is stored encrypted and shows only "set". If you do have file access, the constants `PROPERX_PORTAL_URL`, `PROPERX_PORTAL_SECRET` and `PROPERX_PORTAL_FORM_ID` in `wp-config.php` take priority and lock the fields.
+4. The Setup checklist on that page must go green. Above all, `WP_ENVIRONMENT_TYPE` must **not** be `local`, which turns off TLS verification.
+5. **Test connection.** It sends a signed request that changes nothing and says in plain words what is wrong:
 
    | Result | Meaning |
    |---|---|
    | Connected (200) | All good |
-   | 401 | `PROPERX_PORTAL_SECRET` differs from `WP_INTAKE_SECRET`, or the server clock is off |
+   | 401 | The Secret differs from `WP_INTAKE_SECRET`, or the server clock is off |
    | 403 | The WAF blocks the request (step 3) |
    | 404 | `INTAKE_ENABLED` is off, or the URL is wrong (step 4) |
    | No answer within 15 seconds | Firewall or network |
 
    Without shell access this button is all you need. WP-CLI is an alternative, not a requirement.
 
-Before going on, check these on the live site:
+6. Tick **Send paid applications to the portal** and save. It is off by default: until then nothing is sent.
 
-- **WP-Cron runs.** The plugin queues deliveries with it (the site has no Action Scheduler). If `DISABLE_WP_CRON` is set, a server cron must call `wp-cron.php` every few minutes.
-- **The Gravity Forms Stripe webhook is active** in Live mode (Forms > Settings > Stripe, signing secret filled in). Without it, payments stay in "Processing" and nothing is sent.
+The checklist also covers WP-Cron and the Gravity Forms Stripe webhook in Live mode. Check these on the portal's side:
+
 - **The portal's own Stripe webhook** (`/api/webhooks/stripe`) receives Live events with `STRIPE_WEBHOOK_SECRET` set. It sets the paid period and payment status.
 - **`STRIPE_SECRET` in the portal environment** (optional but recommended): a Stripe **restricted key** with read access to Subscriptions only. After each application a queued job reads the subscription, so the paid period is right even if a webhook is missed. While it is empty, the job is skipped and only webhooks set the period.
 
@@ -95,7 +90,8 @@ Everything is in the entry's notes (Forms > Entries > the entry). They hold no p
 | `failed: invalid fields: npn` | The entry's data does not pass validation; no retries | Correct the entry, then "Resend to portal" |
 | `OK (linked)` | The email already belongs to a member; only blank fields were filled | Nothing; differences are named in the note and in `member_intake_linked` |
 | `OK (conflict)` | The email belongs to staff or to an agency's person; nothing was changed | Handle by hand |
-| No note at all | Payment still "Processing", or WP-Cron is not running | Check the Stripe webhook and WP-Cron |
+| `Not sent to portal: sending is off` | The switch was turned off while this was queued | Turn it on, then "Resend to portal" |
+| No note at all | Payment still "Processing", WP-Cron is not running, or sending was off when it was paid | Check the Setup checklist; "Resend to portal" sends what was paid while it was off |
 
 Retries: 5 min, 15 min, 1 h, 3 h, 6 h, 12 h (about 22 hours). After that, resend by hand:
 
@@ -123,9 +119,11 @@ Only active (not trashed) entries with payment status Active or Paid are sent. W
 
 ## Settings to repeat on production
 
-From [changes.md](changes.md):
+From [changes.md](changes.md); the exact clicks are at the end of [INSTALL-site.md](INSTALL-site.md):
 
-- Upload the mu-plugin (step 5).
-- Add the three `wp-config.php` constants (step 5).
+- The plugin and its settings (step 5).
+- "User Pending Confirmation" on the Subscription Created event.
+- Resident License State and License Type(s) Held required.
+- /apply-test unpublished, WP Dummy Content Generator off.
 
-No WP admin settings need to change. Do **not** repeat the entries marked "local only" in `changes.md`, above all Disable Emails.
+Do **not** repeat the entries marked "local only" in `changes.md`, above all Mailpit.

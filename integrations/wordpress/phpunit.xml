@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The plugin's tests, with small stand-ins for WordPress: <php> vendor\bin\phpunit -c integrations/wordpress/phpunit.xml -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="../../vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         cacheDirectory="../../.phpunit.cache/wordpress"
+         colors="false">
+    <testsuites>
+        <testsuite name="ProPerX Portal plugin">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

@@ -248,10 +248,12 @@ shared styles in `public/portal/header.css`, data from `App\Support\PortalHeader
 
 ## WordPress connector (properx.org)
 
-Paid applications on the local WP copy (https://properx-org.local, not in git) reach the portal through `integrations/wordpress/properx-portal-connector.php`. Rules: `CLAUDE.md`, "WordPress site"; audit and log of changes: `docs/wordpress/`.
+Paid applications on the local WP copy (https://properx-org.local, not in git) reach the portal through the plugin `integrations/wordpress/properx-portal/`. Rules: `CLAUDE.md`, "WordPress site"; audit and log of changes: `docs/wordpress/`.
 
-- Portal `.env`: `INTAKE_ENABLED=true`, `WP_INTAKE_SECRET=<random>`. WP `wp-config.php`: `PROPERX_PORTAL_URL`, `PROPERX_PORTAL_SECRET` (the same value), `PROPERX_PORTAL_FORM_ID`, `WP_ENVIRONMENT_TYPE=local`.
-- After changing the plugin, copy it to `wp-content/mu-plugins/` of the copy.
+- Portal `.env`: `INTAKE_ENABLED=true`, `WP_INTAKE_SECRET=<random>`. WP: Forms > Settings > ProPerX Portal (URL, form, the same secret, the switches) and `WP_ENVIRONMENT_TYPE=local` in `wp-config.php`.
+- After changing the plugin: `scripts/build-wp-package.ps1` makes `dist/properx-portal-<version>.zip` (the version is in the plugin's header); on the copy, delete the plugin under Plugins and upload the zip. Deleting clears its settings.
+- Plugin tests, not part of the portal's suite: `<php> vendor\bin\phpunit -c integrations/wordpress/phpunit.xml`.
+- Mail on the copy goes to Mailpit, http://localhost:8025.
 - Without a webhook, form 1 stops at "Processing" and nothing is sent. Run the Stripe CLI twice, one terminal per site, and put the printed `whsec_...` both in Forms > Settings > Stripe (Test Signing Secret) and in `.env` (`STRIPE_WEBHOOK_SECRET`):
 
   ```bash

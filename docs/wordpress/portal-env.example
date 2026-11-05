@@ -1,0 +1,140 @@
+# Production environment of the portal, for Kevin (Key Vault / platform settings).
+# Checked against .env.example and config/*.php. Every value here is a placeholder.
+# A blank value means "leave unset". After changing a value, roll out or restart so the app reads it.
+
+# ======================================================================================
+# REQUIRED NOW: to receive paid applications from properx.org
+# ======================================================================================
+
+# Opens POST /api/intake/individual and /api/intake/ping. Off (404) while unset.
+INTAKE_ENABLED=true
+# Shared with the WordPress plugin (the Secret field). Generate it yourself: openssl rand -hex 32
+# The same value goes into both places. Never by email or chat.
+WP_INTAKE_SECRET=<64-hex-characters>
+
+# Signing secret of the portal's Stripe webhook, https://<portal>/api/webhooks/stripe, in Live mode.
+# It sets the paid period and the payment status.
+STRIPE_WEBHOOK_SECRET=<whsec-from-the-stripe-dashboard>
+
+# Names people see: browser title, Nova, sender of the portal's email.
+APP_NAME="ProPerX Alliance"
+NOVA_APP_NAME="ProPerX Alliance"
+KEENEY_MAIL_FROM_NAME="ProPerX Alliance"
+
+# ======================================================================================
+# LATER: turn on when the feature goes live
+# ======================================================================================
+
+# --- Announcing the portal to members ---------------------------------------------------
+# true: a new member gets "Your ProPerX Alliance member portal account" with a set-password link,
+# right after paying, before approval. Keep off until the portal is announced.
+INTAKE_SEND_INVITE=
+# true: members use the new area at /member. false or unset: /member answers 404, members stay in Nova.
+MEMBER_AREA_ENABLED=
+# "Contact support" on the sign-in page: https:// or mailto:. A notice is shown while it is empty.
+PORTAL_SUPPORT_URL=<https-or-mailto>
+# "Billing" in the member's sidebar: a Nova path such as /billing. Hidden while it is empty.
+PORTAL_BILLING_PATH=
+
+# --- Stripe --------------------------------------------------------------------------
+# Recommended: a RESTRICTED key with read access to Subscriptions only. After each application a job
+# reads the subscription, so the paid period is right even if a webhook is missed. Skipped while empty.
+STRIPE_SECRET=<rk_live-restricted-key>
+# "Renew now" in the member's sidebar: Stripe Customer Portal address.
+PAYMENT_PORTAL_URL=<https-address>
+# Days a past-due member keeps full access. Default 14.
+PAYMENT_GRACE_DAYS=14
+
+# --- Certificate -----------------------------------------------------------------------
+# Second signature. Empty: the date of issue stands in its place.
+CERTIFICATE_SECOND_SIGNATORY_NAME=
+CERTIFICATE_SECOND_SIGNATORY_TITLE=
+# File name of a PNG of the Executive Director's signature in resources/views/pdf/images.
+# Empty: the name is set in the signature font.
+CERTIFICATE_SIGNATURE_IMAGE=
+
+# --- Agency enrollment -------------------------------------------------------------------
+# true opens the public wizard at /join/agency. Off (404) while unset.
+AGENCY_ENROLLMENT_ENABLED=
+# "Just me" on /join/agency: the individual application on the marketing site.
+INDIVIDUAL_MEMBERSHIP_URL=<https-address>
+# Optional Stripe price IDs. Empty: prices are found by their lookup keys (config/agency.php).
+STRIPE_PRICE_AGENCY_FOUNDING_2TO9=
+STRIPE_PRICE_AGENCY_STANDARD_2TO9=
+STRIPE_PRICE_AGENCY_FOUNDING_10TO49=
+STRIPE_PRICE_AGENCY_STANDARD_10TO49=
+STRIPE_PRICE_AGENCY_FOUNDING_50PLUS=
+STRIPE_PRICE_AGENCY_STANDARD_50PLUS=
+
+# --- External callers of /api/service/* ------------------------------------------------------
+# Only for external automation; the Stripe webhook and the intake do not use it.
+# Rotate quarterly: php artisan app:api-key:rotate
+API_SERVICE_KEY=<generated-by-app-api-key-rotate>
+# Hours the old key keeps working after a rotation. Default 24.
+API_KEY_ROTATION_OVERLAP_HOURS=24
+
+# --- Optional tuning, the defaults are right --------------------------------------------------
+# Blob client timeouts in seconds, so an unreachable account fails fast. Defaults 20 and 5.
+DOCUMENTS_STORAGE_TIMEOUT=
+DOCUMENTS_STORAGE_CONNECT_TIMEOUT=
+# Time zone of the nightly license job and of the date printed on certificates.
+PORTAL_SCHEDULE_TIMEZONE=America/New_York
+# Client id of a user-assigned managed identity, if one is used.
+AZURE_CLIENT_ID=
+# Content Security Policy. Report-only is for debugging; do not disable it in production.
+CSP_ENABLED=true
+CSP_REPORT_ONLY=false
+
+# ======================================================================================
+# THE PLATFORM'S: normally set already. Check them, do not change their meaning
+# ======================================================================================
+
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://<portal-host>
+# Set by the platform; do not rotate without re-encrypting the stored data.
+APP_KEY=<platform>
+# HMAC key of the blind indexes, separate from APP_KEY. Changing it breaks NPN and Member ID lookups.
+BLIND_INDEX_KEY=<platform>
+# Key of the encrypted documents. Empty: APP_KEY is used. Changing it makes stored files unreadable.
+DOCUMENTS_ENCRYPTION_KEY=<platform>
+NOVA_LICENSE_KEY=<platform>
+# Must stay true: two-factor is mandatory on the platform ("false" is honoured only with APP_ENV=local).
+NOVA_REQUIRE_2FA=true
+
+# Mail: Azure Communication Services only.
+MAIL_MAILER=azure
+KEENEY_ACS_CONNECTION_STRING=<platform>
+KEENEY_MAIL_FROM=<platform>
+
+# Documents: private Azure Blob container, managed identity, no account key.
+KEENEY_DOCUMENTS_ACCOUNT=<platform>
+KEENEY_DOCUMENTS_CONTAINER=portal-documents
+KEENEY_DOCUMENTS_ENDPOINT=<platform>
+
+# Database, with TLS through the platform's CA.
+DB_CONNECTION=mysql
+DB_HOST=<platform>
+DB_PORT=3306
+DB_DATABASE=<platform>
+DB_USERNAME=<platform>
+DB_PASSWORD=<platform>
+MYSQL_ATTR_SSL_CA=<platform>
+
+# Session, cache and queue: owned by the platform (15 minutes, database, encrypted, secure, lax).
+SESSION_DRIVER=database
+SESSION_LIFETIME=15
+SESSION_ENCRYPT=true
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+LOG_CHANNEL=stack
+LOG_LEVEL=info
+
+# ======================================================================================
+# NEVER IN PRODUCTION: local development only. Leave all of these unset
+# ======================================================================================
+# DEMO_SEED_ALLOWED
+# DEMO_LOGIN_EMAIL
+# AZURITE_CONNECTION_STRING
