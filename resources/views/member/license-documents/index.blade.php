@@ -1,5 +1,5 @@
 {{--
-    License documents (docs/design/Documents Management.jpg): the member's own documents on the left,
+    License documents: the member's own documents on the left,
     the chosen one's details on the right (?document=id). Rows: App\Member\LicenseDocumentList.
 --}}
 <x-member.layout :page="$page" :title="$title">

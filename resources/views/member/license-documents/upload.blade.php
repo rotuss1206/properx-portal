@@ -1,5 +1,5 @@
 {{--
-    Upload license documents (docs/design/Container.jpg). One plain multipart form around both columns, no
+    Upload license documents. One plain multipart form around both columns, no
     Livewire temporary files. public/portal/upload-page.js adds the list of files, drag & drop and a
     progress bar per file, and shows the fields each type needs. App\Http\Controllers\Member\LicenseDocumentController::store
     makes one document per file and checks size and type by content.

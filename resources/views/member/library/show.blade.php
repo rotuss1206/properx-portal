@@ -1,5 +1,5 @@
 {{--
-    A library document's details: the description on the left, the panel of docs/design/Documents Management.jpg on
+    A library document's details: the description on the left, the same details panel as license documents on
     the right. Preview through the server only (LibraryController::preview): an image in the panel, a PDF in a new tab.
 --}}
 <x-member.layout :page="$page" :title="$title" :parent="['label' => 'Compliance library', 'url' => route('member.library')]">

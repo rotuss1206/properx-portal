@@ -557,7 +557,7 @@ body.ppx-member {
 
 .ppx-profile__code-list code { color: var(--ppx-ink); font-size: 13px; }
 
-/* License documents: list and details as in docs/design/Documents Management.jpg. The columns wrap
+/* License documents: list and details. The columns wrap
    when both no longer fit, also with the notifications panel pushed open. */
 
 .ppx-dash__more { margin: 0; }
@@ -712,7 +712,7 @@ body.ppx-member {
 
 .ppx-library__pages { display: flex; align-items: center; justify-content: center; gap: 18px; color: var(--ppx-muted); font-size: 13px; }
 
-/* Membership certificate, as in docs/design/Certificate Generate.jpg. */
+/* Membership certificate page. */
 
 .ppx-cert { display: grid; gap: 16px; min-width: 0; padding-top: 6px; }
 
@@ -779,7 +779,7 @@ body.ppx-member {
 
 .ppx-cert__page--landscape { width: 792pt; height: 611pt; }
 
-/* Upload page, as in docs/design/Container.jpg. */
+/* Upload page. */
 
 .ppx-upload__heading { margin: 6px 0 0; }
 

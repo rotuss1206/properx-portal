@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * The member's certificate (docs/design/Certificate Generate.jpg): options, format and a live preview
+ * The member's certificate: options, format and a live preview
  * of the very page the PDF prints; public/portal/certificate.js shows the choices without a round
  * trip, so no member data travels in a snapshot. "Generate & download" is a plain GET form to
  * certificates.open, which checks access again. A member who cannot have one (Overview::certificate:

@@ -1,5 +1,5 @@
 {{--
-    The compliance library, in the style of docs/design/Documents Management.jpg (there is no mockup of its own):
+    The compliance library, in the style of the license documents page:
     category chips, search and a table; each row opens the document's details page. The search words are posted
     and kept in the session (App\Http\Controllers\Member\LibraryController), never in a URL.
 --}}

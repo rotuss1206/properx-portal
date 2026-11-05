@@ -1,5 +1,5 @@
 {{--
-    The member's profile (docs/design/Main.jpg): banner, then one card per section. A section opens
+    The member's profile: banner, then one card per section. A section opens
     for editing in place with ?edit=section; Save posts a plain form, Cancel is a link back.
     App\Member\ProfilePage says what this person may edit.
 --}}

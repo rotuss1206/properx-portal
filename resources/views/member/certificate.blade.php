@@ -1,5 +1,5 @@
 {{--
-    The membership certificate (docs/design/Certificate Generate.jpg): options and format on the left, the live
+    The membership certificate: options and format on the left, the live
     preview on the right. The preview is the PDF's own markup and styles (pdf.certificate-body, -styles); public/portal/
     certificate.js scales it to the column and shows the choices at once. Without JavaScript the form still works and
     the preview shows the defaults. Who cannot have a certificate reads why instead of the options.

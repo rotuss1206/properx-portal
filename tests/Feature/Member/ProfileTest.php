@@ -104,7 +104,7 @@ class ProfileTest extends TestCase
         $this->actingAs($member)->get(route('member.profile'))->assertOk()
             ->assertHeader('Cache-Control', 'no-store, private')
             ->assertSee($profile->fullName())
-            // As in docs/design/Main.jpg: the email under Contact, the NPN under Business.
+            // The email under Contact, the NPN under Business.
             ->assertSeeInOrder(['Contact information', $member->email, 'Business details', 'National Producer Number', $profile->npn, 'License information', 'Resident state', 'Security', 'Two-factor authentication', 'Notifications'], false)
             ->assertDontSee('Account &amp; security', false)
             ->assertSee('8 available')
