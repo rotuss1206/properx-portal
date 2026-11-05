@@ -31,13 +31,13 @@ Only Administrators see this page.
 
 Kevin opens the same page and pastes the **Secret** himself, then presses **Save settings**. He generates it and sets the same value as `WP_INTAKE_SECRET` in the portal. **It should never travel by email or chat.**
 
-After saving, the page shows only "set". It is stored encrypted and cannot be read back. To replace it, paste a new one.
+After saving, the field stays empty and shows a green **Saved** badge with the time of the last change. The value is stored encrypted and cannot be read back. Paste a new value only to replace it.
 
 If Kevin cannot log in, he can type it into the field during a screen share. Do not write it down.
 
 ## 5. Test connection
 
-Press **Test connection**.
+Saving the settings runs the test by itself; **Test connection** runs it again. The last result stays beside the button, with its time, and in the checklist.
 
 | Result | Meaning | What to do |
 |---|---|---|
@@ -62,7 +62,8 @@ Leave **Approval email** off until the client has approved the text ([emails.md]
 | The form exists and has a Stripe feed | Wrong Form ID, or the form lost its feed: check Forms > the form > Settings > Stripe |
 | Gravity Forms Stripe is in Live mode with a signing secret | Forms > Settings > Stripe: set Live mode and fill in the Live Signing Secret. Without it, bank (ACH) payments stay in Processing and are never sent |
 | WP-Cron works | Just installed: open any page, wait a minute, and reload. If it stays red, ask the host whether `wp-cron.php` is blocked, or whether a server task must call it every few minutes |
-| Test connection succeeded | Press it; repeat after any change of URL or Secret |
+| Test connection failed | The line gives the reason and its time; see the table in step 5 |
+| Test connection succeeded, with a red mark | Not tested yet, or the URL or Secret changed: press Test connection |
 | Sending to the portal is on | Step 6 |
 
 ## 7. One application and a refund

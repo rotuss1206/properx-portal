@@ -19,7 +19,7 @@ const PROPERX_PORTAL_HEARTBEAT       = 'properx_portal_cron_heartbeat';
 const PROPERX_PORTAL_SECRET_MIN_SIZE = 32;
 
 /**
- * @return array{url: string, form_id: int, secret: string, send_enabled: bool, approval_email_enabled: bool}
+ * @return array{url: string, form_id: int, secret: string, secret_changed_at: int, send_enabled: bool, approval_email_enabled: bool}
  */
 function properx_portal_stored_settings() {
 	$stored = get_option( PROPERX_PORTAL_OPTION, array() );
@@ -29,6 +29,7 @@ function properx_portal_stored_settings() {
 			'url'                    => '',
 			'form_id'                => 0,
 			'secret'                 => '',
+			'secret_changed_at'      => 0,
 			'send_enabled'           => false,
 			'approval_email_enabled' => false,
 		),
@@ -82,6 +83,36 @@ function properx_portal_secret_is_unreadable() {
 	return ! properx_portal_secret_is_constant()
 		&& '' !== properx_portal_stored_settings()['secret']
 		&& '' === properx_portal_secret();
+}
+
+/**
+ * A moment in the site's own format and time zone.
+ */
+function properx_portal_format_time( $timestamp ) {
+	return wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $timestamp );
+}
+
+/**
+ * What the Secret field says. Never the value.
+ *
+ * @return array{state: string, changed: string} state: constant, unreadable, saved or not_set.
+ */
+function properx_portal_secret_status() {
+	if ( properx_portal_secret_is_constant() ) {
+		return array( 'state' => 'constant', 'changed' => '' );
+	}
+
+	if ( properx_portal_secret_is_unreadable() ) {
+		return array( 'state' => 'unreadable', 'changed' => '' );
+	}
+
+	if ( '' === properx_portal_secret() ) {
+		return array( 'state' => 'not_set', 'changed' => '' );
+	}
+
+	$changed_at = (int) properx_portal_stored_settings()['secret_changed_at'];
+
+	return array( 'state' => 'saved', 'changed' => $changed_at > 0 ? properx_portal_format_time( $changed_at ) : '' );
 }
 
 function properx_portal_is_configured() {
@@ -166,7 +197,8 @@ function properx_portal_apply_settings_form( array $input ) {
 		if ( '' !== $secret && strlen( $secret ) < PROPERX_PORTAL_SECRET_MIN_SIZE ) {
 			$errors[] = 'The secret is too short: it was not saved. Paste the whole value.';
 		} elseif ( '' !== $secret ) {
-			$changes['secret'] = properx_portal_encrypt( $secret, properx_portal_encryption_key() );
+			$changes['secret']            = properx_portal_encrypt( $secret, properx_portal_encryption_key() );
+			$changes['secret_changed_at'] = time();
 		}
 	}
 

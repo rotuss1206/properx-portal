@@ -25,7 +25,7 @@ function properx_portal_checklist_facts() {
 		$stripe_secret = '' !== (string) gf_stripe()->get_webhook_signing_secret( $stripe_mode );
 	}
 
-	$last_test = get_option( PROPERX_PORTAL_OPTION_TEST, array() );
+	$connection = properx_portal_connection_status();
 
 	return array(
 		'url_set'          => '' !== properx_portal_url(),
@@ -40,7 +40,9 @@ function properx_portal_checklist_facts() {
 		'stripe_secret'    => $stripe_secret,
 		'cron_disabled'    => defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON,
 		'cron_seen_ago'    => get_option( PROPERX_PORTAL_OPTION_CRON ) ? time() - (int) get_option( PROPERX_PORTAL_OPTION_CRON ) : null,
-		'test_ok'          => is_array( $last_test ) && ! empty( $last_test['ok'] ) && ( $last_test['fingerprint'] ?? '' ) === properx_portal_connection_fingerprint(),
+		'test_state'       => $connection['state'],
+		'test_time'        => $connection['time'],
+		'test_message'     => $connection['message'],
 		'send_enabled'     => properx_portal_sending_enabled(),
 	);
 }
@@ -120,11 +122,17 @@ function properx_portal_checklist_items( array $facts ) {
 
 	$add( 'WP-Cron works', null !== $facts['cron_seen_ago'] && $facts['cron_seen_ago'] <= PROPERX_PORTAL_CRON_MAX_AGE, $cron_help );
 
-	$add(
-		'Test connection succeeded',
-		$facts['test_ok'],
-		'Press Test connection below. It needs running again after the URL or the secret changes.'
-	);
+	$tested_at = '' === $facts['test_time'] ? '' : ' (' . $facts['test_time'] . ')';
+
+	if ( 'ok' === $facts['test_state'] ) {
+		$add( 'Test connection succeeded' . $tested_at, true, '' );
+	} elseif ( 'failed' === $facts['test_state'] ) {
+		$add( 'Test connection failed' . $tested_at, false, $facts['test_message'] );
+	} elseif ( 'stale' === $facts['test_state'] ) {
+		$add( 'Test connection succeeded', false, 'The URL or the secret changed since the last test. Press Test connection below.' );
+	} else {
+		$add( 'Test connection succeeded', false, 'Press Test connection below, once the Portal URL and the Secret are set.' );
+	}
 
 	$add(
 		'Sending to the portal is on',

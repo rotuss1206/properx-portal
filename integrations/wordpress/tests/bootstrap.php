@@ -80,6 +80,65 @@ function esc_html( $text ) {
 	return htmlspecialchars( (string) $text, ENT_QUOTES );
 }
 
+function esc_attr( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
+
+function wp_date( $format, $timestamp ) {
+	return gmdate( $format, $timestamp );
+}
+
+function current_user_can( $capability ) {
+	return true;
+}
+
+function check_admin_referer( $action ) {
+	return 1;
+}
+
+function wp_unslash( $value ) {
+	return $value;
+}
+
+function wp_nonce_field( $action ) {
+	echo '<input type="hidden" name="_wpnonce" value="nonce">';
+}
+
+function disabled( $value, $current, $echo ) {
+	return $value === $current ? 'disabled' : '';
+}
+
+function checked( $value, $current, $echo ) {
+	return $value === $current ? 'checked' : '';
+}
+
+function is_wp_error( $value ) {
+	return $value instanceof WP_Error;
+}
+
+class WP_Error {
+	public function __construct( private string $text ) {
+	}
+
+	public function get_error_message() {
+		return $this->text;
+	}
+
+	public function get_error_code() {
+		return 'http_request_failed';
+	}
+}
+
+function wp_remote_post( $url, $args ) {
+	$GLOBALS['wp_requests'][] = array( $url, $args );
+
+	return $GLOBALS['wp_response'];
+}
+
+function wp_remote_retrieve_response_code( $response ) {
+	return $response['code'];
+}
+
 function rgar( $array, $key, $default = null ) {
 	return is_array( $array ) && isset( $array[ $key ] ) ? $array[ $key ] : $default;
 }
@@ -100,3 +159,4 @@ require_once $plugin . '/includes/settings.php';
 require_once $plugin . '/includes/checklist.php';
 require_once $plugin . '/includes/connector.php';
 require_once $plugin . '/includes/approval-email.php';
+require_once $plugin . '/includes/admin-page.php';

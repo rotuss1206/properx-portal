@@ -39,9 +39,9 @@ The site's side is done in the WordPress admin, with no file access: [INSTALL-si
 
 1. Plugins > Add New > Upload Plugin > `properx-portal-<version>.zip` > Activate.
 2. Forms > Settings > ProPerX Portal: enter the Portal URL (`https://shn-portal.keeney.cloud`) and the Form ID.
-3. **Paste the value from step 2 into Secret yourself** and save. It is stored encrypted and shows only "set". If you do have file access, the constants `PROPERX_PORTAL_URL`, `PROPERX_PORTAL_SECRET` and `PROPERX_PORTAL_FORM_ID` in `wp-config.php` take priority and lock the fields.
+3. **Paste the value from step 2 into Secret yourself** and save. It is stored encrypted and shows only a "Saved" badge. If you do have file access, the constants `PROPERX_PORTAL_URL`, `PROPERX_PORTAL_SECRET` and `PROPERX_PORTAL_FORM_ID` in `wp-config.php` take priority and lock the fields.
 4. The Setup checklist on that page must go green. Above all, `WP_ENVIRONMENT_TYPE` must **not** be `local`, which turns off TLS verification.
-5. **Test connection.** It sends a signed request that changes nothing and says in plain words what is wrong:
+5. **Test connection** runs by itself on saving, and on the button. It sends a signed request that changes nothing and says in plain words what is wrong:
 
    | Result | Meaning |
    |---|---|

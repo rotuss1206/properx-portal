@@ -93,6 +93,58 @@ function properx_portal_test_result( $code ) {
 	return array( 'ok' => false, 'message' => 'The portal answered HTTP ' . $code . '. Try again in a few minutes.' );
 }
 
+/**
+ * Runs the test and keeps its result, so the page can show it after a reload. Reasons come from
+ * properx_portal_test_connection(), in fixed words; nothing from the secret or the signature.
+ *
+ * @return array{ok: bool, message: string}
+ */
+function properx_portal_run_connection_test() {
+	$result = properx_portal_test_connection();
+
+	update_option(
+		PROPERX_PORTAL_OPTION_TEST,
+		array(
+			'ok'          => $result['ok'],
+			'message'     => $result['message'],
+			'at'          => time(),
+			'fingerprint' => properx_portal_connection_fingerprint(),
+		),
+		false
+	);
+
+	return $result;
+}
+
+/**
+ * The last test as it stands now. A result for an older URL or secret no longer counts.
+ *
+ * @return array{state: string, time: string, message: string} state: none, stale, ok or failed.
+ */
+function properx_portal_connection_status() {
+	$none = array( 'state' => 'none', 'time' => '', 'message' => '' );
+
+	if ( '' === properx_portal_url() || '' === properx_portal_secret() ) {
+		return $none;
+	}
+
+	$last = get_option( PROPERX_PORTAL_OPTION_TEST, array() );
+
+	if ( ! is_array( $last ) || ! isset( $last['ok'] ) ) {
+		return $none;
+	}
+
+	if ( ( $last['fingerprint'] ?? '' ) !== properx_portal_connection_fingerprint() ) {
+		return array( 'state' => 'stale', 'time' => '', 'message' => '' );
+	}
+
+	return array(
+		'state'   => $last['ok'] ? 'ok' : 'failed',
+		'time'    => empty( $last['at'] ) ? '' : properx_portal_format_time( $last['at'] ),
+		'message' => (string) ( $last['message'] ?? '' ),
+	);
+}
+
 // Subscriptions: a card payment, or an ACH payment once Stripe confirms it. One-off payments too,
 // should the form ever change. Yearly renewals do not fire these.
 add_action( 'gform_post_subscription_started', 'properx_portal_on_paid' );

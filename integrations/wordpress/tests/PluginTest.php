@@ -13,6 +13,9 @@ class PluginTest extends TestCase {
 		$GLOBALS['wp_removed'] = array();
 		$GLOBALS['entry_meta'] = array();
 		$GLOBALS['wp_salt']    = 'test-salt-one';
+		$GLOBALS['wp_requests'] = array();
+		$GLOBALS['wp_response'] = array( 'code' => 200 );
+		$_POST                 = array();
 	}
 
 	// The secret
@@ -169,7 +172,9 @@ class PluginTest extends TestCase {
 			'stripe_secret'    => true,
 			'cron_disabled'    => false,
 			'cron_seen_ago'    => 60,
-			'test_ok'          => true,
+			'test_state'       => 'ok',
+			'test_time'        => 'November 5, 2026 1:35 pm',
+			'test_message'     => '',
 			'send_enabled'     => true,
 		);
 	}
@@ -200,7 +205,9 @@ class PluginTest extends TestCase {
 			'cron not yet'  => array( array( 'cron_seen_ago' => null ), 4, 'has not run yet' ),
 			'cron disabled' => array( array( 'cron_seen_ago' => null, 'cron_disabled' => true ), 4, 'DISABLE_WP_CRON' ),
 			'cron old'      => array( array( 'cron_seen_ago' => 3 * HOUR_IN_SECONDS ), 4, 'over 2 hours' ),
-			'no test'       => array( array( 'test_ok' => false ), 5, 'Test connection' ),
+			'no test'       => array( array( 'test_state' => 'none', 'test_time' => '' ), 5, 'Press Test connection' ),
+			'stale test'    => array( array( 'test_state' => 'stale', 'test_time' => '' ), 5, 'changed since' ),
+			'failed test'   => array( array( 'test_state' => 'failed', 'test_message' => 'The portal refused the signature (401).' ), 5, 'refused the signature' ),
 			'not sending'   => array( array( 'send_enabled' => false ), 6, 'Send paid applications' ),
 		);
 	}
@@ -228,13 +235,125 @@ class PluginTest extends TestCase {
 	}
 
 	public function test_red_lines_come_first_and_keep_their_order(): void {
-		$items = properx_portal_checklist_items( array_merge( $this->greenFacts(), array( 'test_ok' => false, 'environment' => 'local' ) ) );
+		$items = properx_portal_checklist_items( array_merge( $this->greenFacts(), array( 'test_state' => 'none', 'test_time' => '', 'environment' => 'local' ) ) );
 		$view  = properx_portal_checklist_view( $items );
 
 		$this->assertFalse( $view['all_ok'] );
 		$this->assertSame( array( 'This is not a local environment', 'Test connection succeeded' ), array_column( array_slice( $view['items'], 0, 2 ), 'label' ) );
 		$this->assertSame( 'Portal URL and secret are set', $view['items'][2]['label'] );
 		$this->assertCount( 7, $view['items'] );
+	}
+
+	public function test_the_checklist_gives_the_time_of_the_test(): void {
+		$green = properx_portal_checklist_items( $this->greenFacts() );
+		$this->assertSame( 'Test connection succeeded (November 5, 2026 1:35 pm)', $green[5]['label'] );
+
+		$failed = properx_portal_checklist_items( array_merge( $this->greenFacts(), array( 'test_state' => 'failed', 'test_message' => 'Reason.' ) ) );
+		$this->assertSame( 'Test connection failed (November 5, 2026 1:35 pm)', $failed[5]['label'] );
+		$this->assertSame( 'Reason.', $failed[5]['help'] );
+	}
+
+	// Secret and connection state on the page
+
+	private function configure(): void {
+		properx_portal_apply_settings_form( array( 'url' => 'https://portal.test', 'form_id' => '1', 'secret' => self::SECRET ) );
+	}
+
+	private function page(): string {
+		ob_start();
+		properx_portal_settings_page();
+
+		return (string) ob_get_clean();
+	}
+
+	public function test_a_missing_secret_shows_not_set_with_no_placeholder(): void {
+		$html = $this->page();
+
+		$this->assertStringContainsString( '>Not set</span>', $html );
+		$this->assertStringNotContainsString( '>Saved</span>', $html );
+		$this->assertStringNotContainsString( 'placeholder="••', $html );
+		$this->assertStringContainsString( 'Not checked yet.', $html );
+	}
+
+	public function test_a_saved_secret_shows_the_badge_time_and_an_empty_field(): void {
+		$this->configure();
+		$html = $this->page();
+
+		$this->assertStringContainsString( '>Saved</span>', $html );
+		$this->assertStringContainsString( 'Last changed ' . properx_portal_format_time( time() ), $html );
+		$this->assertStringContainsString( 'placeholder="••••••••••••••••"', $html );
+		$this->assertStringContainsString( 'name="secret" value=""', $html );
+		$this->assertStringContainsString( 'Paste a new value only to replace it.', $html );
+	}
+
+	public function test_saving_without_a_new_secret_keeps_the_time_of_the_last_change(): void {
+		$this->configure();
+		properx_portal_save_settings( array( 'secret_changed_at' => 1000 ) );
+
+		properx_portal_apply_settings_form( array( 'url' => 'https://portal.test', 'form_id' => '1', 'secret' => '' ) );
+
+		$this->assertSame( 1000, properx_portal_stored_settings()['secret_changed_at'] );
+	}
+
+	public function test_nothing_secret_reaches_the_page_in_any_state(): void {
+		$this->configure();
+		$blob = properx_portal_stored_settings()['secret'];
+
+		foreach ( array( array( 'code' => 200 ), array( 'code' => 401 ), new WP_Error( 'cURL error ' . self::SECRET ) ) as $response ) {
+			$GLOBALS['wp_response'] = $response;
+			$_POST                  = array( 'properx_portal_test' => '1' );
+			$html                   = $this->page();
+
+			$this->assertStringNotContainsString( self::SECRET, $html );
+			$this->assertStringNotContainsString( $blob, $html );
+			$this->assertStringNotContainsString( properx_portal_connection_fingerprint(), $html );
+			$this->assertStringNotContainsString( self::SECRET, json_encode( get_option( PROPERX_PORTAL_OPTION_TEST ) ) );
+		}
+	}
+
+	public function test_saving_runs_the_test_and_the_result_stays_after_a_reload(): void {
+		$_POST = array( 'properx_portal_save' => '1', 'url' => 'https://portal.test', 'form_id' => '1', 'secret' => self::SECRET );
+		$this->page();
+		$this->assertCount( 1, $GLOBALS['wp_requests'] );
+		$this->assertSame( 'https://portal.test/api/intake/ping', $GLOBALS['wp_requests'][0][0] );
+
+		$_POST = array();
+		$html  = $this->page();
+
+		$this->assertCount( 1, $GLOBALS['wp_requests'], 'A reload sends nothing.' );
+		$this->assertStringContainsString( 'Connected — checked ' . properx_portal_format_time( time() ), $html );
+		$this->assertStringContainsString( 'Test connection succeeded (' . properx_portal_format_time( time() ) . ')', $html );
+	}
+
+	public function test_a_failed_test_keeps_its_reason_and_time_after_a_reload(): void {
+		$GLOBALS['wp_response'] = array( 'code' => 401 );
+		$_POST                  = array( 'properx_portal_save' => '1', 'url' => 'https://portal.test', 'form_id' => '1', 'secret' => self::SECRET );
+		$this->page();
+
+		$_POST = array();
+		$html  = $this->page();
+
+		$this->assertStringContainsString( 'ppx-connection is-bad', $html );
+		$this->assertStringContainsString( 'refused the signature (401)', $html );
+		$this->assertStringContainsString( 'Checked ' . properx_portal_format_time( time() ), $html );
+		$this->assertStringContainsString( 'Test connection failed (' . properx_portal_format_time( time() ) . ')', $html );
+	}
+
+	public function test_saving_without_url_or_secret_sends_nothing(): void {
+		$_POST = array( 'properx_portal_save' => '1', 'url' => 'https://portal.test', 'form_id' => '1', 'secret' => '' );
+		$this->page();
+
+		$this->assertSame( array(), $GLOBALS['wp_requests'] );
+	}
+
+	public function test_a_result_for_an_older_url_no_longer_counts(): void {
+		$this->configure();
+		properx_portal_run_connection_test();
+		$this->assertSame( 'ok', properx_portal_connection_status()['state'] );
+
+		properx_portal_apply_settings_form( array( 'url' => 'https://other.test', 'form_id' => '1' ) );
+
+		$this->assertSame( 'stale', properx_portal_connection_status()['state'] );
 	}
 
 	public function test_a_changed_url_or_secret_needs_a_new_test(): void {

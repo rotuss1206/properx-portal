@@ -39,10 +39,10 @@ add_action( 'admin_init', 'properx_portal_schedule_heartbeat' );
 /**
  * Handles the two forms, then returns what to show.
  *
- * @return array{errors: list<string>, saved: bool, test: ?array{ok: bool, message: string}}
+ * @return array{errors: list<string>, saved: bool}
  */
 function properx_portal_handle_settings_post() {
-	$outcome = array( 'errors' => array(), 'saved' => false, 'test' => null );
+	$outcome = array( 'errors' => array(), 'saved' => false );
 
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return $outcome;
@@ -53,23 +53,87 @@ function properx_portal_handle_settings_post() {
 
 		$outcome['errors'] = properx_portal_apply_settings_form( wp_unslash( $_POST ) );
 		$outcome['saved']  = array() === $outcome['errors'];
+
+		// Saved settings are checked at once. It can take up to the test's 15 seconds if nothing answers.
+		if ( '' !== properx_portal_url() && '' !== properx_portal_secret() ) {
+			properx_portal_run_connection_test();
+		}
 	}
 
 	if ( isset( $_POST['properx_portal_test'] ) ) {
 		check_admin_referer( 'properx_portal_test' );
 
-		$outcome['test'] = '' !== properx_portal_url() && '' !== properx_portal_secret()
-			? properx_portal_test_connection()
-			: array( 'ok' => false, 'message' => 'Set the Portal URL and the Secret first.' );
-
-		update_option(
-			PROPERX_PORTAL_OPTION_TEST,
-			array( 'ok' => $outcome['test']['ok'], 'fingerprint' => properx_portal_connection_fingerprint() ),
-			false
-		);
+		if ( '' !== properx_portal_url() && '' !== properx_portal_secret() ) {
+			properx_portal_run_connection_test();
+		} else {
+			$outcome['errors'][] = 'Set the Portal URL and the Secret first.';
+		}
 	}
 
 	return $outcome;
+}
+
+/**
+ * The Secret field, its badge and the line under it. Prints only the state, never the value: the
+ * field stays empty, and a new value replaces the old one.
+ */
+function properx_portal_print_secret_field() {
+	$status = properx_portal_secret_status();
+	$badges = array(
+		'saved'      => array( 'is-ok', 'Saved' ),
+		'not_set'    => array( 'is-none', 'Not set' ),
+		'unreadable' => array( 'is-bad', 'Unreadable' ),
+		'constant'   => array( 'is-ok', 'Set in wp-config.php' ),
+	);
+	$hints  = array(
+		'saved'      => 'Paste a new value only to replace it.',
+		'not_set'    => 'Kevin pastes it here. It is stored encrypted and never shown.',
+		'unreadable' => 'The WordPress salts changed, so it can no longer be read. Paste it again.',
+		'constant'   => 'Set in wp-config.php, which takes priority over this field.',
+	);
+
+	[ $class, $word ] = $badges[ $status['state'] ];
+
+	echo '<div class="ppx-secret-row">';
+	printf(
+		'<input type="password" id="ppx-portal-secret" name="secret" value="" autocomplete="new-password" aria-describedby="ppx-portal-secret-hint" %s %s>',
+		'saved' === $status['state'] ? 'placeholder="••••••••••••••••"' : '',
+		disabled( properx_portal_secret_is_constant(), true, false )
+	);
+	printf( '<span class="ppx-badge %s">%s</span>', esc_attr( $class ), esc_html( $word ) );
+
+	if ( '' !== $status['changed'] ) {
+		echo '<small class="ppx-when">Last changed ' . esc_html( $status['changed'] ) . '</small>';
+	}
+
+	echo '</div><p class="ppx-hint" id="ppx-portal-secret-hint">' . esc_html( $hints[ $status['state'] ] ) . '</p>';
+}
+
+/**
+ * The last check, beside the Test connection button. It stays after a reload.
+ */
+function properx_portal_print_connection_status() {
+	$status = properx_portal_connection_status();
+
+	switch ( $status['state'] ) {
+		case 'ok':
+			$class = 'is-ok';
+			$words = 'Connected' . ( '' === $status['time'] ? '' : ' — checked ' . $status['time'] );
+			break;
+		case 'failed':
+			$class = 'is-bad';
+			$words = $status['message'] . ( '' === $status['time'] ? '' : ' Checked ' . $status['time'] . '.' );
+			break;
+		case 'stale':
+			$class = 'is-none';
+			$words = 'Not checked since the URL or the secret changed.';
+			break;
+		default:
+			$class = 'is-none';
+			$words = 'Not checked yet.';
+	}
+
+	printf( '<span class="ppx-badge ppx-connection %s" role="status">%s</span>', esc_attr( $class ), esc_html( $words ) );
 }
 
 /**
@@ -122,6 +186,15 @@ function properx_portal_settings_page() {
 		.ppx-portal-check span { display: block; margin-top: 2px; font-size: 13px; }
 		.ppx-portal-passed summary { padding: 10px 14px; border-left: 4px solid #2e7d32; border-radius: 4px; background: #edf7ed; color: #1b5e20; font-weight: 600; cursor: pointer; }
 		.ppx-portal-passed[open] summary { margin-bottom: 8px; }
+		.ppx-secret-row, .ppx-test-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+		.ppx-test-row { margin-top: 12px; }
+		.ppx-portal-settings .ppx-secret-row input[type=password] { flex: 1 1 280px; }
+		.ppx-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; line-height: 18px; }
+		.ppx-badge.is-ok { background: #edf7ed; color: #1b5e20; }
+		.ppx-badge.is-bad { background: #fdecea; color: #8e1c1c; }
+		.ppx-badge.is-none { background: #eceff3; color: #4a5568; }
+		.ppx-connection { flex: 0 1 auto; font-weight: 400; border-radius: 6px; padding: 6px 12px; }
+		.ppx-when { color: #5b6b7f; font-size: 12px; }
 	</style>';
 
 	echo '<div class="gform-settings-panel"><div class="gform-settings-panel__content ppx-portal-settings">';
@@ -133,14 +206,6 @@ function properx_portal_settings_page() {
 
 	if ( $outcome['saved'] ) {
 		echo '<div class="alert success inline" role="status"><p>Settings saved.</p></div>';
-	}
-
-	if ( $outcome['test'] ) {
-		printf(
-			'<div class="alert %s inline" role="status"><p>%s</p></div>',
-			$outcome['test']['ok'] ? 'success' : 'error',
-			esc_html( $outcome['test']['message'] )
-		);
 	}
 
 	echo '<h3>Setup checklist</h3>';
@@ -168,22 +233,8 @@ function properx_portal_settings_page() {
 	echo properx_portal_form_id_is_constant() ? $from_constant : '<p class="ppx-hint">The Membership Application form; the number is in the ID column under Forms.</p>';
 
 	echo '<label class="ppx-label" for="ppx-portal-secret">Secret</label>';
-	printf(
-		'<input type="password" id="ppx-portal-secret" name="secret" value="" autocomplete="new-password" %s>',
-		disabled( properx_portal_secret_is_constant(), true, false )
-	);
+	properx_portal_print_secret_field();
 
-	if ( properx_portal_secret_is_constant() ) {
-		echo $from_constant;
-	} elseif ( properx_portal_secret_is_unreadable() ) {
-		echo '<p class="ppx-hint"><strong>Set, but unreadable.</strong> The WordPress salts changed, so paste it again.</p>';
-	} else {
-		printf(
-			'<p class="ppx-hint"><strong>%s.</strong> %s</p>',
-			'' !== properx_portal_secret() ? 'set' : 'not set',
-			'' !== properx_portal_secret() ? 'Leave empty to keep it; it is stored encrypted and never shown.' : 'Kevin pastes it here. It is stored encrypted and never shown.'
-		);
-	}
 
 	echo '<h3>Switches</h3>';
 	printf(
@@ -197,9 +248,11 @@ function properx_portal_settings_page() {
 
 	echo '<p style="margin-top:20px"><button type="submit" name="properx_portal_save" value="1" class="button primary">Save settings</button></p></form>';
 
-	echo '<h3>Test connection</h3><p class="ppx-hint">Sends a signed request that changes nothing and says in plain words what is wrong.</p><form method="post">';
+	echo '<h3>Test connection</h3><p class="ppx-hint">Sends a signed request that changes nothing and says in plain words what is wrong. Saving the settings runs it too.</p><form method="post">';
 	wp_nonce_field( 'properx_portal_test' );
-	echo '<p><button type="submit" name="properx_portal_test" value="1" class="button">Test connection</button></p></form>';
+	echo '<div class="ppx-test-row"><button type="submit" name="properx_portal_test" value="1" class="button">Test connection</button>';
+	properx_portal_print_connection_status();
+	echo '</div></form>';
 
 	echo '</div></div>';
 }
