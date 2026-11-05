@@ -75,13 +75,13 @@ function properx_portal_checklist_items( array $facts ) {
 	};
 
 	if ( $facts['secret_broken'] ) {
-		$connection_help = 'The stored secret can no longer be read, because the WordPress salts changed. Kevin needs to paste it again.';
+		$connection_help = 'The stored secret can no longer be read, because the WordPress salts changed. Paste it again.';
 	} elseif ( ! $facts['url_set'] && ! $facts['secret_set'] ) {
-		$connection_help = 'Enter the Portal URL. Kevin pastes the Secret.';
+		$connection_help = 'Enter the Portal URL and paste the Secret.';
 	} elseif ( ! $facts['url_set'] ) {
 		$connection_help = 'Enter the Portal URL.';
 	} else {
-		$connection_help = 'Kevin pastes the Secret (the same value as WP_INTAKE_SECRET in the portal).';
+		$connection_help = 'Paste the Secret (the same value as WP_INTAKE_SECRET in the portal).';
 	}
 
 	$add( 'Portal URL and secret are set', $facts['url_set'] && $facts['secret_set'], $connection_help );

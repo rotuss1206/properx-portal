@@ -193,7 +193,7 @@ class PluginTest extends TestCase {
 	public static function brokenFacts(): array {
 		return array(
 			'no url'        => array( array( 'url_set' => false ), 0, 'Portal URL' ),
-			'no secret'     => array( array( 'secret_set' => false ), 0, 'Kevin pastes' ),
+			'no secret'     => array( array( 'secret_set' => false ), 0, 'Paste the Secret' ),
 			'salts changed' => array( array( 'secret_set' => false, 'secret_broken' => true ), 0, 'salts' ),
 			'local'         => array( array( 'environment' => 'local' ), 1, 'WP_ENVIRONMENT_TYPE' ),
 			'no form id'    => array( array( 'form_id' => 0, 'form_exists' => false ), 2, 'Enter the Form ID' ),
@@ -273,6 +273,7 @@ class PluginTest extends TestCase {
 		$this->assertStringNotContainsString( '>Saved</span>', $html );
 		$this->assertStringNotContainsString( 'placeholder="••', $html );
 		$this->assertStringContainsString( 'Not checked yet.', $html );
+		$this->assertStringContainsString( 'Paste the shared secret here. It is stored encrypted and never shown.', $html );
 	}
 
 	public function test_a_saved_secret_shows_the_badge_time_and_an_empty_field(): void {
@@ -439,6 +440,16 @@ class PluginTest extends TestCase {
 		foreach ( $sentences as $sentence ) {
 			$this->assertStringContainsString( $sentence, $email['text'] );
 			$this->assertStringContainsString( str_replace( 'Taylor', '{first name}', $sentence ), $draft );
+		}
+	}
+
+	public function test_the_plugin_names_no_people(): void {
+		$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__ ) . '/properx-portal', FilesystemIterator::SKIP_DOTS ) );
+
+		foreach ( $files as $file ) {
+			if ( 'php' === $file->getExtension() ) {
+				$this->assertDoesNotMatchRegularExpression( '/\b(Kevin|Sergey|Cheverda|Vasyl)\b/i', file_get_contents( $file->getPathname() ), $file->getFilename() );
+			}
 		}
 	}
 

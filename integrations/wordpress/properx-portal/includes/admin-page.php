@@ -87,7 +87,7 @@ function properx_portal_print_secret_field() {
 	);
 	$hints  = array(
 		'saved'      => 'Paste a new value only to replace it.',
-		'not_set'    => 'Kevin pastes it here. It is stored encrypted and never shown.',
+		'not_set'    => 'Paste the shared secret here. It is stored encrypted and never shown.',
 		'unreadable' => 'The WordPress salts changed, so it can no longer be read. Paste it again.',
 		'constant'   => 'Set in wp-config.php, which takes priority over this field.',
 	);

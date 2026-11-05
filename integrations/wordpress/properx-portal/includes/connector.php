@@ -38,7 +38,7 @@ function properx_portal_can_send() {
 }
 
 /**
- * What a test request's result means, in words Kevin can act on.
+ * What a test request's result means, in words an administrator can act on.
  *
  * @return array{ok: bool, message: string}
  */
