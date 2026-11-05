@@ -9,6 +9,8 @@
         <div class="status valid"><span class="dot"></span>Valid certificate</div>
     @elseif ($status === 'expired')
         <div class="status expired"><span class="dot"></span>This certificate has expired</div>
+    @elseif ($status === 'license_expired')
+        <div class="status expired"><span class="dot"></span>This certificate is no longer valid: the member's license has expired</div>
     @elseif ($status === 'inactive')
         <div class="status expired"><span class="dot"></span>Membership is not active</div>
     @else
@@ -18,7 +20,7 @@
     @if ($certificate)
         <dl>
             <dt>Member</dt><dd>{{ $certificate['name'] }}</dd>
-            <dt>Valid from</dt><dd>{{ $certificate['valid_from'] }}</dd>
+            <dt>Member since</dt><dd>{{ $certificate['member_since'] }}</dd>
             @if ($certificate['valid_through'])
                 <dt>Valid through</dt><dd>{{ $certificate['valid_through'] }}</dd>
             @endif

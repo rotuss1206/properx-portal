@@ -29,7 +29,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 7;
+    private const TEMPLATE_VERSION = 8;
 
     /**
      * @var array<string, string> attribute => human-readable name
@@ -73,13 +73,20 @@ class CertificateGeneratorService
     }
 
     /**
-     * "Valid through" on the certificate and the public check: the license expiry for
-     * individual members; for agency people the end of the agency's paid period (null while
-     * the agency has none yet, then the line is left out).
+     * "Valid through" on the certificate and the public check. Agency people: the end of the
+     * agency's paid period (null while it has none yet, then the field is left out). Individual
+     * members, by portal.member_area.certificate.valid_through: the end of their paid period,
+     * or the license expiry while there is no Stripe date yet (or when set to license_expiry).
      */
     public static function validThrough(MemberProfile $profile): ?CarbonInterface
     {
-        return $profile->agency_id !== null ? $profile->agency?->paid_through_at : $profile->license_expires_at;
+        if ($profile->agency_id !== null) {
+            return $profile->agency?->paid_through_at;
+        }
+
+        return config('portal.member_area.certificate.valid_through') === 'paid_through'
+            ? ($profile->paid_through_at ?? $profile->license_expires_at)
+            : $profile->license_expires_at;
     }
 
     /**
@@ -100,20 +107,48 @@ class CertificateGeneratorService
         $this->forget($profile);
         $this->ensureFontCacheDirectory();
 
-        $pdf = Pdf::loadView('pdf.certificate', $data + [
-            'issuedAt' => now(),
-            'qrCode' => $this->qrCode($data['verificationUrl']),
-            'signatureImage' => $this->signatureImage(),
-            'logoImage' => 'data:image/png;base64,'.base64_encode((string) file_get_contents(resource_path('views/pdf/images/logo-color.png'))),
+        $pdf = Pdf::loadView('pdf.certificate', $this->viewData($data) + [
             'fontPath' => fn (string $file) => self::chrootPath('fonts/'.$file),
         ])
-            ->setPaper('letter', 'landscape');
+            ->setPaper('letter', 'portrait');
 
         $disk->put($path, $pdf->output());
 
         AuditLog::record('certificate_generated', $profile);
 
         return new GeneratedCertificate($this->diskName(), $path, $this->filename($profile), fromCache: false);
+    }
+
+    /**
+     * What resources/views/pdf/certificate-body.blade.php prints, for the HTML preview: the same
+     * data and images as the PDF. Eligibility is the caller's check.
+     *
+     * @return array<string, mixed>
+     */
+    public function document(MemberProfile $profile): array
+    {
+        return $this->viewData($this->certificateData($profile));
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function viewData(array $data): array
+    {
+        return $data + [
+            'qrCode' => $this->qrCode($data['verificationUrl']),
+            'signatureImage' => $this->signatureImage(),
+            'logoImage' => self::embedded('logo-color.png', 'image/png'),
+            'sealImage' => self::embedded('seal.svg', 'image/svg+xml'),
+            'diamondImage' => self::embedded('diamond.svg', 'image/svg+xml'),
+            'linkImage' => self::embedded('link.svg', 'image/svg+xml'),
+        ];
+    }
+
+    private static function embedded(string $file, string $type): string
+    {
+        return "data:{$type};base64,".base64_encode((string) file_get_contents(resource_path('views/pdf/images/'.$file)));
     }
 
     /**
@@ -144,19 +179,55 @@ class CertificateGeneratorService
      */
     private function certificateData(MemberProfile $profile): array
     {
-        $signatory = User::role(Role::ExecutiveDirector->value)->oldest('id')->first();
+        $signatory = config('portal.member_area.certificate.signatory');
+        $second = config('portal.member_area.certificate.second_signatory');
+        $validThrough = self::validThrough($profile);
+        $memberName = $profile->fullName();
 
         return [
-            'memberName' => $profile->fullName(),
-            'firmName' => $profile->firm_name,
+            'memberName' => $memberName,
+            'nameSize' => self::nameSize($memberName),
             'memberId' => self::formatMemberId($profile),
-            // Membership validity: from joining the Alliance; through see validThrough().
-            'validFrom' => $profile->user->created_at->toDateString(),
-            'validThrough' => self::validThrough($profile)?->toDateString(),
+            'memberSince' => $profile->user->created_at->toDateString(),
+            'validThrough' => $validThrough?->toDateString(),
+            'term' => self::term($validThrough),
             'certificateCode' => $profile->certificate_code,
-            'signatoryName' => $signatory?->name ?? 'Executive Director',
+            // Name null: the longest-serving Executive Director.
+            'signatoryName' => $signatory['name'] ?? User::role(Role::ExecutiveDirector->value)->oldest('id')->first()?->name ?? $signatory['title'],
+            'signatoryTitle' => $signatory['title'],
+            'secondSignatoryName' => $second['name'] ?? null,
+            'secondSignatoryTitle' => $second['title'] ?? null,
             'verificationUrl' => route('certificates.verify', $profile->certificate_code),
         ];
+    }
+
+    /**
+     * The name stays on one line: the mockup's size in points for most, smaller for long names.
+     */
+    private static function nameSize(string $name): int
+    {
+        $length = mb_strlen($name);
+
+        return match (true) {
+            $length <= 24 => 45,
+            $length <= 34 => 32,
+            $length <= 48 => 24,
+            default => 18,
+        };
+    }
+
+    /**
+     * "2026", or "2026–2027" for a year that does not end in December. Null without a date.
+     */
+    private static function term(?CarbonInterface $validThrough): ?string
+    {
+        if ($validThrough === null) {
+            return null;
+        }
+
+        $start = $validThrough->copy()->subYear()->addDay()->year;
+
+        return $start === $validThrough->year ? (string) $start : $start.'–'.$validThrough->year;
     }
 
     public static function formatMemberId(MemberProfile $profile): string
@@ -188,15 +259,16 @@ class CertificateGeneratorService
         File::ensureDirectoryExists(config('dompdf.options.font_cache'));
     }
 
+    /**
+     * The real signature, once the client provides it; until then the name is set in Lora.
+     */
     private function signatureImage(): ?string
     {
         $path = $this->signatureImagePath();
 
-        if ($path === null || ! is_file($path)) {
-            return null;
-        }
-
-        return str_replace('\\', '/', $path);
+        return $path !== null && is_file($path)
+            ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($path))
+            : null;
     }
 
     /**

@@ -695,6 +695,37 @@ body.ppx-member {
 
 .ppx-docs__confirm-text { margin: 0 0 12px; color: var(--ppx-text); font-size: 13px; line-height: 19px; }
 
+/* Membership certificate, as in docs/design/Certificate Generate.jpg. */
+
+.ppx-cert { display: grid; gap: 16px; min-width: 0; padding-top: 6px; }
+
+.ppx-cert__columns { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 22px; }
+
+.ppx-cert__side { display: grid; flex: 1 1 320px; gap: 20px; min-width: 0; max-width: 100%; }
+
+.ppx-cert__side .ppx-card + .ppx-card { margin-top: 0; }
+
+.ppx-cert__main { flex: 999 1 460px; min-width: 0; max-width: 100%; }
+
+.ppx-cert__facts { margin: 6px 20px 10px; }
+
+.ppx-cert__help { margin: 0; padding: 14px 20px 16px; color: var(--ppx-text); font-size: 13px; line-height: 20px; }
+
+.ppx-cert__download { width: 100%; height: 48px; box-shadow: 0 6px 16px rgba(16, 42, 75, 0.14); }
+
+.ppx-cert__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 18px 0 0; }
+
+.ppx-cert__stage { padding: 26px 30px 30px; border-radius: var(--ppx-radius-lg); background: #c3d7f3; }
+
+.ppx-cert__stage-title { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; color: var(--ppx-navy-700); font-family: var(--ppx-heading); font-size: 13px; font-weight: 600; }
+
+.ppx-cert__stage-icon { width: 22px; height: 22px; }
+
+.ppx-cert__paper { position: relative; width: 100%; max-width: 514px; aspect-ratio: 612 / 791; margin: 0 auto; overflow: hidden; background: #fff; box-shadow: 0 10px 28px rgba(15, 59, 102, 0.22); }
+
+/* Real size, scaled to the column; values without JavaScript per width below. */
+.ppx-cert__page { position: absolute; top: 0; left: 0; width: 612pt; height: 791pt; transform: scale(var(--ppx-cert-scale, 0.63)); transform-origin: 0 0; }
+
 /* Upload page, as in docs/design/Container.jpg. */
 
 .ppx-upload__heading { margin: 6px 0 0; }
@@ -817,6 +848,10 @@ body.ppx-member {
 }
 
 @media (max-width: 600px) {
+    .ppx-cert__stage { padding: 14px 12px 16px; }
+
+    .ppx-cert__page { transform: scale(var(--ppx-cert-scale, 0.4)); }
+
     .ppx-docs__tools { flex: 1 1 100%; }
 
     .ppx-docs__search { flex: 1 1 140px; width: auto; }

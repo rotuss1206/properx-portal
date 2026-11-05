@@ -58,7 +58,7 @@ class DashboardTest extends TestCase
             ->assertSee('Renews '.today()->addDays(76)->format('j M Y'))
             ->assertSee('NPN '.$member->memberProfile->npn)
             ->assertSee('Verified')
-            ->assertSee(route('certificates.open', $member->memberProfile), false)
+            ->assertSee(route('member.certificate'), false)
             ->assertSee('data-ppx-upload', false)
             ->assertDontSee('ppx-agency-line', false)
             ->assertDontSee('Founding member');

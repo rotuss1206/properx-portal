@@ -91,7 +91,7 @@ Latin), which covers every screen of the area. Missing:
   "CERTIFICATE OF MEMBERSHIP" is Poppins 600 with wide tracking). Lora is under the SIL OFL; it needs a
   woff2 for the on-screen preview and a **TTF** for the PDF.
 - **TTF files for dompdf.** dompdf cannot read woff2, so the PDF needs Poppins, Open Sans and Lora as
-  TTF inside its chroot (`resources/views/pdf/fonts`, next to DejaVu today).
+  TTF inside its chroot (`resources/views/pdf/fonts`: Lora italic, Open Sans, Poppins; built).
 
 ### Sizes, radii, shadows, spacing
 

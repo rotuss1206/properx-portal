@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Member\CertificateController;
 use App\Http\Controllers\Member\DocumentDownloadController;
 use App\Http\Controllers\Member\LicenseDocumentController;
 use App\Http\Controllers\Member\NotificationController;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 /*
  * Member area: Members only, behind MEMBER_AREA_ENABLED,
  * two-factor authentication as in Nova. Built: the dashboard (with document downloads), the
- * profile and license documents; the other pages lead elsewhere or are placeholders.
+ * profile, license documents and the certificate; the other pages lead elsewhere or are placeholders.
  */
 Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class])
     ->prefix('member')
@@ -32,10 +33,12 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
         Route::get('profile/recovery-codes/download', [ProfileController::class, 'downloadRecoveryCodes'])->name('profile.recovery-codes.download');
 
         foreach (array_keys(MemberMenu::PAGES) as $page) {
-            if (! in_array($page, ['dashboard', 'profile', 'license-documents'], true)) {
+            if (! in_array($page, ['dashboard', 'profile', 'license-documents', 'certificate'], true)) {
                 Route::get($page, [PageController::class, 'placeholder'])->name($page)->defaults('page', $page);
             }
         }
+
+        Route::get('certificate', [CertificateController::class, 'show'])->name('certificate');
 
         Route::get('license-documents', [LicenseDocumentController::class, 'index'])->name('license-documents');
         Route::get('license-documents/upload', [LicenseDocumentController::class, 'create'])->name('license-documents.upload');

@@ -47,10 +47,11 @@
                             <span>Valid through {{ $certificate['validThrough']->format('j M Y') }}</span>
                         @endif
                     </p>
-                    <x-ppx.button variant="secondary" size="small" icon="download" :href="$certificate['url']" class="ppx-stat__action">Download</x-ppx.button>
+                    <x-ppx.button variant="secondary" size="small" icon="certificate" :href="route('member.certificate')" class="ppx-stat__action">View certificate</x-ppx.button>
                 @else
                     <p class="ppx-stat__value">Unavailable</p>
                     <p class="ppx-stat__meta ppx-stat__meta--wrap"><span>{{ $certificate['reason'] }}</span></p>
+                    <a class="ppx-link" href="{{ route('member.certificate') }}">What to do</a>
                 @endif
             </section>
         </div>

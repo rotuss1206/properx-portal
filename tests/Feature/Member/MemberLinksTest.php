@@ -22,8 +22,7 @@ use Tests\TestCase;
 
 /**
  * Nothing in the member area leads to an error: every link on every page reachable from the
- * dashboard opens, for each kind of member. The certificate and the library stay in Nova for now,
- * tax documents lead to the dashboard's Documents tab, notification preferences to the profile
+ * dashboard opens, for each kind of member. The library stays in Nova for now, tax documents lead to the dashboard's Documents tab, notification preferences to the profile
  * page; the only page left says it is coming soon and leads back.
  */
 class MemberLinksTest extends TestCase
@@ -140,7 +139,8 @@ class MemberLinksTest extends TestCase
         }
 
         $this->assertContains('/member/profile', $paths);
-        $this->assertContains("/nova/resources/member-profiles/{$profile}", $paths); // the certificate block
+        $this->assertContains('/member/certificate', $paths);
+        $this->assertNotContains("/nova/resources/member-profiles/{$profile}", $paths);
         $this->assertNotContains("/nova/resources/member-profiles/{$profile}/edit", $paths);
         $this->assertContains('/member/license-documents', $paths);
         $this->assertContains('/member/license-documents/upload', $paths);
@@ -186,7 +186,8 @@ class MemberLinksTest extends TestCase
         $this->assertArrayNotHasKey('license-documents', $this->menu($member));
         $this->assertNotContains('/nova/resources/library-documents', $paths);
         $this->assertNotContains('/member/license-documents', $paths);
-        $this->assertContains("/nova/resources/member-profiles/{$member->memberProfile->getKey()}", $paths);
+        $this->assertContains('/member/certificate', $paths);
+        $this->assertEmpty(preg_grep('#^/certificates/#', $paths));
 
         // Opened by hand, Nova's closed pages lead back instead of showing an error.
         $this->get('/nova/resources/library-documents')->assertRedirect(route('member.dashboard'));
@@ -242,7 +243,7 @@ class MemberLinksTest extends TestCase
         $this->get("/nova/resources/member-profiles/{$profile}/edit")->assertRedirect($page);
         $this->get('/nova/resources/member-profiles')->assertRedirect($page);
         $this->get("/nova/resources/member-profiles/{$profile}/edit?section=notifications")->assertRedirect($page.'#notifications');
-        $this->get("/nova/resources/member-profiles/{$profile}/edit?section=certificate")->assertRedirect($page);
+        $this->get("/nova/resources/member-profiles/{$profile}/edit?section=certificate")->assertRedirect(route('member.certificate'));
 
         // The sidebar's links in Nova are Inertia visits.
         $version = app(HandleInertiaRequests::class)->version(request());
@@ -282,14 +283,34 @@ class MemberLinksTest extends TestCase
         $this->get(route('member.dashboard', ['tab' => 'documents']))->assertOk()->assertSee('href="'.$page.'"', false);
     }
 
-    public function test_certificate_and_library_stay_in_nova(): void
+    public function test_the_certificate_leads_to_the_member_area_from_every_old_address(): void
     {
         $member = $this->member();
         $profile = $member->memberProfile->getKey();
+        $page = route('member.certificate');
+
+        $this->assertSame($page, $this->menu($member)['certificate']);
+
+        $this->actingAs($member)->get($page)->assertOk();
+
+        $this->get("/nova/resources/member-profiles/{$profile}?section=certificate")->assertRedirect($page);
+
+        // The sidebar's links in Nova are Inertia visits.
+        $version = app(HandleInertiaRequests::class)->version(request());
+        $this->get("/nova/resources/member-profiles/{$profile}?section=certificate", ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'])
+            ->assertStatus(409)
+            ->assertHeader('X-Inertia-Location', $page);
+
+        // The dashboard's card leads to it.
+        $this->get(route('member.dashboard'))->assertOk()->assertSee('href="'.$page.'"', false);
+    }
+
+    public function test_the_library_stays_in_nova(): void
+    {
+        $member = $this->member();
         $menu = $this->menu($member);
 
         $expected = [
-            'certificate' => "/nova/resources/member-profiles/{$profile}?section=certificate",
             'library' => '/nova/resources/library-documents',
         ];
 

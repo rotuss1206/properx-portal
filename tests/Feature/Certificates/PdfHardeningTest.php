@@ -27,9 +27,13 @@ class PdfHardeningTest extends TestCase
         $chroot = realpath(config('dompdf.options.chroot'));
 
         foreach ([
-            config('portal.certificates.signature_image'),
-            resource_path('views/pdf/fonts/DejaVuSans.ttf'),
-            resource_path('views/pdf/fonts/DejaVuSans-Bold.ttf'),
+            resource_path('views/pdf/images/logo-color.png'),
+            resource_path('views/pdf/images/seal.svg'),
+            resource_path('views/pdf/images/link.svg'),
+            resource_path('views/pdf/images/diamond.svg'),
+            resource_path('views/pdf/fonts/Lora-Italic.ttf'),
+            resource_path('views/pdf/fonts/OpenSans-Regular.ttf'),
+            resource_path('views/pdf/fonts/Poppins-SemiBold.ttf'),
         ] as $file) {
             $this->assertFileExists($file);
             $this->assertStringStartsWith($chroot.DIRECTORY_SEPARATOR, realpath($file));

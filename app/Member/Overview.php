@@ -137,7 +137,7 @@ final class Overview
         return [
             'ready' => true,
             'reason' => null,
-            'validThrough' => $this->paidThrough() ?? $profile->license_expires_at,
+            'validThrough' => CertificateGeneratorService::validThrough($profile),
             'url' => route('certificates.open', $profile),
         ];
     }

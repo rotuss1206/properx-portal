@@ -13,7 +13,7 @@ use App\Services\Certificates\CertificateGeneratorService;
 class MemberProfileObserver
 {
     private const CERTIFICATE_ATTRIBUTES = [
-        'first_name', 'last_name', 'firm_name', 'license_expires_at', 'license_status', 'certificate_code',
+        'first_name', 'last_name', 'license_expires_at', 'license_status', 'certificate_code', 'paid_through_at',
     ];
 
     /**

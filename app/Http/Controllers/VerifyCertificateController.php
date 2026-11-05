@@ -19,13 +19,16 @@ class VerifyCertificateController extends Controller
             ->whereBlindIndex('certificate_code', $code) // the column itself is encrypted
             ->first();
 
-        // Individual members: through the license expiry; agency people: through the agency's paid
-        // period (CertificateGeneratorService::validThrough), which may not be known yet.
+        // The date printed on the certificate (CertificateGeneratorService::validThrough). An
+        // agency's paid period may not be known yet. Individual members need a license on file to
+        // get a certificate at all, and an expired license ends it, as assertEligible() does.
         $validThrough = $profile ? CertificateGeneratorService::validThrough($profile) : null;
+        $individual = $profile?->agency_id === null;
 
         $status = match (true) {
-            $profile === null, $profile->agency_id === null && $validThrough === null => 'invalid',
+            $profile === null, $individual && $profile->license_expires_at === null => 'invalid',
             $profile->hasRestrictedMembership() => 'inactive',
+            $individual && LicenseStatus::fromExpiryDate($profile->license_expires_at) === LicenseStatus::Expired => 'license_expired',
             $validThrough !== null && LicenseStatus::fromExpiryDate($validThrough) === LicenseStatus::Expired => 'expired',
             default => 'valid',
         };
@@ -35,8 +38,8 @@ class VerifyCertificateController extends Controller
             'code' => $code,
             'certificate' => $status === 'invalid' ? null : [
                 'name' => $profile->fullName(),
-                'valid_from' => $profile->user->created_at->toFormattedDateString(),
-                'valid_through' => $validThrough?->toFormattedDateString(),
+                'member_since' => $profile->user->created_at->format('F Y'),
+                'valid_through' => $validThrough?->format('M j, Y'),
                 'code' => $profile->certificate_code,
             ],
         ]);

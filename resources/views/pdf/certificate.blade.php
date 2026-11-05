@@ -3,75 +3,30 @@
 <head>
     <meta charset="utf-8">
     <title>Membership Certificate {{ $certificateCode }}</title>
-    {{-- US Letter landscape: 792 × 612 pt. Fixed pt coordinates keep dompdf output on one page. --}}
     <style>
         @page { margin: 0; }
         {{-- Fonts load from inside the dompdf chroot (resources/views/pdf). --}}
-        @font-face { font-family: 'Certificate Sans'; font-weight: normal; src: url('{{ $fontPath('DejaVuSans.ttf') }}') format('truetype'); }
-        @font-face { font-family: 'Certificate Sans'; font-weight: bold; src: url('{{ $fontPath('DejaVuSans-Bold.ttf') }}') format('truetype'); }
-        body { margin: 0; font-family: 'Certificate Sans', sans-serif; color: #1f2937; }
-        .frame { position: absolute; top: 22pt; left: 22pt; width: 736pt; height: 556pt; border: 5pt double #1e3a5f; }
-        .inner { position: absolute; top: 6pt; left: 6pt; width: 722pt; height: 542pt; border: 0.75pt solid #c8a24a; text-align: center; }
-        .org { margin-top: 22pt; }
-        .org img { width: 170pt; height: auto; }
-        h1 { font-size: 30pt; margin: 10pt 0 4pt; color: #1e3a5f; font-weight: normal; }
-        .lead { font-size: 11pt; color: #4b5563; }
-        .name { font-size: 26pt; font-weight: bold; margin: 16pt 0 2pt; color: #111827; }
-        .firm { font-size: 11pt; color: #4b5563; }
-        table.details { margin: 16pt auto 0; border-collapse: collapse; font-size: 10pt; }
-        table.details td { padding: 2pt 10pt; }
-        table.details td.label { color: #6b7280; text-align: right; }
-        table.details td.value { text-align: left; font-weight: bold; }
-        .signature { position: absolute; top: 405pt; left: 56pt; width: 230pt; text-align: center; font-size: 9pt; }
-        .signature img { height: 50pt; }
-        .signature .blank { height: 50pt; }
-        .signature .line { border-top: 0.75pt solid #1f2937; margin: 2pt 0 4pt; }
-        .verify { position: absolute; top: 382pt; left: 436pt; width: 230pt; text-align: center; font-size: 8pt; color: #4b5563; }
-        .verify img { width: 78pt; height: 78pt; }
-        .code { font-size: 12pt; font-weight: bold; color: #1e3a5f; letter-spacing: 1pt; }
+        @font-face { font-family: 'PPX Lora'; font-style: italic; font-weight: normal; src: url('{{ $fontPath('Lora-Italic.ttf') }}') format('truetype'); }
+        @font-face { font-family: 'PPX Open Sans'; font-style: normal; font-weight: normal; src: url('{{ $fontPath('OpenSans-Regular.ttf') }}') format('truetype'); }
+        @font-face { font-family: 'PPX Poppins'; font-style: normal; font-weight: normal; src: url('{{ $fontPath('Poppins-SemiBold.ttf') }}') format('truetype'); }
+        body { margin: 0; }
+        @include('pdf.certificate-styles')
+        {{-- dompdf multiplies line-height by the font's height ratio (Open Sans 1.498, Poppins 1.65, Lora 1.408),
+             and draws text lower in its box. These undo that, so the page matches the HTML preview. --}}
+        .cert-title { line-height: 9.1pt; }
+        .cert-lead { line-height: 10.68pt; }
+        .cert-name { line-height: 42.6pt; }
+        .cert-text { line-height: 15.02pt; }
+        .cert-label { line-height: 8pt; }
+        .cert-value { line-height: 12.12pt; }
+        .cert-sign-name { line-height: 21.3pt; }
+        .cert-sign-title { line-height: 7.34pt; }
+        .cert-seal-text { line-height: 4.85pt; }
+        .cert-qr-text { line-height: 6.67pt; }
+        .cert-footer { line-height: 8.68pt; }
     </style>
 </head>
 <body>
-<div class="frame">
-    <div class="inner">
-        <div class="org"><img src="{{ $logoImage }}" alt="ProPerX Alliance"></div>
-        <h1>Certificate of Membership</h1>
-        <div class="lead">This certifies that</div>
-
-        <div class="name">{{ $memberName }}</div>
-        @if ($firmName)
-            <div class="firm">{{ $firmName }}</div>
-        @endif
-
-        <div class="lead" style="margin-top: 12pt;">is a member in good standing of ProPerX Alliance.</div>
-
-        <table class="details">
-            <tr><td class="label">Member ID</td><td class="value">{{ $memberId }}</td></tr>
-            <tr><td class="label">Valid from</td><td class="value">{{ \Illuminate\Support\Carbon::parse($validFrom)->toFormattedDateString() }}</td></tr>
-            @if ($validThrough)
-                <tr><td class="label">Valid through</td><td class="value">{{ \Illuminate\Support\Carbon::parse($validThrough)->toFormattedDateString() }}</td></tr>
-            @endif
-            <tr><td class="label">Issued</td><td class="value">{{ $issuedAt->toFormattedDateString() }}</td></tr>
-        </table>
-
-        <div class="signature">
-            @if ($signatureImage)
-                <img src="{{ $signatureImage }}" alt="Signature">
-            @else
-                <div class="blank"></div>
-            @endif
-            <div class="line"></div>
-            <strong>{{ $signatoryName }}</strong><br>
-            Executive Director, ProPerX Alliance
-        </div>
-
-        <div class="verify">
-            <img src="{{ $qrCode }}" alt="Verification QR code"><br>
-            Verification number<br>
-            <span class="code">{{ $certificateCode }}</span><br>
-            Scan the code or visit<br>{{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify-certificate
-        </div>
-    </div>
-</div>
+    @include('pdf.certificate-body')
 </body>
 </html>

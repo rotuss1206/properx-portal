@@ -16,9 +16,9 @@ use Symfony\Component\HttpFoundation\Response;
  * /member instead, including right after sign-in (Nova redirects to its initial path).
  * Two-factor setup and the password stay on Nova's User Security page, and signing out is
  * Nova's. So do the pages the member area has not built yet (App\Member\MemberMenu::movedUrl):
- * the library and the profile's certificate block, for those who may see them. Nova's profile
- * pages lead to /member/profile, its license documents to /member/license-documents. Staff and
- * Nova's API requests are not touched. Part of nova.api_middleware, after RequireTwoFactor.
+ * the library, for those who may see it. Nova's profile pages lead to /member/profile, their
+ * certificate block to /member/certificate, its license documents to /member/license-documents.
+ * Staff and Nova's API requests are not touched. Part of nova.api_middleware, after RequireTwoFactor.
  */
 class SendMembersToMemberArea
 {
@@ -60,6 +60,7 @@ class SendMembersToMemberArea
         return match (true) {
             $request->is("{$novaPath}/resources/tax-documents", "{$novaPath}/resources/tax-documents/*") => MemberMenu::movedUrl($request->user(), 'tax-documents'),
             $request->query(SidebarMenu::SECTION) === 'notifications' && $this->isProfilePage($request, $novaPath) => MemberMenu::movedUrl($request->user(), 'notifications'),
+            $request->query(SidebarMenu::SECTION) === 'certificate' && $this->isProfilePage($request, $novaPath) => route('member.certificate'),
             $this->isProfilePage($request, $novaPath) => route('member.profile'),
             $request->is("{$novaPath}/resources/license-documents", "{$novaPath}/resources/license-documents/*") && MemberMenu::visible($request->user(), 'license-documents') => route('member.license-documents'),
             default => route('member.dashboard'),
@@ -88,13 +89,6 @@ class SendMembersToMemberArea
 
     private function isKeptResource(Request $request, User $user, string $novaPath): bool
     {
-        // The certificate block of Nova's profile page (Certificate in the menu).
-        if ($request->query(SidebarMenu::SECTION) === 'certificate'
-            && $request->is("{$novaPath}/resources/member-profiles/*")
-            && ! $request->is("{$novaPath}/resources/member-profiles/*/edit")) {
-            return true;
-        }
-
         foreach (self::KEPT_NOVA_RESOURCES as $path => $page) {
             if ($request->is("{$novaPath}/{$path}", "{$novaPath}/{$path}/*")) {
                 return MemberMenu::visible($user, $page);

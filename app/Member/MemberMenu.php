@@ -6,8 +6,6 @@ use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
 use App\Models\User;
 use App\Nova\LibraryDocument as LibraryDocumentResource;
-use App\Nova\MemberProfile as MemberProfileResource;
-use App\Nova\Menu\SidebarMenu;
 use Laravel\Nova\Nova;
 
 /**
@@ -68,19 +66,15 @@ final class MemberMenu
 
     /**
      * Where a page lives until the member area has its own: tax documents on the dashboard,
-     * notification preferences on the profile, the others in Nova (kept open for members by
+     * notification preferences on the profile, the library in Nova (kept open for members by
      * SendMembersToMemberArea). Null: the page is the member area's, built or "coming soon".
      */
     public static function movedUrl(User $user, string $key): ?string
     {
-        $profile = $user->memberProfile;
-        $profilePath = $profile ? '/resources/'.MemberProfileResource::uriKey().'/'.$profile->getKey() : null;
-
-        return match (true) {
-            $key === 'tax-documents' => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
-            $key === 'library' => Nova::url('/resources/'.LibraryDocumentResource::uriKey()),
-            $key === 'notifications' => route('member.profile').'#notifications',
-            $key === 'certificate' && $profilePath !== null => Nova::url($profilePath.'?'.SidebarMenu::SECTION.'=certificate'),
+        return match ($key) {
+            'tax-documents' => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
+            'library' => Nova::url('/resources/'.LibraryDocumentResource::uriKey()),
+            'notifications' => route('member.profile').'#notifications',
             default => null,
         };
     }

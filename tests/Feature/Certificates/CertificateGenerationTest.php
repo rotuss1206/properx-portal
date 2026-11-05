@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Certificates;
 
+use App\Enums\Role;
 use App\Exceptions\CertificateUnavailableException;
 use App\Models\AuditLog;
 use App\Services\Certificates\CertificateGeneratorService;
@@ -38,6 +39,84 @@ class CertificateGenerationTest extends TestCase
         $this->assertSame($first->path, $second->path);
         $this->assertStringStartsWith('%PDF-', Storage::disk($first->disk)->get($first->path));
         $this->assertSame(1, AuditLog::where('action', 'certificate_generated')->count());
+    }
+
+    public function test_the_pdf_is_one_portrait_letter_page_with_our_fonts_embedded(): void
+    {
+        $certificate = $this->service->generate($this->member()->memberProfile);
+        $pdf = Storage::disk($certificate->disk)->get($certificate->path);
+
+        $this->assertSame(1, preg_match_all('#/Type\s*/Page\b#', $pdf));
+        $this->assertMatchesRegularExpression('#/MediaBox\s*\[\s*0(\.0+)?\s+0(\.0+)?\s+612(\.0+)?\s+792(\.0+)?\s*\]#', $pdf);
+
+        foreach (['Lora-Italic', 'OpenSans', 'Poppins-SemiBold'] as $font) {
+            $this->assertStringContainsString($font, $pdf);
+        }
+
+        $this->assertStringNotContainsString('DejaVu', $pdf);
+        $this->assertStringContainsString('/FontFile2', $pdf);
+    }
+
+    public function test_the_certificate_prints_the_members_data(): void
+    {
+        $member = $this->member();
+        $member->forceFill(['created_at' => '2019-04-10 09:00:00'])->save();
+        $profile = $member->memberProfile;
+        $profile->forceFill(['first_name' => 'Jordan', 'last_name' => 'Mercer', 'paid_through_at' => '2027-03-14 12:00:00', 'license_expires_at' => '2030-06-01'])->saveQuietly();
+        $profile = $profile->fresh();
+
+        $html = view('pdf.certificate-body', $this->service->document($profile))->render();
+
+        $this->assertStringContainsString('Jordan Mercer', $html);
+        $this->assertStringContainsString($profile->member_number, $html);
+        $this->assertStringContainsString('April 2019', $html);
+        $this->assertStringContainsString('Mar 14, 2027', $html);
+        $this->assertStringContainsString('2026–2027', $html);
+        $this->assertStringContainsString(preg_replace('#^https?://#', '', route('certificates.verify', $profile->certificate_code)), $html);
+        $this->assertStringContainsString('data:image/png;base64,', $html); // the QR code and the logo
+        $this->assertStringNotContainsString($profile->npn, $html);
+    }
+
+    public function test_the_signatory_comes_from_the_config_and_the_second_is_off(): void
+    {
+        $this->staff(Role::ExecutiveDirector)->forceFill(['name' => 'Longest Serving'])->save();
+        $profile = $this->member()->memberProfile;
+
+        $document = $this->service->document($profile);
+        $this->assertSame('Longest Serving', $document['signatoryName']);
+        $this->assertSame('Executive Director', $document['signatoryTitle']);
+        $this->assertNull($document['secondSignatoryName']);
+        $this->assertStringNotContainsString('cert-sign-right', view('pdf.certificate-body', $document)->render());
+
+        config(['portal.member_area.certificate.signatory' => ['name' => 'D. Whitfield', 'title' => 'President']]);
+        $old = $this->service->generate($profile);
+        $html = view('pdf.certificate-body', $this->service->document($profile))->render();
+        $this->assertStringContainsString('D. Whitfield', $html);
+        $this->assertStringContainsString('President', $html);
+
+        // What is printed is part of the cache key.
+        config(['portal.member_area.certificate.signatory' => ['name' => 'Someone Else', 'title' => 'President']]);
+        $this->assertNotSame($old->path, $this->service->generate($profile)->path);
+    }
+
+    public function test_a_changed_paid_period_regenerates_the_pdf(): void
+    {
+        $profile = $this->member()->memberProfile;
+        $old = $this->service->generate($profile);
+
+        $profile->update([]);
+        $profile->forceFill(['paid_through_at' => now()->addYears(2)])->save();
+
+        Storage::disk($old->disk)->assertMissing($old->path);
+        $this->assertFalse($this->service->generate($profile->fresh())->fromCache);
+    }
+
+    public function test_long_names_stay_on_one_line_by_a_smaller_size(): void
+    {
+        $profile = $this->member()->memberProfile;
+        $profile->forceFill(['first_name' => str_repeat('Maximiliana', 3), 'last_name' => str_repeat('Featherstonehaugh', 2)])->saveQuietly();
+
+        $this->assertLessThan(45, $this->service->document($profile->fresh())['nameSize']);
     }
 
     public function test_creates_the_font_cache_directory_when_missing(): void

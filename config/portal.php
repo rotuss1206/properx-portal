@@ -196,9 +196,9 @@ return [
         'directory' => 'certificates',
         'cache_hours' => 24,
 
-        // Placeholder until the client provides the Executive Director's real signature. Must stay
-        // inside the dompdf chroot (resources/views/pdf), or dompdf refuses to load it.
-        'signature_image' => resource_path('views/pdf/images/signature-placeholder.png'),
+        // A PNG of the Executive Director's real signature, once the client provides it, e.g.
+        // resource_path('views/pdf/images/signature.png'). Until then the name is set in Lora, as in the mockup.
+        'signature_image' => null,
     ],
 
     /*
