@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureNovaDashboardIsAvailable;
+use App\Http\Middleware\RedirectUnavailableNovaDashboard;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\SendMembersToMemberArea;
 use Illuminate\Http\Middleware\CheckResponseForModifications;
@@ -114,6 +115,7 @@ return [
         Authorize::class,
         RequireTwoFactor::class,
         SendMembersToMemberArea::class,
+        RedirectUnavailableNovaDashboard::class,
         EnsureNovaDashboardIsAvailable::class,
     ],
 

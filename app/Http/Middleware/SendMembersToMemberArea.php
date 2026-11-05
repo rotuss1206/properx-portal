@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * With the member area on (MEMBER_AREA_ENABLED), members opening a Nova page land on
- * /member instead, including right after sign-in (Nova redirects to its initial path).
+ * /member instead; right after sign-in App\Auth\SignInResponse sends them there directly.
  * Two-factor setup and the password stay on Nova's User Security page, and signing out is
  * Nova's. Nova's profile pages lead to /member/profile, their certificate block to
  * /member/certificate, its license documents to /member/license-documents, its library to

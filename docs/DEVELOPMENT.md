@@ -284,7 +284,9 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
   Nova, and `/member` sends them back to it.
 - Access: `routes/member.php`, middleware `EnsureMemberArea` (404 while off, staff to Nova, Member role only; it runs
   before `auth`, see `bootstrap/app.php`) and `RequireTwoFactor`. Nova's side: `SendMembersToMemberArea` in
-  `nova.api_middleware`. `MemberMenu::movedUrl()` leads tax documents to the dashboard's Documents tab and notification
+  `nova.api_middleware`. After sign-in `App\Auth\SignInResponse` decides where people land and ignores an intended address
+  they cannot use; `RedirectUnavailableNovaDashboard` leads anyone off a Nova dashboard hidden from them
+  (`SignInDestinationTest` covers every kind of person with the flag on and off). `MemberMenu::movedUrl()` leads tax documents to the dashboard's Documents tab and notification
   preferences to the profile.
 - Library (`/member/library`, in the style of `Documents Management.jpg`, no mockup of its own):
   `Member\LibraryController`. Published documents only (drafts 404), chips by category, search words by POST into the
