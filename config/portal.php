@@ -129,8 +129,11 @@ return [
             'valid_through' => 'paid_through',
             // First signature: name null = the longest-serving Executive Director, as today.
             'signatory' => ['name' => null, 'title' => 'Executive Director'],
-            // Optional second signature, e.g. ['name' => 'R. Alvarez', 'title' => 'Membership Secretary'].
-            'second_signatory' => null,
+            // Optional second signature; empty until the client names one. While empty, the date of
+            // issue stands in that place on the certificate.
+            'second_signatory' => env('CERTIFICATE_SECOND_SIGNATORY_NAME')
+                ? ['name' => env('CERTIFICATE_SECOND_SIGNATORY_NAME'), 'title' => env('CERTIFICATE_SECOND_SIGNATORY_TITLE')]
+                : null,
         ],
     ],
 
@@ -198,9 +201,9 @@ return [
         'directory' => 'certificates',
         'cache_hours' => 24,
 
-        // A PNG of the Executive Director's real signature, once the client provides it, e.g.
-        // resource_path('views/pdf/images/signature.png'). Until then the name is set in Lora, as in the mockup.
-        'signature_image' => null,
+        // File name of a PNG of the Executive Director's real signature in resources/views/pdf/images,
+        // once the client provides it. Until then the name is set in Lora, as in the mockup.
+        'signature_image' => env('CERTIFICATE_SIGNATURE_IMAGE') ? resource_path('views/pdf/images/'.env('CERTIFICATE_SIGNATURE_IMAGE')) : null,
     ],
 
     /*

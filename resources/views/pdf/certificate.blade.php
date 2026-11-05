@@ -17,6 +17,8 @@
             $u = \App\Services\Certificates\CertificateGeneratorService::points(...);
             $l = \App\Services\Certificates\CertificateGeneratorService::layout();
         @endphp
+        {{-- dompdf ignores box-sizing here: the same 74 px outside, with the border counted in. --}}
+        .cert-seal { box-sizing: content-box; width: {{ $u(70) }}; height: {{ $u(70) }}; }
         .cert-title { top: {{ $u($l['title'] - 1) }}; line-height: {{ $u(18 / 1.65) }}; }
         .cert-lead { line-height: {{ $u(18 / 1.498) }}; }
         .cert-name { line-height: {{ $u(41.8 / 1.408) }}; }

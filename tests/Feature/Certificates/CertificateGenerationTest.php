@@ -72,7 +72,7 @@ class CertificateGenerationTest extends TestCase
         $this->assertStringContainsString('April 2019', $html);
         $this->assertStringContainsString('Mar 14, 2027', $html);
         $this->assertStringContainsString('2026–2027', $html);
-        $this->assertStringContainsString(parse_url(route('certificates.verify.form'), PHP_URL_HOST).'/verify · Certificate ID '.$profile->certificate_code, $html);
+        $this->assertStringContainsString(parse_url(route('certificates.verify.form'), PHP_URL_HOST).'/verify · Certificate ID '.$profile->certificate_code, strip_tags($html));
         $this->assertStringContainsString('data:image/png;base64,', $html); // the QR code and the logo
         $this->assertStringNotContainsString($profile->npn, $html);
     }
@@ -86,7 +86,7 @@ class CertificateGenerationTest extends TestCase
         $this->assertSame('Longest Serving', $document['signatoryName']);
         $this->assertSame('Executive Director', $document['signatoryTitle']);
         $this->assertNull($document['secondSignatoryName']);
-        $this->assertStringNotContainsString('cert-sign-right', view('pdf.certificate-body', $document)->render());
+        $this->assertStringContainsString('Date issued', view('pdf.certificate-body', $document)->render());
 
         config(['portal.member_area.certificate.signatory' => ['name' => 'D. Whitfield', 'title' => 'President']]);
         $old = $this->service->generate($profile);

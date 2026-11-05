@@ -2,7 +2,7 @@
     The certificate's page, shared by the PDF and the HTML preview. Data: CertificateGeneratorService::document().
     The PDF prints only what was chosen. The preview holds every part and public/portal/certificate.js shows or hides them.
 --}}
-<div @class(['cert', 'cert--one-signature' => ! $secondSignatoryName])>
+<div @class(['cert', 'cert--qr' => $showQr])>
     @isset($backgroundImage)
         <img class="cert-background" src="{{ $backgroundImage }}" alt="">
     @endisset
@@ -67,13 +67,12 @@
 
     <div class="cert-seal"><img class="cert-seal-content" src="{{ $sealImage }}" alt="Official seal"></div>
 
-    @if ($secondSignatoryName)
-        <div class="cert-sign cert-sign-right">
-            <div class="cert-sign-name">{{ $secondSignatoryName }}</div>
-            <div class="cert-sign-rule"></div>
-            <div class="cert-sign-title">{{ $secondSignatoryTitle }}</div>
-        </div>
-    @endif
+    {{-- The row stays symmetrical: the second signature, or the date of issue in its place. --}}
+    <div class="cert-sign cert-sign-right">
+        <div class="cert-sign-name">{{ $secondSignatoryName ?: $issuedOnLabel }}</div>
+        <div class="cert-sign-rule"></div>
+        <div class="cert-sign-title">{{ $secondSignatoryName ? $secondSignatoryTitle : 'Date issued' }}</div>
+    </div>
 
     @if ($preview || $showQr)
         <div class="cert-qr" @if ($preview) data-ppx-cert="qr" @unless ($showQr) hidden @endunless @endif>
@@ -83,6 +82,6 @@
 
     <div class="cert-hr"></div>
     <div class="cert-line cert-footer">
-        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">Verify at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · Certificate ID {{ $certificateCode }}
+        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">@if ($secondSignatoryName)Issued {{ $issuedOnLabel }} · @endif Verify at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · <span class="cert-footer-id">Certificate ID {{ $certificateCode }}</span>
     </div>
 </div>

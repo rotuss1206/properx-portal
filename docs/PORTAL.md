@@ -130,5 +130,7 @@ Production values are App Service settings and Key Vault references (root `READM
 | `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
 | `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |
 | `MEMBER_AREA_ENABLED` | `true` opens the new member area at `/member` and sends members there from Nova (User Security and sign-out stay in Nova). The profile with contact, business, license, security and notification sections is at `/member/profile`; license documents (list, upload, withdrawing a pending one) are at `/member/license-documents`; the certificate (options, live preview, PDF download) is at `/member/certificate`; the compliance library (categories, search, details, preview) is at `/member/library`; tax documents are on the dashboard's Documents tab; Billing shows "This section is coming soon". Off by default; members then use Nova |
+| `CERTIFICATE_SECOND_SIGNATORY_NAME`, `CERTIFICATE_SECOND_SIGNATORY_TITLE` | Second signature on the certificate. Empty by default: the date of issue stands in its place |
+| `CERTIFICATE_SIGNATURE_IMAGE` | File name of a PNG of the Executive Director's signature in `resources/views/pdf/images`. Empty by default: the name is set in type |
 | `AZURE_CLIENT_ID` | Client ID of a user-assigned managed identity, if one is used |
 | `NOVA_LICENSE_KEY` | Nova licence key |

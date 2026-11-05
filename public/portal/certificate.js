@@ -30,9 +30,16 @@
 
         document.querySelectorAll('[data-ppx-cert-toggle]').forEach(function (toggle) {
             function apply() {
-                parts(toggle.getAttribute('data-ppx-cert-toggle')).forEach(function (part) {
+                var name = toggle.getAttribute('data-ppx-cert-toggle')
+
+                parts(name).forEach(function (part) {
                     part.hidden = !toggle.checked
                 })
+
+                // The bottom row's text makes room for the QR, as in the PDF.
+                if (name === 'qr') {
+                    page.querySelector('.cert').classList.toggle('cert--qr', toggle.checked)
+                }
             }
 
             toggle.addEventListener('change', apply)

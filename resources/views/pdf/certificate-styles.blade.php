@@ -11,9 +11,6 @@
     $w = $l['w'];
     $h = $l['h'];
     $center = fn (float $size) => $u(($w - $size) / 2);
-    // The sign block (176) beside the seal (74), together in the middle while there is one signature.
-    $oneLeft = ($w - 278) / 2;
-    $twoLeft = ($w - 74) / 2 - 28 - 176;
 @endphp
 .cert * { box-sizing: content-box; margin: 0; padding: 0; }
 .cert [hidden] { display: none; }
@@ -38,18 +35,20 @@
 .cert-label { color: #9aa7b4; font-size: {{ $u(10.5) }}; letter-spacing: {{ $u(0.525) }}; line-height: {{ $u(16) }}; }
 .cert-value { color: #1c2b3a; font-family: 'PPX Poppins', sans-serif; font-size: {{ $u(14) }}; line-height: {{ $u(24) }}; }
 .cert-sign { position: absolute; top: {{ $u($l['sign']) }}; width: {{ $u(176) }}; text-align: center; }
-.cert-sign-left { left: {{ $u($twoLeft) }}; }
-.cert--one-signature .cert-sign-left { left: {{ $u($oneLeft) }}; }
+{{-- The seal exactly in the middle, a block of the same width at the same distance on either side. --}}
+.cert-sign-left { left: {{ $u(($w - 74) / 2 - 28 - 176) }}; }
 .cert-sign-right { left: {{ $u(($w + 74) / 2 + 28) }}; }
 .cert-sign-name { height: {{ $u(32) }}; color: #0a2d4b; font-family: 'PPX Lora', serif; font-size: {{ $u(22) }}; font-style: italic; line-height: {{ $u(32) }}; white-space: nowrap; }
 .cert-sign-image { height: {{ $u(32) }}; }
 .cert .cert-sign-rule { height: 0; margin: {{ $u(2) }} {{ $u(16) }} {{ $u(4) }}; border-top: {{ $u(1) }} solid #e6ddc4; }
 .cert-sign-title { color: #9aa7b4; font-size: {{ $u(10.5) }}; line-height: {{ $u(14) }}; }
-.cert-seal { position: absolute; top: {{ $u($l['seal']) }}; left: {{ $center(74) }}; width: {{ $u(70) }}; height: {{ $u(70) }}; border: {{ $u(2) }} solid #f0c846; border-radius: {{ $u(28.86) }}; background: #fffdf6; }
-.cert--one-signature .cert-seal { left: {{ $u($oneLeft + 176 + 28) }}; }
+.cert-seal { position: absolute; top: {{ $u($l['seal']) }}; left: {{ $center(74) }}; box-sizing: border-box; width: {{ $u(74) }}; height: {{ $u(74) }}; border: {{ $u(2) }} solid #f0c846; border-radius: {{ $u(28.86) }}; background: #fffdf6; }
 .cert-seal-content { position: absolute; top: {{ $u(20.5) }}; left: {{ $u(12) }}; width: {{ $u(46) }}; height: {{ $u(29) }}; }
 .cert-qr { position: absolute; top: {{ $u($l['qr']) }}; left: {{ $u($w - 67.9 - 44) }}; width: {{ $u(44) }}; height: {{ $u(44) }}; }
 .cert-qr-image { display: block; width: {{ $u(44) }}; height: {{ $u(44) }}; }
 .cert-hr { position: absolute; top: {{ $u($l['hr']) }}; left: {{ $u(67.9) }}; width: {{ $u($w - 135.8) }}; height: 0; border-top: {{ $u(1) }} solid #e2e8f0; }
 .cert-footer { top: {{ $u($l['footer']) }}; color: #9aa7b4; font-size: {{ $u(10.5) }}; line-height: {{ $u(19) }}; }
+.cert-footer-id { white-space: nowrap; }
+{{-- With the QR in the row, the text centres in the space left of it. --}}
+.cert--qr .cert-footer { left: {{ $u(67.9) }}; width: {{ $u($w - 135.8 - 52) }}; }
 .cert .cert-footer-icon { width: {{ $u(19) }}; height: {{ $u(19) }}; margin-right: {{ $u(5) }}; vertical-align: {{ $u(-5) }}; }

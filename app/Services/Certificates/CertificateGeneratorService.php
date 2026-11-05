@@ -31,7 +31,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 10;
+    private const TEMPLATE_VERSION = 11;
 
     /**
      * The design's frame in Figma is 636.48 px wide (the mockup at 0.78); the page is 612 pt.
@@ -229,8 +229,8 @@ class CertificateGeneratorService
     public static function layout(): array
     {
         return self::orientation() === 'landscape'
-            ? ['w' => 823.68, 'h' => 635.2, 'logo' => 60, 'title' => 104, 'rule' => 132, 'lead' => 150, 'name' => 170, 'nameRule' => 218, 'text' => 232, 'textWidth' => 560, 'fields' => 310, 'sign' => 388, 'seal' => 378, 'qr' => 448, 'hr' => 498, 'footer' => 514]
-            : ['w' => 636.48, 'h' => 822.64, 'logo' => 84, 'title' => 149, 'rule' => 184, 'lead' => 220, 'name' => 254, 'nameRule' => 304, 'text' => 322, 'textWidth' => 444, 'fields' => 420, 'sign' => 556, 'seal' => 546, 'qr' => 640, 'hr' => 690, 'footer' => 708];
+            ? ['w' => 823.68, 'h' => 635.2, 'logo' => 60, 'title' => 104, 'rule' => 132, 'lead' => 150, 'name' => 170, 'nameRule' => 218, 'text' => 232, 'textWidth' => 560, 'fields' => 310, 'sign' => 388, 'seal' => 378, 'qr' => 504, 'hr' => 498, 'footer' => 516]
+            : ['w' => 636.48, 'h' => 822.64, 'logo' => 84, 'title' => 149, 'rule' => 184, 'lead' => 220, 'name' => 254, 'nameRule' => 304, 'text' => 322, 'textWidth' => 444, 'fields' => 420, 'sign' => 556, 'seal' => 546, 'qr' => 696, 'hr' => 690, 'footer' => 708];
     }
 
     /**
@@ -306,6 +306,11 @@ class CertificateGeneratorService
         $chosen = collect($this->terms($profile))->firstWhere('value', $options->termEnd);
         $validThrough = $chosen ? Carbon::parse($chosen['value']) : self::validThrough($profile);
 
+        // The day the file is made, in the portal's time zone. Part of the data, so of the cache key:
+        // at most one file a day per combination, a printed date that is always today's, and a
+        // change of data gives a new file dated today. The preview shows the same date.
+        $issuedOn = now(config('portal.schedule_timezone'));
+
         return [
             'memberName' => $memberName,
             'nameSize' => self::nameSize($memberName),
@@ -320,6 +325,7 @@ class CertificateGeneratorService
             'secondSignatoryName' => $second['name'] ?? null,
             'secondSignatoryTitle' => $second['title'] ?? null,
             'verificationUrl' => route('certificates.verify', $profile->certificate_code),
+            'issuedOnLabel' => $issuedOn->format('M j, Y'),
             'showMemberId' => $options->memberId,
             'showJoinDate' => $options->joinDate,
             'showQr' => $options->qr,
