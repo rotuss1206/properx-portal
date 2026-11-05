@@ -54,6 +54,7 @@
 
                     <x-ppx.button type="submit" variant="primary" class="ppx-dropzone__submit">Upload</x-ppx.button>
                 </form>
+                <p class="ppx-notify__upload-more"><a class="ppx-link" href="{{ route('member.license-documents') }}">Manage license documents</a></p>
             </section>
             <script src="{{ \App\Support\PortalAsset::url('upload.js') }}" defer nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
         </x-slot:notify-extra>

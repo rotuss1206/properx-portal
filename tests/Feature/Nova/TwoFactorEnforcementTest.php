@@ -151,6 +151,42 @@ class TwoFactorEnforcementTest extends TestCase
         $this->assertFalse($staff->fresh()->hasConfirmedTwoFactor());
     }
 
+    #[DataProvider('people')]
+    public function test_a_confirmed_secret_cannot_be_replaced_while_two_factor_is_required(string $who): void
+    {
+        $user = $who === 'member' ? $this->member() : $this->staff(Role::ExecutiveDirector);
+        $secret = $user->two_factor_secret;
+        $codes = $user->two_factor_recovery_codes;
+
+        $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->postJson(self::DISABLE_URL, ['force' => 1])
+            ->assertForbidden();
+
+        $this->assertSame($secret, $user->fresh()->two_factor_secret);
+        $this->assertSame($codes, $user->fresh()->two_factor_recovery_codes);
+
+        // Without force nothing changes either, and nothing is refused.
+        $this->postJson(self::DISABLE_URL)->assertOk();
+        $this->assertSame($secret, $user->fresh()->two_factor_secret);
+    }
+
+    public function test_locally_with_the_flag_off_force_works_as_in_fortify(): void
+    {
+        config(['portal.require_two_factor' => false]);
+        $this->app->detectEnvironment(fn () => 'local');
+        $staff = $this->staff(Role::ExecutiveDirector);
+        $secret = $staff->two_factor_secret;
+
+        $this->actingAs($staff)
+            ->withSession(['auth.password_confirmed_at' => time(), '_token' => 'csrf'])
+            ->withHeader('X-CSRF-TOKEN', 'csrf')
+            ->postJson(self::DISABLE_URL, ['force' => 1])
+            ->assertOk();
+
+        $this->assertNotSame($secret, $staff->fresh()->two_factor_secret);
+    }
+
     public function test_the_user_security_page_is_told_to_hide_disable_only_while_required(): void
     {
         $staff = $this->staff(Role::ExecutiveDirector);

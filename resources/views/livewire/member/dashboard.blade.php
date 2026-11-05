@@ -89,6 +89,10 @@
             </x-slot:action>
             <x-ppx.doc-table :rows="$documents" caption="All documents" empty-title="No documents here yet" empty-text="Your license documents, tax documents and certificate appear here." />
         </x-ppx.card>
+
+        @if (\App\Member\MemberMenu::visible(auth()->user(), 'license-documents'))
+            <p class="ppx-dash__more"><a class="ppx-link" href="{{ route('member.license-documents') }}">Manage license documents</a></p>
+        @endif
     @elseif ($tab === 'activity')
         <x-ppx.card title="Activity">
             @if ($activity->isEmpty())

@@ -16,9 +16,9 @@ use Symfony\Component\HttpFoundation\Response;
  * /member instead, including right after sign-in (Nova redirects to its initial path).
  * Two-factor setup and the password stay on Nova's User Security page, and signing out is
  * Nova's. So do the pages the member area has not built yet (App\Member\MemberMenu::movedUrl):
- * license documents, the library and the profile's certificate block, for those who may see
- * them. Nova's profile pages lead to /member/profile. Staff and Nova's API requests are not
- * touched. Part of nova.api_middleware, after RequireTwoFactor.
+ * the library and the profile's certificate block, for those who may see them. Nova's profile
+ * pages lead to /member/profile, its license documents to /member/license-documents. Staff and
+ * Nova's API requests are not touched. Part of nova.api_middleware, after RequireTwoFactor.
  */
 class SendMembersToMemberArea
 {
@@ -35,7 +35,6 @@ class SendMembersToMemberArea
      * Nova resources that stand in for a member area page => that page's key in MemberMenu.
      */
     private const KEPT_NOVA_RESOURCES = [
-        'resources/license-documents' => 'license-documents',
         'resources/library-documents' => 'library',
     ];
 
@@ -62,6 +61,7 @@ class SendMembersToMemberArea
             $request->is("{$novaPath}/resources/tax-documents", "{$novaPath}/resources/tax-documents/*") => MemberMenu::movedUrl($request->user(), 'tax-documents'),
             $request->query(SidebarMenu::SECTION) === 'notifications' && $this->isProfilePage($request, $novaPath) => MemberMenu::movedUrl($request->user(), 'notifications'),
             $this->isProfilePage($request, $novaPath) => route('member.profile'),
+            $request->is("{$novaPath}/resources/license-documents", "{$novaPath}/resources/license-documents/*") && MemberMenu::visible($request->user(), 'license-documents') => route('member.license-documents'),
             default => route('member.dashboard'),
         };
     }

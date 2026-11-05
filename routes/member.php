@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Member\DocumentDownloadController;
-use App\Http\Controllers\Member\LicenseDocumentUploadController;
+use App\Http\Controllers\Member\LicenseDocumentController;
 use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\Member\PageController;
 use App\Http\Controllers\Member\ProfileController;
@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Route;
 
 /*
  * Member area: Members only, behind MEMBER_AREA_ENABLED,
- * two-factor authentication as in Nova. Built: the dashboard (with the license upload and
- * document downloads) and the profile; the other pages lead elsewhere or are placeholders.
+ * two-factor authentication as in Nova. Built: the dashboard (with document downloads), the
+ * profile and license documents; the other pages lead elsewhere or are placeholders.
  */
 Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class])
     ->prefix('member')
@@ -32,14 +32,20 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
         Route::get('profile/recovery-codes/download', [ProfileController::class, 'downloadRecoveryCodes'])->name('profile.recovery-codes.download');
 
         foreach (array_keys(MemberMenu::PAGES) as $page) {
-            if (! in_array($page, ['dashboard', 'profile'], true)) {
+            if (! in_array($page, ['dashboard', 'profile', 'license-documents'], true)) {
                 Route::get($page, [PageController::class, 'placeholder'])->name($page)->defaults('page', $page);
             }
         }
 
-        Route::post('license-documents', [LicenseDocumentUploadController::class, 'store'])
+        Route::get('license-documents', [LicenseDocumentController::class, 'index'])->name('license-documents');
+        Route::get('license-documents/upload', [LicenseDocumentController::class, 'create'])->name('license-documents.upload');
+        Route::post('license-documents', [LicenseDocumentController::class, 'store'])
             ->middleware('throttle:20,1')
             ->name('license-documents.store');
+        Route::delete('license-documents/{document}', [LicenseDocumentController::class, 'destroy'])
+            ->whereNumber('document')
+            ->middleware('throttle:20,1')
+            ->name('license-documents.destroy');
 
         Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
 

@@ -236,7 +236,7 @@ class MemberSeeder extends Seeder
                 'size' => $size,
                 'uploaded_at' => now()->subDays($index * 5 + $number),
                 'verification_status' => $status,
-                'admin_notes' => $status === VerificationStatus::Rejected ? 'Document is unreadable, please re-upload.' : null,
+                'rejection_reason' => $status === VerificationStatus::Rejected ? 'Document is unreadable, please re-upload.' : null,
             ])->save();
         }
     }

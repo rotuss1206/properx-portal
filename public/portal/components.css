@@ -167,6 +167,18 @@
 
 .ppx-btn--icon:hover { border-color: var(--ppx-border-hover); color: var(--ppx-ink) !important; }
 
+.ppx-btn--navy { background: var(--ppx-navy-500); color: #fff !important; }
+
+.ppx-btn--navy:hover { background: var(--ppx-navy-700); }
+
+.ppx-btn--danger { background: var(--ppx-badge-danger-fg); color: #fff !important; }
+
+.ppx-btn--danger:hover { filter: brightness(0.92); }
+
+.ppx-btn--danger-icon { flex: none; width: 44px; padding: 0; border-color: var(--ppx-badge-danger-bg); background: var(--ppx-surface); color: var(--ppx-badge-danger-fg) !important; }
+
+.ppx-btn--danger-icon:hover { background: var(--ppx-badge-danger-bg); }
+
 .ppx-btn--small { height: 34px; padding: 0 12px; font-size: 13px; }
 
 /* "Edit" and "Manage" in a card's header. */
@@ -457,7 +469,8 @@
     .ppx-doc-table td[data-label="Document"] { grid-column: 1 / -1; }
 
     .ppx-doc-table td[data-label="Type"],
-    .ppx-doc-table td[data-label="Updated"] { color: var(--ppx-muted); font-size: 13px; }
+    .ppx-doc-table td[data-label="Updated"],
+    .ppx-doc-table td[data-label="Uploaded"] { color: var(--ppx-muted); font-size: 13px; }
 
     .ppx-doc-table__action { grid-column: 2; grid-row: 2 / span 2; align-self: center; }
 }

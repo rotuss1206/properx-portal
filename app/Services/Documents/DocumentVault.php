@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Writes and reads member documents on the documents disk (Spec 2, 3.2, 8).
@@ -61,9 +62,22 @@ class DocumentVault
     {
         $path = trim($directory, '/').'/'.Str::uuid().'.'.$extension.($encrypt ? self::ENCRYPTED_SUFFIX : '');
 
-        $this->disk()->put($path, $encrypt ? $this->encrypter()->encryptString($contents) : $contents);
+        // Disks that do not throw report a failed write this way; no record may point at nothing.
+        if ($this->disk()->put($path, $encrypt ? $this->encrypter()->encryptString($contents) : $contents) === false) {
+            throw new RuntimeException('The document could not be written.');
+        }
 
         return $path;
+    }
+
+    /**
+     * Removes a stored document; a file that is already gone is not an error.
+     */
+    public function delete(string $path): void
+    {
+        if ($this->disk()->delete($path) === false) {
+            throw new RuntimeException('The document could not be deleted.');
+        }
     }
 
     /**

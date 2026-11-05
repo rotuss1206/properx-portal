@@ -63,7 +63,7 @@ class PrincipalForm extends StepForm
             }],
             'mobile_phone' => ['required', new UsPhone],
             'sms_consent' => ['boolean'],
-            'npn' => ['required', 'regex:/^\d{7,10}$/', new UniqueBlindIndex(MemberProfile::class, 'npn')],
+            'npn' => ['required', 'regex:/^\d{1,10}$/', new UniqueBlindIndex(MemberProfile::class, 'npn')],
             'license_state' => ['required', Rule::in(array_keys(UsStates::ALL))],
             'authority_confirmed' => ['accepted'],
         ];
@@ -73,7 +73,7 @@ class PrincipalForm extends StepForm
     {
         return [
             'title.in' => 'Choose a title.',
-            'npn.regex' => 'The NPN must be 7 to 10 digits, numbers only.',
+            'npn.regex' => 'The NPN must be up to 10 digits, numbers only.',
             'license_state.in' => 'Choose a state.',
             'authority_confirmed.accepted' => 'Please confirm that you are authorized to enroll this agency.',
         ];

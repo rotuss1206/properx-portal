@@ -31,6 +31,14 @@
     -webkit-font-smoothing: antialiased;
 }
 
+.ppx-header__parent { color: var(--ppx-muted) !important; font-size: 15px; font-weight: 500; text-decoration: none; }
+
+.ppx-header__parent:hover { color: var(--ppx-ink) !important; }
+
+.ppx-header__parent:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 2px; border-radius: 4px; }
+
+.ppx-header__parent-separator { margin: 0 8px; color: var(--ppx-subtle); font-size: 15px; font-weight: 400; }
+
 .ppx-header__title {
     flex: 1 1 auto;
     min-width: 0;
@@ -372,6 +380,9 @@
     .ppx-header__date { display: none; }
 
     .ppx-header__title { font-size: 18px; }
+
+    .ppx-header__parent,
+    .ppx-header__parent-separator { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

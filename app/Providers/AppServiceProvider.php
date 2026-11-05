@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Auth\KeepConfirmedTwoFactorSecret;
 use App\Auth\KeepRequiredTwoFactor;
 use App\Auth\LoginRateLimiter;
 use App\Mail\AcsTransportFactory;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
+use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Laravel\Fortify\LoginRateLimiter as FortifyLoginRateLimiter;
 use Laravel\Nova\Nova;
 use Livewire\Livewire;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(FortifyLoginRateLimiter::class, LoginRateLimiter::class);
 
         $this->app->bind(DisableTwoFactorAuthentication::class, KeepRequiredTwoFactor::class);
+        $this->app->bind(EnableTwoFactorAuthentication::class, KeepConfirmedTwoFactorSecret::class);
     }
 
     /**

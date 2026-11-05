@@ -6,7 +6,6 @@ use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
 use App\Models\User;
 use App\Nova\LibraryDocument as LibraryDocumentResource;
-use App\Nova\LicenseDocument as LicenseDocumentResource;
 use App\Nova\MemberProfile as MemberProfileResource;
 use App\Nova\Menu\SidebarMenu;
 use Laravel\Nova\Nova;
@@ -79,7 +78,6 @@ final class MemberMenu
 
         return match (true) {
             $key === 'tax-documents' => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
-            $key === 'license-documents' => Nova::url('/resources/'.LicenseDocumentResource::uriKey()),
             $key === 'library' => Nova::url('/resources/'.LibraryDocumentResource::uriKey()),
             $key === 'notifications' => route('member.profile').'#notifications',
             $key === 'certificate' && $profilePath !== null => Nova::url($profilePath.'?'.SidebarMenu::SECTION.'=certificate'),

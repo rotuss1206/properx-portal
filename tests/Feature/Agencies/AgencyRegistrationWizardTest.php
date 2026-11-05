@@ -440,21 +440,21 @@ class AgencyRegistrationWizardTest extends TestCase
      */
     public static function invalidNpns(): array
     {
-        return ['letters' => ['12ab5678'], 'too short' => ['123456'], 'too long' => ['12345678901'], 'dashes' => ['1234-5678']];
+        return ['letters' => ['12ab5678'], 'too long' => ['12345678901'], 'dashes' => ['1234-5678']];
     }
 
     #[DataProvider('invalidNpns')]
-    public function test_npn_must_be_7_to_10_digits(string $npn): void
+    public function test_npn_must_be_1_to_10_digits(string $npn): void
     {
         $this->fill($this->wizardAt(4), 'principal', self::PRINCIPAL)
             ->set('principal.npn', $npn)
             ->call('next')
             ->assertHasErrors(['principal.npn' => 'regex'])
-            ->assertSee('The NPN must be 7 to 10 digits, numbers only.');
+            ->assertSee('The NPN must be up to 10 digits, numbers only.');
     }
 
     #[DataProvider('validNpns')]
-    public function test_npn_of_7_to_10_digits_is_accepted(string $npn): void
+    public function test_npn_of_1_to_10_digits_is_accepted(string $npn): void
     {
         $this->fill($this->wizardAt(4), 'principal', self::PRINCIPAL)
             ->set('principal.npn', $npn)
@@ -468,7 +468,7 @@ class AgencyRegistrationWizardTest extends TestCase
      */
     public static function validNpns(): array
     {
-        return ['7 digits' => ['1234567'], '10 digits' => ['1234567890']];
+        return ['1 digit' => ['1'], '7 digits' => ['1234567'], '10 digits' => ['1234567890']];
     }
 
     public function test_an_email_already_in_the_portal_is_blocked(): void

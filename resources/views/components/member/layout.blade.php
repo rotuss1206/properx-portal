@@ -1,4 +1,4 @@
-@props(['page', 'title', 'notifyOpen' => false, 'notifyExtra' => null])
+@props(['page', 'title', 'notifyOpen' => false, 'notifyExtra' => null, 'parent' => null])
 {{--
     Member area layout: sidebar, header, content. Styles:
     public/portal/tokens.css, sidebar.css (shared with Nova) and member.css; behaviour:
@@ -34,7 +34,7 @@
     <div class="ppx-member__overlay" data-ppx-drawer-close hidden></div>
 
     <div class="ppx-member__main">
-        <x-member.header :title="$title" />
+        <x-member.header :title="$title" :parent="$parent" />
 
         <main class="ppx-member__content" id="ppx-content" tabindex="-1">
             {{ $slot }}

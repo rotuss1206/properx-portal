@@ -124,9 +124,16 @@ class LicenseDocument extends Resource
                 ->sortable()
                 ->filterable(),
 
+            // Set by the Reject action; what the member reads.
+            Textarea::make('Rejection Reason')
+                ->exceptOnForms()
+                ->alwaysShow(),
+
+            // Internal: staff only.
             Textarea::make('Admin Notes')
                 ->hideWhenCreating()
                 ->rules('nullable', 'max:2000')
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request))
                 ->alwaysShow(),
         ];
     }

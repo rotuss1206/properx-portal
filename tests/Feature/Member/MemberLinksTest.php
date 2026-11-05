@@ -22,9 +22,9 @@ use Tests\TestCase;
 
 /**
  * Nothing in the member area leads to an error: every link on every page reachable from the
- * dashboard opens, for each kind of member. The certificate, license documents and the library
- * stay in Nova for now, tax documents lead to the dashboard's Documents tab, notification
- * preferences to the profile page; the only page left says it is coming soon and leads back.
+ * dashboard opens, for each kind of member. The certificate and the library stay in Nova for now,
+ * tax documents lead to the dashboard's Documents tab, notification preferences to the profile
+ * page; the only page left says it is coming soon and leads back.
  */
 class MemberLinksTest extends TestCase
 {
@@ -142,7 +142,9 @@ class MemberLinksTest extends TestCase
         $this->assertContains('/member/profile', $paths);
         $this->assertContains("/nova/resources/member-profiles/{$profile}", $paths); // the certificate block
         $this->assertNotContains("/nova/resources/member-profiles/{$profile}/edit", $paths);
-        $this->assertContains('/nova/resources/license-documents', $paths);
+        $this->assertContains('/member/license-documents', $paths);
+        $this->assertContains('/member/license-documents/upload', $paths);
+        $this->assertNotContains('/nova/resources/license-documents', $paths);
         $this->assertContains('/nova/resources/library-documents', $paths);
         $this->assertNotEmpty(preg_grep('#^/documents/.+/download$#', $paths));
         $this->assertNotEmpty(preg_grep('#^/certificates/\d+/download$#', $paths));
@@ -157,6 +159,7 @@ class MemberLinksTest extends TestCase
         $this->assertContains($this->pathOf(route('member.billing')), $paths);
         $this->assertContains('/nova/resources/library-documents', $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
+        $this->assertNotContains('/member/license-documents', $paths);
     }
 
     public function test_every_link_opens_for_other_agency_people(): void
@@ -168,6 +171,7 @@ class MemberLinksTest extends TestCase
 
         $this->assertNotContains($this->pathOf(route('member.billing')), $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
+        $this->assertNotContains('/member/license-documents', $paths);
     }
 
     public function test_every_link_opens_for_a_canceled_membership_with_closed_pages_left_out(): void
@@ -181,6 +185,7 @@ class MemberLinksTest extends TestCase
         $this->assertArrayNotHasKey('library', $this->menu($member));
         $this->assertArrayNotHasKey('license-documents', $this->menu($member));
         $this->assertNotContains('/nova/resources/library-documents', $paths);
+        $this->assertNotContains('/member/license-documents', $paths);
         $this->assertContains("/nova/resources/member-profiles/{$member->memberProfile->getKey()}", $paths);
 
         // Opened by hand, Nova's closed pages lead back instead of showing an error.
@@ -253,7 +258,31 @@ class MemberLinksTest extends TestCase
             ->assertDontSee('href="'.route('nova.pages.user-security').'"', false);
     }
 
-    public function test_certificate_license_documents_and_library_stay_in_nova(): void
+    public function test_license_documents_lead_to_the_member_area_from_every_old_address(): void
+    {
+        $member = $this->member();
+        $page = route('member.license-documents');
+        $document = LicenseDocument::factory()->for($member)->create();
+
+        $this->assertSame($page, $this->menu($member)['license-documents']);
+
+        $this->actingAs($member)->get($page)->assertOk();
+
+        // Old links into Nova, also from emails already sent.
+        $this->get('/nova/resources/license-documents')->assertRedirect($page);
+        $this->get("/nova/resources/license-documents/{$document->id}")->assertRedirect($page);
+
+        // The sidebar's links in Nova are Inertia visits.
+        $version = app(HandleInertiaRequests::class)->version(request());
+        $this->get('/nova/resources/license-documents', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'])
+            ->assertStatus(409)
+            ->assertHeader('X-Inertia-Location', $page);
+
+        // The dashboard's Documents tab links to it too.
+        $this->get(route('member.dashboard', ['tab' => 'documents']))->assertOk()->assertSee('href="'.$page.'"', false);
+    }
+
+    public function test_certificate_and_library_stay_in_nova(): void
     {
         $member = $this->member();
         $profile = $member->memberProfile->getKey();
@@ -261,7 +290,6 @@ class MemberLinksTest extends TestCase
 
         $expected = [
             'certificate' => "/nova/resources/member-profiles/{$profile}?section=certificate",
-            'license-documents' => '/nova/resources/license-documents',
             'library' => '/nova/resources/library-documents',
         ];
 
@@ -318,15 +346,13 @@ class MemberLinksTest extends TestCase
         $this->assertSame($url, session('url.intended'));
     }
 
-    public function test_a_pending_license_document_is_withdrawn_in_nova(): void
+    public function test_novas_api_still_only_withdraws_pending_license_documents(): void
     {
         $member = $this->member();
         $pending = LicenseDocument::factory()->for($member)->create(['verification_status' => VerificationStatus::Pending]);
         $approved = LicenseDocument::factory()->for($member)->create(['verification_status' => VerificationStatus::Approved]);
 
-        $this->actingAs($member)->get('/nova/resources/license-documents')->assertOk();
-
-        $this->deleteJson('/nova-api/license-documents?resources[]='.$pending->id.'&resources[]='.$approved->id)->assertOk();
+        $this->actingAs($member)->deleteJson('/nova-api/license-documents?resources[]='.$pending->id.'&resources[]='.$approved->id)->assertOk();
 
         $this->assertModelMissing($pending);
         $this->assertModelExists($approved);

@@ -31,6 +31,7 @@ abstract class ReviewLicenseDocument extends Action
             $document->update([
                 'verification_status' => $this->status(),
                 'admin_notes' => $fields->get('admin_notes') ?: $document->admin_notes,
+                'rejection_reason' => $this->status() === VerificationStatus::Rejected ? $fields->get('rejection_reason') : null,
             ]);
 
             AuditLog::record($this->auditAction(), $document);

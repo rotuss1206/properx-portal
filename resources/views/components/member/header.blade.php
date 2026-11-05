@@ -1,4 +1,4 @@
-@props(['title'])
+@props(['title', 'parent' => null])
 {{--
     The ProPerX header (public/portal/header.css), the same as in Nova (resources/js/nova/header.js):
     data from App\Support\PortalHeader. The bell shows the unread count (.ppx-header__count, the same
@@ -10,7 +10,7 @@
         <span class="ppx-header__glyph ppx-header__glyph--menu" aria-hidden="true"></span>
     </button>
 
-    <h1 class="ppx-header__title">{{ $title }}</h1>
+    <h1 class="ppx-header__title">@if ($parent)<a class="ppx-header__parent" href="{{ $parent['url'] }}">{{ $parent['label'] }}</a><span class="ppx-header__parent-separator" aria-hidden="true">/</span>@endif{{ $title }}</h1>
 
     <div class="ppx-header__tools">
         <time class="ppx-header__date" datetime="{{ $header['dateIso'] }}">{{ $header['date'] }}</time>

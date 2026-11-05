@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['original_filename', 'mime_type', 'size', 'document_type', 'uploaded_at', 'verification_status', 'admin_notes'])]
+#[Fillable(['original_filename', 'mime_type', 'size', 'document_type', 'uploaded_at', 'verification_status', 'admin_notes', 'rejection_reason'])]
 #[Hidden(['stored_filename'])]
 #[ObservedBy(DocumentObserver::class)]
 class LicenseDocument extends Model implements DownloadableDocument
@@ -36,7 +36,8 @@ class LicenseDocument extends Model implements DownloadableDocument
             // License document metadata is encrypted at rest (KEENEY rule); the file itself too.
             'original_filename' => 'encrypted',
             'mime_type' => 'encrypted',
-            'admin_notes' => 'encrypted',
+            'admin_notes' => 'encrypted', // internal, never shown to the member
+            'rejection_reason' => 'encrypted', // written for the member
             'verification_status' => VerificationStatus::class,
         ];
     }

@@ -9,6 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +50,18 @@ return Application::configure(basePath: dirname(__DIR__))
             ]);
 
             return false;
+        });
+
+        // An upload larger than PHP's post_max_size is refused before there is a session, so the
+        // upload page is told by a query parameter.
+        $exceptions->render(function (PostTooLargeException $e, Request $request) {
+            if (! $request->is('member/license-documents')) {
+                return null;
+            }
+
+            return $request->expectsJson()
+                ? response()->json(['message' => 'The file may not be larger than 10 MB.'], 413)
+                : redirect()->route('member.license-documents.upload', ['too_large' => 1]);
         });
 
         $exceptions->shouldRenderJsonWhen(

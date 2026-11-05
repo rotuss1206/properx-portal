@@ -35,13 +35,13 @@ class StaffPermissionsTest extends TestCase
         $this->actingAs($this->staff(Role::MembershipCoordinator))
             ->postJson('/nova-api/license-documents/action?action=reject-license-document', [
                 'resources' => (string) $document->id,
-                'admin_notes' => 'Expired copy, please upload the current license.',
+                'rejection_reason' => 'Expired copy, please upload the current license.',
             ])
             ->assertOk();
 
         $document->refresh();
         $this->assertSame(VerificationStatus::Rejected, $document->verification_status);
-        $this->assertSame('Expired copy, please upload the current license.', $document->admin_notes);
+        $this->assertSame('Expired copy, please upload the current license.', $document->rejection_reason);
 
         $this->postJson('/nova-api/license-documents/action?action=verify-license-document', [
             'resources' => (string) $document->id,
@@ -50,7 +50,7 @@ class StaffPermissionsTest extends TestCase
         $this->assertSame(VerificationStatus::Approved, $document->fresh()->verification_status);
     }
 
-    public function test_reject_requires_admin_notes(): void
+    public function test_reject_requires_a_reason(): void
     {
         $document = LicenseDocument::factory()->pending()->for($this->member())->create();
 
@@ -58,7 +58,7 @@ class StaffPermissionsTest extends TestCase
             ->postJson('/nova-api/license-documents/action?action=reject-license-document', [
                 'resources' => (string) $document->id,
             ])
-            ->assertJsonValidationErrors('admin_notes');
+            ->assertJsonValidationErrors('rejection_reason');
     }
 
     public function test_member_cannot_verify_own_document(): void

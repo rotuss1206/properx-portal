@@ -40,10 +40,28 @@ final class NotificationFeed
     {
         return match ($notification->type) {
             TaxDocumentAvailable::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
-            LicenseDocumentReviewed::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'license']),
+            LicenseDocumentReviewed::class => self::licenseDocumentTarget($notification),
             RenewalDue::class => route('member.dashboard'),
             default => null,
         };
+    }
+
+    /**
+     * The reviewed document, if it is still there and the page is open to this person.
+     */
+    private static function licenseDocumentTarget(DatabaseNotification $notification): string
+    {
+        $user = $notification->notifiable;
+
+        if (! $user instanceof User || ! MemberMenu::visible($user, 'license-documents')) {
+            return route('member.dashboard', ['tab' => 'documents', 'filter' => 'license']);
+        }
+
+        $id = $notification->data['document_id'] ?? null;
+
+        return $id !== null && $user->licenseDocuments()->whereKey($id)->exists()
+            ? route('member.license-documents', ['document' => $id])
+            : route('member.license-documents');
     }
 
     /**

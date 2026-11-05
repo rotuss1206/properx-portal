@@ -37,7 +37,7 @@ class LicenseDocumentFactory extends Factory
             'size' => fake()->numberBetween(50 * 1024, 10 * 1024 * 1024),
             'uploaded_at' => fake()->dateTimeBetween('-1 year'),
             'verification_status' => $status,
-            'admin_notes' => $status === VerificationStatus::Rejected ? 'Document is unreadable, please re-upload.' : null,
+            'rejection_reason' => $status === VerificationStatus::Rejected ? 'Document is unreadable, please re-upload.' : null,
         ];
     }
 
@@ -46,6 +46,7 @@ class LicenseDocumentFactory extends Factory
         return $this->state(fn () => [
             'verification_status' => VerificationStatus::Pending,
             'admin_notes' => null,
+            'rejection_reason' => null,
         ]);
     }
 }

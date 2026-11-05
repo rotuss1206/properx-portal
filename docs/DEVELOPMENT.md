@@ -285,8 +285,15 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
 - Access: `routes/member.php`, middleware `EnsureMemberArea` (404 while off, staff to Nova, Member role only; it runs
   before `auth`, see `bootstrap/app.php`) and `RequireTwoFactor`. Nova's side: `SendMembersToMemberArea` in
   `nova.api_middleware`, which also keeps the pages `MemberMenu::movedUrl()` leads to open in Nova until the member area
-  has its own: the profile's certificate block, license documents, library (tax documents lead to the dashboard's
-  Documents tab). Remove a page from both when it is built here.
+  has its own: the profile's certificate block, library (tax documents lead to the dashboard's Documents tab). Remove a
+  page from both when it is built here.
+- License documents (`/member/license-documents`, mockups `Documents Management.jpg` and `Container.jpg`):
+  `Member\LicenseDocumentController` + `App\Member\LicenseDocumentList`. Plain multipart form, `public/portal/upload.js`
+  for drag & drop and progress; `public/portal/documents.js` searches the rows in the browser, so nothing is sent.
+  Withdrawing needs the policy's pending status and a confirmation step (`?document=id&withdraw=1`). An upload sets
+  `license_verification` to `pending_review`. `rejection_reason` (written in Nova's Reject action) is what the member
+  reads; `admin_notes` are internal and staff only. `portal.member_area.malware_scan` stays off: when a scan exists, it
+  goes where the controller's comment says, and the upload page then promises it.
 - Profile (`/member/profile`): `Member\ProfileController` + `App\Member\ProfilePage` (who may edit what) +
   `App\Member\ProfileRules`. Plain forms, one section open at a time (`?edit=section`), no Livewire: phones, addresses
   and passwords must not travel in a component snapshot. Layout as in the mockup: email under Contact (read-only), NPN

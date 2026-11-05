@@ -23,7 +23,9 @@ class VerifyLicenseDocument extends ReviewLicenseDocument
     public function fields(NovaRequest $request): array
     {
         return [
-            Textarea::make('Admin Notes')->rules('nullable', 'max:2000'),
+            Textarea::make('Admin Notes')
+                ->rules('nullable', 'max:2000')
+                ->help('Internal: never shown to the member.'),
         ];
     }
 }

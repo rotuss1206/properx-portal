@@ -5,7 +5,7 @@
 --}}
 @php
     $classes = ['ppx-btn', 'ppx-btn--'.$variant, 'ppx-btn--'.$size => $size];
-    $iconOnly = $variant === 'icon';
+    $iconOnly = in_array($variant, ['icon', 'danger-icon'], true);
 @endphp
 @if ($href)
     <a href="{{ $href }}" {{ $attributes->class($classes) }} @if ($iconOnly) aria-label="{{ $label }}" title="{{ $label }}" @endif>
