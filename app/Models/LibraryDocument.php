@@ -52,6 +52,24 @@ class LibraryDocument extends Model implements DownloadableDocument
         $query->where('published', true);
     }
 
+    /**
+     * Every word must appear in the title, description or category.
+     *
+     * @param  Builder<self>  $query
+     * @param  list<string>  $words
+     */
+    #[Scope]
+    protected function matching(Builder $query, array $words): void
+    {
+        foreach ($words as $word) {
+            $like = '%'.addcslashes($word, '\\%_').'%';
+
+            $query->where(fn (Builder $sql) => $sql->where('title', 'like', $like)
+                ->orWhere('description', 'like', $like)
+                ->orWhere('category', 'like', $like));
+        }
+    }
+
     public static function downloadType(): string
     {
         return 'library';

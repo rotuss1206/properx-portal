@@ -48,14 +48,7 @@ final class MemberSearch
         if ($user->can('viewAny', LibraryDocument::class)) {
             $library = LibraryDocument::query()
                 ->published()
-                ->where(function ($sql) use ($words) {
-                    foreach ($words as $word) {
-                        $like = '%'.addcslashes($word, '\\%_').'%';
-                        $sql->where(fn ($sql) => $sql->where('title', 'like', $like)
-                            ->orWhere('description', 'like', $like)
-                            ->orWhere('category', 'like', $like));
-                    }
-                })
+                ->matching($words)
                 ->latest('uploaded_at')
                 ->limit(50)
                 ->get()
@@ -66,7 +59,7 @@ final class MemberSearch
                     'name' => $document->title,
                     'detail' => $document->category,
                     'date' => $document->uploaded_at,
-                    'url' => route('member.documents.download', ['type' => 'library', 'document' => $document->getKey()]),
+                    'url' => route('member.library.show', $document),
                 ]);
         }
 

@@ -10,6 +10,9 @@ use RuntimeException;
  */
 class CertificateUnavailableException extends RuntimeException
 {
+    /** Paying would solve it, and this person is the one who pays. */
+    public bool $canRenew = false;
+
     public static function licenseExpired(?CarbonInterface $expiredAt): self
     {
         return new self($expiredAt
@@ -17,9 +20,26 @@ class CertificateUnavailableException extends RuntimeException
             : 'A certificate cannot be issued: the license has expired.');
     }
 
-    public static function membershipInactive(): self
+    public static function membershipInactive(bool $canRenew = true): self
     {
-        return new self('A certificate cannot be issued while the membership is inactive. Please settle the outstanding membership dues.');
+        $exception = new self('A certificate cannot be issued while the membership is inactive. Please settle the outstanding membership dues.');
+        $exception->canRenew = $canRenew;
+
+        return $exception;
+    }
+
+    /**
+     * The date the certificate would print as "Valid through" has passed. Agency people other than
+     * the principal cannot renew it themselves.
+     */
+    public static function periodEnded(bool $canRenew = true): self
+    {
+        $exception = new self($canRenew
+            ? 'Your membership period has ended — renew to get your certificate.'
+            : "Your agency's membership period has ended. Your agency principal can renew it.");
+        $exception->canRenew = $canRenew;
+
+        return $exception;
     }
 
     /**

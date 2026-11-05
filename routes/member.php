@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Member\CertificateController;
 use App\Http\Controllers\Member\DocumentDownloadController;
+use App\Http\Controllers\Member\LibraryController;
 use App\Http\Controllers\Member\LicenseDocumentController;
 use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\Member\PageController;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 /*
  * Member area: Members only, behind MEMBER_AREA_ENABLED,
  * two-factor authentication as in Nova. Built: the dashboard (with document downloads), the
- * profile, license documents and the certificate; the other pages lead elsewhere or are placeholders.
+ * profile, license documents, the certificate and the library; the other pages lead elsewhere or are placeholders.
  */
 Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class])
     ->prefix('member')
@@ -33,12 +34,20 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
         Route::get('profile/recovery-codes/download', [ProfileController::class, 'downloadRecoveryCodes'])->name('profile.recovery-codes.download');
 
         foreach (array_keys(MemberMenu::PAGES) as $page) {
-            if (! in_array($page, ['dashboard', 'profile', 'license-documents', 'certificate'], true)) {
+            if (! in_array($page, ['dashboard', 'profile', 'license-documents', 'certificate', 'library'], true)) {
                 Route::get($page, [PageController::class, 'placeholder'])->name($page)->defaults('page', $page);
             }
         }
 
         Route::get('certificate', [CertificateController::class, 'show'])->name('certificate');
+
+        Route::get('library', [LibraryController::class, 'index'])->name('library');
+        Route::post('library/search', [LibraryController::class, 'search'])->middleware('throttle:30,1')->name('library.search');
+        Route::get('library/{document}', [LibraryController::class, 'show'])->whereNumber('document')->name('library.show');
+        Route::get('library/{document}/preview', [LibraryController::class, 'preview'])
+            ->whereNumber('document')
+            ->middleware('throttle:60,1')
+            ->name('library.preview');
 
         Route::get('license-documents', [LicenseDocumentController::class, 'index'])->name('license-documents');
         Route::get('license-documents/upload', [LicenseDocumentController::class, 'create'])->name('license-documents.upload');

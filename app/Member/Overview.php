@@ -118,25 +118,26 @@ final class Overview
     /**
      * Ready (download through certificates.open, which re-checks access) or the reason it is not.
      *
-     * @return array{ready: bool, reason: ?string, validThrough: ?CarbonInterface, url: ?string}
+     * @return array{ready: bool, reason: ?string, canRenew: bool, validThrough: ?CarbonInterface, url: ?string}
      */
     public function certificate(): array
     {
         $profile = $this->profile();
 
         if ($profile === null) {
-            return ['ready' => false, 'reason' => 'Your member profile is not set up yet.', 'validThrough' => null, 'url' => null];
+            return ['ready' => false, 'reason' => 'Your member profile is not set up yet.', 'canRenew' => false, 'validThrough' => null, 'url' => null];
         }
 
         try {
             app(CertificateGeneratorService::class)->assertEligible($profile);
         } catch (CertificateUnavailableException $e) {
-            return ['ready' => false, 'reason' => $e->getMessage(), 'validThrough' => null, 'url' => null];
+            return ['ready' => false, 'reason' => $e->getMessage(), 'canRenew' => $e->canRenew, 'validThrough' => null, 'url' => null];
         }
 
         return [
             'ready' => true,
             'reason' => null,
+            'canRenew' => false,
             'validThrough' => CertificateGeneratorService::validThrough($profile),
             'url' => route('certificates.open', $profile),
         ];

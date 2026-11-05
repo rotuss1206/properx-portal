@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Member\MemberMenu;
-use App\Models\User;
 use App\Nova\Menu\SidebarMenu;
 use Closure;
 use Illuminate\Http\Request;
@@ -15,10 +14,10 @@ use Symfony\Component\HttpFoundation\Response;
  * With the member area on (MEMBER_AREA_ENABLED), members opening a Nova page land on
  * /member instead, including right after sign-in (Nova redirects to its initial path).
  * Two-factor setup and the password stay on Nova's User Security page, and signing out is
- * Nova's. So do the pages the member area has not built yet (App\Member\MemberMenu::movedUrl):
- * the library, for those who may see it. Nova's profile pages lead to /member/profile, their
- * certificate block to /member/certificate, its license documents to /member/license-documents.
- * Staff and Nova's API requests are not touched. Part of nova.api_middleware, after RequireTwoFactor.
+ * Nova's. Nova's profile pages lead to /member/profile, their certificate block to
+ * /member/certificate, its license documents to /member/license-documents, its library to
+ * /member/library (the last two for those who may see them). Staff and Nova's API requests are
+ * not touched. Part of nova.api_middleware, after RequireTwoFactor.
  */
 class SendMembersToMemberArea
 {
@@ -29,13 +28,6 @@ class SendMembersToMemberArea
         'user-security',
         'user-security/*',
         'logout',
-    ];
-
-    /**
-     * Nova resources that stand in for a member area page => that page's key in MemberMenu.
-     */
-    private const KEPT_NOVA_RESOURCES = [
-        'resources/library-documents' => 'library',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -63,6 +55,7 @@ class SendMembersToMemberArea
             $request->query(SidebarMenu::SECTION) === 'certificate' && $this->isProfilePage($request, $novaPath) => route('member.certificate'),
             $this->isProfilePage($request, $novaPath) => route('member.profile'),
             $request->is("{$novaPath}/resources/license-documents", "{$novaPath}/resources/license-documents/*") && MemberMenu::visible($request->user(), 'license-documents') => route('member.license-documents'),
+            $request->is("{$novaPath}/resources/library-documents", "{$novaPath}/resources/library-documents/*") && MemberMenu::visible($request->user(), 'library') => route('member.library'),
             default => route('member.dashboard'),
         };
     }
@@ -83,18 +76,6 @@ class SendMembersToMemberArea
             && $user->isMember()
             && ! $user->isStaff()
             && $request->is($novaPath, "{$novaPath}/*")
-            && ! $request->is(...array_map(fn (string $path) => "{$novaPath}/{$path}", self::KEPT_NOVA_PATHS))
-            && ! $this->isKeptResource($request, $user, $novaPath);
-    }
-
-    private function isKeptResource(Request $request, User $user, string $novaPath): bool
-    {
-        foreach (self::KEPT_NOVA_RESOURCES as $path => $page) {
-            if ($request->is("{$novaPath}/{$path}", "{$novaPath}/{$path}/*")) {
-                return MemberMenu::visible($user, $page);
-            }
-        }
-
-        return false;
+            && ! $request->is(...array_map(fn (string $path) => "{$novaPath}/{$path}", self::KEPT_NOVA_PATHS));
     }
 }

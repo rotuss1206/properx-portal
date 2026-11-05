@@ -470,7 +470,9 @@
 
     .ppx-doc-table td[data-label="Type"],
     .ppx-doc-table td[data-label="Updated"],
-    .ppx-doc-table td[data-label="Uploaded"] { color: var(--ppx-muted); font-size: 13px; }
+    .ppx-doc-table td[data-label="Uploaded"],
+    .ppx-doc-table td[data-label="Category"],
+    .ppx-doc-table td[data-label="Published"] { color: var(--ppx-muted); font-size: 13px; }
 
     .ppx-doc-table__action { grid-column: 2; grid-row: 2 / span 2; align-self: center; }
 }

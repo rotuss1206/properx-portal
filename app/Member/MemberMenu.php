@@ -5,8 +5,6 @@ namespace App\Member;
 use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
 use App\Models\User;
-use App\Nova\LibraryDocument as LibraryDocumentResource;
-use Laravel\Nova\Nova;
 
 /**
  * Pages of the member area (/member) in menu order, and who
@@ -65,15 +63,13 @@ final class MemberMenu
     }
 
     /**
-     * Where a page lives until the member area has its own: tax documents on the dashboard,
-     * notification preferences on the profile, the library in Nova (kept open for members by
-     * SendMembersToMemberArea). Null: the page is the member area's, built or "coming soon".
+     * Where a page lives apart from its own address: tax documents on the dashboard, notification
+     * preferences on the profile. Null: the page is the member area's, built or "coming soon".
      */
     public static function movedUrl(User $user, string $key): ?string
     {
         return match ($key) {
             'tax-documents' => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
-            'library' => Nova::url('/resources/'.LibraryDocumentResource::uriKey()),
             'notifications' => route('member.profile').'#notifications',
             default => null,
         };

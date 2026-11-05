@@ -284,9 +284,13 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
   Nova, and `/member` sends them back to it.
 - Access: `routes/member.php`, middleware `EnsureMemberArea` (404 while off, staff to Nova, Member role only; it runs
   before `auth`, see `bootstrap/app.php`) and `RequireTwoFactor`. Nova's side: `SendMembersToMemberArea` in
-  `nova.api_middleware`, which also keeps the pages `MemberMenu::movedUrl()` leads to open in Nova until the member area
-  has its own: the library (tax documents lead to the dashboard's Documents tab). Remove a page from both when it is
-  built here.
+  `nova.api_middleware`. `MemberMenu::movedUrl()` leads tax documents to the dashboard's Documents tab and notification
+  preferences to the profile.
+- Library (`/member/library`, in the style of `Documents Management.jpg`, no mockup of its own):
+  `Member\LibraryController`. Published documents only (drafts 404), chips by category, search words by POST into the
+  session as in the header search, details page (`/member/library/{id}`) with Download and a preview: images in the
+  panel, a PDF in a new tab, audited `document_previewed`. Library files are not encrypted and are streamed, so no size
+  limit applies to their preview.
 - Certificate (`/member/certificate`, mockups `Certificate Generate.jpg`, `Certificate.jpg`): `Member\CertificateController`.
   The preview and the PDF share `resources/views/pdf/certificate-body.blade.php` and `certificate-styles.blade.php`, so
   change them together and bump `TEMPLATE_VERSION`. `pdf/certificate.blade.php` adds only dompdf's line-height corrections

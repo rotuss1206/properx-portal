@@ -695,6 +695,23 @@ body.ppx-member {
 
 .ppx-docs__confirm-text { margin: 0 0 12px; color: var(--ppx-text); font-size: 13px; line-height: 19px; }
 
+/* Compliance library, in the style of the license documents. */
+
+.ppx-docs__row td[data-label="Category"],
+.ppx-docs__row td[data-label="Published"] { white-space: nowrap; }
+
+.ppx-library__go { height: 40px; }
+
+.ppx-library__summary { max-width: 62ch; margin-top: 2px; line-height: 17px; }
+
+.ppx-library__searching { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--ppx-muted); font-size: 13px; overflow-wrap: anywhere; }
+
+.ppx-library__clear { padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer; }
+
+.ppx-library__description { margin: 0; padding: 16px 22px 20px; color: var(--ppx-text); font-size: 14px; line-height: 22px; white-space: pre-line; overflow-wrap: anywhere; }
+
+.ppx-library__pages { display: flex; align-items: center; justify-content: center; gap: 18px; color: var(--ppx-muted); font-size: 13px; }
+
 /* Membership certificate, as in docs/design/Certificate Generate.jpg. */
 
 .ppx-cert { display: grid; gap: 16px; min-width: 0; padding-top: 6px; }

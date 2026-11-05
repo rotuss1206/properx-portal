@@ -7,6 +7,7 @@ use App\Enums\PersonType;
 use App\Enums\Role;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\Certificates\CertificateGeneratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesPortalUsers;
@@ -99,7 +100,7 @@ class CertificatePageTest extends TestCase
             ->assertSee('Your certificate is not available')
             ->assertSee('while the membership is inactive')
             ->assertSee('Canceled')
-            ->assertSee('Renew membership')
+            ->assertSee('ppx-cert__renew', false)
             ->assertSee('https://pay.example.test/portal', false)
             ->assertSee(route('member.profile'), false)
             ->assertDontSee('CERTIFICATE OF MEMBERSHIP')
@@ -114,7 +115,7 @@ class CertificatePageTest extends TestCase
     {
         $this->actingAs($this->member('expired'))->get(route('member.certificate'))->assertOk()
             ->assertSee('the license expired on')
-            ->assertDontSee('Renew membership')
+            ->assertDontSee('ppx-cert__renew', false)
             ->assertDontSee('Download PDF');
 
         $incomplete = $this->member();
@@ -123,6 +124,77 @@ class CertificatePageTest extends TestCase
         $this->actingAs($incomplete->fresh())->get(route('member.certificate'))->assertOk()
             ->assertSee('license expiry date')
             ->assertDontSee('Download PDF');
+    }
+
+    public function test_an_ended_period_gets_no_certificate_also_during_the_grace_period(): void
+    {
+        config(['portal.payments.payment_url' => 'https://pay.example.test/portal']);
+        $member = $this->member();
+        $member->memberProfile->forceFill([
+            'payment_status' => PaymentStatus::PastDue,
+            'payment_status_updated_at' => now()->subDay(), // inside the grace period
+            'paid_through_at' => now()->subDays(3),
+            'license_expires_at' => now()->addYear(),
+        ])->saveQuietly();
+        $member = $member->fresh();
+        $profile = $member->memberProfile;
+
+        $this->assertFalse($profile->hasRestrictedMembership());
+
+        $this->actingAs($member)->get(route('member.certificate'))->assertOk()
+            ->assertSee('Your membership period has ended — renew to get your certificate.')
+            ->assertSee('ppx-cert__renew', false)
+            ->assertSee('https://pay.example.test/portal', false)
+            ->assertDontSee('Download PDF')
+            ->assertDontSee('CERTIFICATE OF MEMBERSHIP')
+            ->assertDontSee($profile->certificate_code);
+
+        // Nor by the direct routes, whatever is cached.
+        $this->get(route('certificates.open', $profile))->assertStatus(422);
+        $this->get(CertificateGeneratorService::downloadUrl($profile))->assertStatus(422);
+        $this->assertSame(0, AuditLog::where('action', 'certificate_downloaded')->count());
+
+        $this->get(route('certificates.verify', $profile->certificate_code))->assertOk()
+            ->assertSee('This certificate has expired')
+            ->assertDontSee('Valid certificate');
+
+        // The rest stays open during the grace period.
+        $this->get(route('member.library'))->assertOk();
+    }
+
+    public function test_without_a_payment_page_the_explanation_stays_without_a_button(): void
+    {
+        config(['portal.payments.payment_url' => null]);
+        $member = $this->member();
+        $member->memberProfile->forceFill(['paid_through_at' => now()->subDays(3), 'license_expires_at' => now()->addYear()])->saveQuietly();
+
+        $this->actingAs($member->fresh())->get(route('member.certificate'))->assertOk()
+            ->assertSee('Your membership period has ended')
+            ->assertDontSee('ppx-cert__renew', false);
+    }
+
+    public function test_an_ended_agency_period_only_the_principal_can_renew(): void
+    {
+        config(['portal.payments.payment_url' => 'https://pay.example.test/portal']);
+        $agency = $this->agency(2);
+        $agency->forceFill(['paid_through_at' => now()->subDays(3)])->saveQuietly();
+        $person = $agency->members()->where('user_id', '!=', $agency->principal_user_id)->first()->user;
+
+        $this->actingAs($agency->principal()->first())->get(route('member.certificate'))->assertOk()
+            ->assertSee('Your membership period has ended')
+            ->assertSee('ppx-cert__renew', false);
+
+        $this->actingAs($person)->get(route('member.certificate'))->assertOk()
+            ->assertSee('Your agency principal can renew it.')
+            ->assertDontSee('ppx-cert__renew', false);
+    }
+
+    public function test_the_last_day_of_the_period_still_counts(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['paid_through_at' => today(), 'license_expires_at' => now()->addYear()])->saveQuietly();
+
+        $this->actingAs($member->fresh())->get(route('member.certificate'))->assertOk()->assertSee('Download PDF');
     }
 
     public function test_agency_people_get_it_as_before_with_the_agencys_date(): void

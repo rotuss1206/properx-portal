@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\ReminderType;
 use App\Enums\VerificationStatus;
 use App\Member\MemberMenu;
+use App\Models\LibraryDocument;
 use App\Models\LicenseDocument;
 use App\Models\TaxDocument;
 use App\Models\User;
@@ -22,7 +23,7 @@ use Tests\TestCase;
 
 /**
  * Nothing in the member area leads to an error: every link on every page reachable from the
- * dashboard opens, for each kind of member. The library stays in Nova for now, tax documents lead to the dashboard's Documents tab, notification preferences to the profile
+ * dashboard opens, for each kind of member. Tax documents lead to the dashboard's Documents tab, notification preferences to the profile
  * page; the only page left says it is coming soon and leads back.
  */
 class MemberLinksTest extends TestCase
@@ -145,7 +146,8 @@ class MemberLinksTest extends TestCase
         $this->assertContains('/member/license-documents', $paths);
         $this->assertContains('/member/license-documents/upload', $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
-        $this->assertContains('/nova/resources/library-documents', $paths);
+        $this->assertContains('/member/library', $paths);
+        $this->assertNotContains('/nova/resources/library-documents', $paths);
         $this->assertNotEmpty(preg_grep('#^/documents/.+/download$#', $paths));
         $this->assertNotEmpty(preg_grep('#^/certificates/\d+/download$#', $paths));
     }
@@ -157,7 +159,7 @@ class MemberLinksTest extends TestCase
         $paths = $this->paths($this->assertEveryLinkOpens($principal));
 
         $this->assertContains($this->pathOf(route('member.billing')), $paths);
-        $this->assertContains('/nova/resources/library-documents', $paths);
+        $this->assertContains('/member/library', $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
         $this->assertNotContains('/member/license-documents', $paths);
     }
@@ -184,7 +186,7 @@ class MemberLinksTest extends TestCase
 
         $this->assertArrayNotHasKey('library', $this->menu($member));
         $this->assertArrayNotHasKey('license-documents', $this->menu($member));
-        $this->assertNotContains('/nova/resources/library-documents', $paths);
+        $this->assertNotContains('/member/library', $paths);
         $this->assertNotContains('/member/license-documents', $paths);
         $this->assertContains('/member/certificate', $paths);
         $this->assertEmpty(preg_grep('#^/certificates/#', $paths));
@@ -305,24 +307,24 @@ class MemberLinksTest extends TestCase
         $this->get(route('member.dashboard'))->assertOk()->assertSee('href="'.$page.'"', false);
     }
 
-    public function test_the_library_stays_in_nova(): void
+    public function test_the_library_leads_to_the_member_area_from_every_old_address(): void
     {
         $member = $this->member();
-        $menu = $this->menu($member);
+        $page = route('member.library');
+        $document = LibraryDocument::factory()->published()->create();
 
-        $expected = [
-            'library' => '/nova/resources/library-documents',
-        ];
+        $this->assertSame($page, $this->menu($member)['library']);
 
-        $this->actingAs($member);
+        $this->actingAs($member)->get($page)->assertOk();
 
-        foreach ($expected as $page => $path) {
-            $this->assertSame($path, $menu[$page]);
+        $this->get('/nova/resources/library-documents')->assertRedirect($page);
+        $this->get("/nova/resources/library-documents/{$document->id}")->assertRedirect($page);
 
-            // Old links to the member area's address keep working, and the Nova page opens.
-            $this->get(route('member.'.$page))->assertRedirect($path);
-            $this->get($path)->assertOk();
-        }
+        // The sidebar's links in Nova are Inertia visits.
+        $version = app(HandleInertiaRequests::class)->version(request());
+        $this->get('/nova/resources/library-documents', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'])
+            ->assertStatus(409)
+            ->assertHeader('X-Inertia-Location', $page);
     }
 
     public function test_members_get_back_to_the_member_area_from_nova(): void

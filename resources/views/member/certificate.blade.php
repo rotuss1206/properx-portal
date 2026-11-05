@@ -57,7 +57,7 @@
                         <x-ppx.empty-state icon="certificate" title="Your certificate is not available" :text="$certificate['reason']">
                             <p class="ppx-cert__actions">
                                 @if ($renewUrl)
-                                    <x-ppx.button variant="primary" :href="$renewUrl">Renew membership</x-ppx.button>
+                                    <x-ppx.button variant="primary" :href="$renewUrl" class="ppx-cert__renew">Renew now</x-ppx.button>
                                 @endif
                                 <x-ppx.button variant="secondary" :href="route('member.profile')">Review your profile</x-ppx.button>
                                 @if ($canUploadLicense)

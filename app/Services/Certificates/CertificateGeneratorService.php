@@ -62,13 +62,23 @@ class CertificateGeneratorService
         }
 
         // Canceled, or past due beyond the grace period (Spec 7).
+        $canRenew = $profile->agency_id === null || $profile->isAgencyPrincipal();
+
         if ($profile->hasRestrictedMembership()) {
-            throw CertificateUnavailableException::membershipInactive();
+            throw CertificateUnavailableException::membershipInactive($canRenew);
         }
 
         // Check the date itself too, in case the nightly status update has not run yet.
         if ($profile->agency_id === null && LicenseStatus::fromExpiryDate($profile->license_expires_at) === LicenseStatus::Expired) {
             throw CertificateUnavailableException::licenseExpired($profile->license_expires_at);
+        }
+
+        // Never a certificate that is out of date the moment it is printed, also during the
+        // grace period, when the rest of the member area stays open. /verify-certificate agrees.
+        $validThrough = self::validThrough($profile);
+
+        if ($validThrough !== null && LicenseStatus::fromExpiryDate($validThrough) === LicenseStatus::Expired) {
+            throw CertificateUnavailableException::periodEnded($canRenew);
         }
     }
 
