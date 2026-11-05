@@ -1,10 +1,29 @@
 /*
- * "Search documents" on /member/license-documents: filters the rows already on the page, in the
- * browser. Nothing is sent, so file names never reach a URL or a log. Without JavaScript the field
+ * /member/license-documents. "Search documents" filters the rows already on the page, in the
+ * browser: nothing is sent, so file names never reach a URL or a log. Without JavaScript the field
  * stays hidden. DOM APIs only (CSP).
  */
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
+        // An image preview that cannot be loaded (storage down, say) gives way to a plain message.
+        var preview = document.querySelector('[data-ppx-doc-preview]')
+        var previewFailed = document.querySelector('[data-ppx-doc-preview-failed]')
+
+        function showPreviewFailed() {
+            preview.hidden = true
+            previewFailed.hidden = false
+        }
+
+        if (preview && previewFailed) {
+            var image = preview.querySelector('img')
+
+            image.addEventListener('error', showPreviewFailed)
+
+            if (image.complete && image.naturalWidth === 0 && image.getAttribute('loading') !== 'lazy') {
+                showPreviewFailed()
+            }
+        }
+
         var box = document.querySelector('[data-ppx-doc-search]')
 
         if (!box) {

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['original_filename', 'mime_type', 'size', 'document_type', 'uploaded_at', 'verification_status', 'admin_notes', 'rejection_reason'])]
+#[Fillable(['original_filename', 'mime_type', 'size', 'document_type', 'uploaded_at', 'verification_status', 'admin_notes', 'rejection_reason', 'license_number', 'license_state', 'license_expires_at'])]
 #[Hidden(['stored_filename'])]
 #[ObservedBy(DocumentObserver::class)]
 class LicenseDocument extends Model implements DownloadableDocument
@@ -22,6 +22,12 @@ class LicenseDocument extends Model implements DownloadableDocument
     use HasFactory;
 
     public const DIRECTORY = 'license-documents';
+
+    /**
+     * Document types that are a license: uploading one sends the member's license back to review
+     * and states its details. "other" is a supporting file.
+     */
+    public const LICENSE_TYPES = ['resident', 'non_resident'];
 
     public static function disk(): string
     {
@@ -38,6 +44,8 @@ class LicenseDocument extends Model implements DownloadableDocument
             'mime_type' => 'encrypted',
             'admin_notes' => 'encrypted', // internal, never shown to the member
             'rejection_reason' => 'encrypted', // written for the member
+            'license_number' => 'encrypted',
+            'license_expires_at' => 'date',
             'verification_status' => VerificationStatus::class,
         ];
     }

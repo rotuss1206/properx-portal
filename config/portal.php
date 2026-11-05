@@ -102,12 +102,16 @@ return [
         // "Scanned for malware" wording only once uploads are scanned.
         'malware_scan' => false,
 
-        // The license upload asks only for the document type (no license number or dates).
+        // Resident and non-resident are licenses (LicenseDocument::LICENSE_TYPES): the upload page
+        // also asks for number, state and expiry, prefilled from the profile and kept with the document.
         'license_document_types' => [
             'resident' => 'Resident license',
             'non_resident' => 'Non-resident license',
             'other' => 'Other',
         ],
+
+        // Larger license documents offer only Download: a preview decrypts the whole file in memory.
+        'preview_max_kilobytes' => 5120,
 
         'agency_people' => [
             // Agency people hold NPN + resident state only; no license document uploads.

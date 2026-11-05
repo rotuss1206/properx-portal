@@ -39,6 +39,10 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
 
         Route::get('license-documents', [LicenseDocumentController::class, 'index'])->name('license-documents');
         Route::get('license-documents/upload', [LicenseDocumentController::class, 'create'])->name('license-documents.upload');
+        Route::get('license-documents/{document}/preview', [LicenseDocumentController::class, 'preview'])
+            ->whereNumber('document')
+            ->middleware('throttle:60,1')
+            ->name('license-documents.preview');
         Route::post('license-documents', [LicenseDocumentController::class, 'store'])
             ->middleware('throttle:20,1')
             ->name('license-documents.store');

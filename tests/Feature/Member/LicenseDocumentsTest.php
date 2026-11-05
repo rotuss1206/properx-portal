@@ -6,6 +6,9 @@ use App\Enums\LicenseVerification;
 use App\Enums\PaymentStatus;
 use App\Enums\Role;
 use App\Enums\VerificationStatus;
+use App\Member\DocumentList;
+use App\Member\LicenseDocumentList;
+use App\Member\NotificationFeed;
 use App\Models\AuditLog;
 use App\Models\LicenseDocument;
 use App\Models\User;
@@ -31,7 +34,7 @@ class LicenseDocumentsTest extends TestCase
 {
     use CreatesPortalUsers, RefreshDatabase;
 
-    private const PAGE_FROM = ['from' => 'page', 'document_type' => 'resident'];
+    private const PAGE_FROM = ['from' => 'page', 'document_type' => 'resident', 'license_state' => 'OH', 'license_expires_at' => '2027-09-30'];
 
     protected function setUp(): void
     {
@@ -90,7 +93,24 @@ class LicenseDocumentsTest extends TestCase
             ->assertSee('Resident license')->assertSee('Non-resident license')->assertSee('Other')
             ->assertSee('14 Mar 2026')
             ->assertSee('ppx-badge--warning', false)->assertSee('ppx-badge--success', false)->assertSee('ppx-badge--danger', false)
-            ->assertSee('Pending review')->assertSee('Approved')->assertSee('Rejected');
+            ->assertSeeInOrder(['Pending', 'Approved', 'Rejected'])
+            ->assertDontSee('Pending review')
+            ->assertDontSee('Needs attention');
+    }
+
+    public function test_the_status_has_the_same_name_on_every_page(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['license_verification' => LicenseVerification::Verified])->save();
+        $pending = $this->document($member, VerificationStatus::Pending);
+        $rejected = $this->document($member, VerificationStatus::Rejected);
+        $member->notify(LicenseDocumentReviewed::for($rejected));
+
+        $this->assertSame(['Pending', 'Rejected'], DocumentList::for($member, 'license')->pluck('status')->sort()->values()->all());
+        $this->assertSame(['Pending', 'Rejected'], LicenseDocumentList::for($member)->pluck('status')->sort()->values()->all());
+        $this->assertSame('License document rejected', NotificationFeed::latest($member)->first()['title']);
+
+        $this->assertModelExists($pending);
     }
 
     public function test_a_rejection_shows_the_reason_for_the_member_and_never_the_internal_notes(): void
@@ -179,7 +199,7 @@ class LicenseDocumentsTest extends TestCase
         $member = $this->member();
         $member->memberProfile->forceFill(['license_verification' => LicenseVerification::Verified])->save();
 
-        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'document_type' => 'non_resident', 'from' => 'page'])
+        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'document_type' => 'non_resident'])
             ->assertSessionHas('status');
 
         $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
@@ -192,6 +212,197 @@ class LicenseDocumentsTest extends TestCase
         $this->assertSame(LicenseVerification::PendingReview, $member->memberProfile->fresh()->license_verification);
 
         $this->get(route('member.license-documents', ['document' => $document->id]))->assertOk()->assertSee('jordan-license.pdf');
+    }
+
+    public function test_a_supporting_file_leaves_the_license_status_alone(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['license_verification' => LicenseVerification::Verified])->save();
+
+        $this->actingAs($member)->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'from' => 'page', 'document_type' => 'other'])
+            ->assertSessionHasNoErrors();
+
+        $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
+        $this->assertSame('other', $document->document_type);
+        $this->assertNull($document->license_state);
+        $this->assertSame(VerificationStatus::Pending, $document->verification_status);
+        $this->assertSame(LicenseVerification::Verified, $member->memberProfile->fresh()->license_verification);
+
+        // Also from the dashboard's short form, and a license from there does change it.
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'document_type' => 'other'])->assertSessionHasNoErrors();
+        $this->assertSame(LicenseVerification::Verified, $member->memberProfile->fresh()->license_verification);
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'document_type' => 'resident'])->assertSessionHasNoErrors();
+        $this->assertSame(LicenseVerification::PendingReview, $member->memberProfile->fresh()->license_verification);
+    }
+
+    public function test_the_upload_form_is_prefilled_from_the_profile(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['license_number' => 'OH-2019-4471', 'license_state' => 'OH', 'license_expires_at' => '2027-09-30'])->save();
+
+        $form = $this->actingAs($member->fresh())->get(route('member.license-documents.upload'))->assertOk()
+            ->assertSee('value="OH-2019-4471"', false)
+            ->assertSee('value="2027-09-30"', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/<option value="OH"\s+selected/', $form);
+    }
+
+    public function test_license_details_stay_with_the_document_and_the_profile_keeps_its_own(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['license_number' => 'PROFILE-1', 'license_state' => 'TX', 'license_expires_at' => '2030-01-15'])->save();
+        $member = $member->fresh();
+
+        $this->actingAs($member)->post(route('member.license-documents.store'), [
+            'file' => $this->pdf(),
+            ...self::PAGE_FROM,
+            'license_number' => 'OH-2019-4471',
+        ])->assertSessionHasNoErrors();
+
+        $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
+        $this->assertSame('OH-2019-4471', $document->license_number);
+        $this->assertStringNotContainsString('OH-2019', (string) $document->getRawOriginal('license_number'));
+        $this->assertSame('OH', $document->license_state);
+        $this->assertSame('2027-09-30', $document->license_expires_at->toDateString());
+
+        $profile = $member->memberProfile->fresh();
+        $this->assertSame('PROFILE-1', $profile->license_number);
+        $this->assertSame('TX', $profile->license_state);
+        $this->assertSame('2030-01-15', $profile->license_expires_at->toDateString());
+
+        $this->assertStringNotContainsString('OH-2019', AuditLog::query()->get()->toJson());
+
+        $this->get(route('member.license-documents', ['document' => $document->id]))->assertOk()
+            ->assertSee('OH-2019-4471')
+            ->assertSee('<dt>State</dt><dd>Ohio</dd>', false)
+            ->assertSee('<dt>Expires</dt><dd>30 Sep 2027</dd>', false);
+
+        $this->actingAs($this->staff(Role::MembershipCoordinator))->getJson("/nova-api/license-documents/{$document->id}")->assertOk()
+            ->assertSee('OH-2019-4471')
+            ->assertSee('Ohio')
+            ->assertSee('2027-09-30');
+    }
+
+    public function test_the_license_number_is_optional_but_state_and_expiry_are_not(): void
+    {
+        $member = $this->member();
+        $this->actingAs($member);
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM])->assertSessionHasNoErrors();
+        $this->assertNull(LicenseDocument::query()->whereBelongsTo($member)->sole()->license_number);
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'from' => 'page', 'document_type' => 'resident', 'license_state' => '', 'license_expires_at' => ''])
+            ->assertSessionHasErrors([
+                'license_state' => 'Choose the state of this license.',
+                'license_expires_at' => 'Enter the date this license expires.',
+            ]);
+
+        $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM, 'license_state' => 'ZZ', 'license_expires_at' => 'soon', 'license_number' => str_repeat('9', 51)])
+            ->assertSessionHasErrors([
+                'license_state' => 'Choose the state from the list.',
+                'license_expires_at' => 'Enter the expiration date as a full date, e.g. 09/30/2027.',
+                'license_number' => 'The license number may not be longer than 50 characters.',
+            ]);
+
+        $this->assertSame(1, LicenseDocument::query()->count());
+    }
+
+    public function test_the_dashboards_short_form_takes_the_details_from_the_profile(): void
+    {
+        $member = $this->member();
+        $member->memberProfile->forceFill(['license_number' => 'PROFILE-1', 'license_state' => 'TX', 'license_expires_at' => '2030-01-15'])->save();
+
+        $this->actingAs($member->fresh())->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'document_type' => 'resident'])
+            ->assertRedirect(route('member.dashboard'));
+
+        $document = LicenseDocument::query()->whereBelongsTo($member)->sole();
+        $this->assertSame('PROFILE-1', $document->license_number);
+        $this->assertSame('TX', $document->license_state);
+    }
+
+    // Preview
+
+    private function stored(User $member, string $mime, string $contents, array $attributes = []): LicenseDocument
+    {
+        return $this->document($member, VerificationStatus::Approved, [
+            'stored_filename' => app(DocumentVault::class)->put(LicenseDocument::DIRECTORY, 'bin', $contents, encrypt: true),
+            'mime_type' => $mime,
+            'original_filename' => 'scan résumé.jpg',
+            'size' => strlen($contents),
+            ...$attributes,
+        ]);
+    }
+
+    public function test_the_preview_shows_the_file_inline_through_the_server_and_is_audited(): void
+    {
+        $member = $this->member();
+        $document = $this->stored($member, 'image/jpeg', 'jpeg-bytes');
+
+        $response = $this->actingAs($member)->get(route('member.license-documents.preview', $document))->assertOk();
+
+        $this->assertSame('jpeg-bytes', $response->streamedContent());
+        $this->assertSame('image/jpeg', $response->headers->get('Content-Type'));
+        $this->assertStringStartsWith('inline;', $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
+
+        // Our CSP and framing rules are not relaxed for it.
+        $this->assertSame('DENY', $response->headers->get('X-Frame-Options'));
+        $this->assertStringContainsString("frame-ancestors 'none'", (string) $response->headers->get('Content-Security-Policy'));
+
+        $this->assertSame(1, AuditLog::where('action', 'document_previewed')->where('user_id', $member->id)->where('resource_id', $document->id)->count());
+        $this->assertStringNotContainsString('scan', AuditLog::where('action', 'document_previewed')->get()->toJson());
+    }
+
+    public function test_an_image_is_previewed_in_place_and_a_pdf_in_a_new_tab(): void
+    {
+        $member = $this->member();
+        $image = $this->stored($member, 'image/png', 'png-bytes');
+        $pdf = $this->stored($member, 'application/pdf', '%PDF-1.4 x');
+        $preview = fn (LicenseDocument $document) => route('member.license-documents.preview', $document);
+
+        $this->actingAs($member)->get(route('member.license-documents', ['document' => $image->id]))->assertOk()
+            ->assertSee('<img class="ppx-docs__preview-image" src="'.$preview($image).'"', false);
+
+        $this->get(route('member.license-documents', ['document' => $pdf->id]))->assertOk()
+            ->assertSee('href="'.$preview($pdf).'" target="_blank" rel="noopener"', false)
+            ->assertDontSee('<iframe', false)
+            ->assertDontSee('<img class="ppx-docs__preview-image"', false);
+    }
+
+    public function test_large_files_offer_only_download(): void
+    {
+        config(['portal.member_area.preview_max_kilobytes' => 1]);
+        $member = $this->member();
+        $document = $this->stored($member, 'application/pdf', str_repeat('x', 2048));
+
+        $this->actingAs($member)->get(route('member.license-documents', ['document' => $document->id]))->assertOk()
+            ->assertSee('too large to preview')
+            ->assertDontSee(route('member.license-documents.preview', $document), false)
+            ->assertSee(route('member.documents.download', ['type' => 'license', 'document' => $document->id]), false);
+
+        $this->get(route('member.license-documents.preview', $document))->assertNotFound();
+        $this->assertSame(0, AuditLog::where('action', 'document_previewed')->count());
+    }
+
+    public function test_the_preview_is_closed_to_others_as_a_download_is(): void
+    {
+        $member = $this->member();
+        $document = $this->stored($member, 'image/png', 'png-bytes');
+
+        $this->get(route('member.license-documents.preview', $document))->assertRedirect();
+
+        $this->actingAs($this->member())->get(route('member.license-documents.preview', $document))->assertForbidden();
+
+        $principal = $this->agency(2)->principal()->first();
+        $this->actingAs($principal)->get(route('member.license-documents.preview', $this->stored($principal, 'image/png', 'x')))->assertNotFound();
+
+        $member->memberProfile->forceFill(['payment_status' => PaymentStatus::Canceled, 'payment_status_updated_at' => now()->subMonth()])->save();
+        $this->actingAs($member->fresh())->get(route('member.license-documents.preview', $document))->assertNotFound();
+
+        $this->assertSame(0, AuditLog::where('action', 'document_previewed')->count());
     }
 
     public function test_after_an_upload_from_the_page_it_opens_that_document(): void

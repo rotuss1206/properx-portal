@@ -53,15 +53,45 @@
                 <div class="ppx-upload__details">
                     <label class="ppx-field">
                         <span class="ppx-field__label">Document type</span>
-                        <select class="ppx-field__input" name="document_type" required @error('document_type') aria-invalid="true" aria-describedby="ppx-upload-type-error" @enderror>
+                        <select class="ppx-field__input" name="document_type" required aria-describedby="ppx-upload-document_type-error" data-ppx-upload-type data-license-types="{{ implode(',', $licenseTypes) }}" @error('document_type') aria-invalid="true" @enderror>
                             @foreach ($documentTypes as $value => $label)
                                 <option value="{{ $value }}" @selected(old('document_type', 'resident') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </label>
-                    @error('document_type')
-                        <p class="ppx-field__error" id="ppx-upload-type-error">{{ $message }}</p>
-                    @enderror
+                    <p class="ppx-field__error" id="ppx-upload-document_type-error" data-ppx-field-error="document_type" @unless ($errors->has('document_type')) hidden @endunless>{{ $errors->first('document_type') }}</p>
+
+                    {{-- Prefilled from the profile and kept with the document; the profile is not overwritten.
+                         public/portal/upload.js hides them for a supporting file ("other"). --}}
+                    <div class="ppx-upload__license" data-ppx-upload-license>
+                        <label class="ppx-field">
+                            <span class="ppx-field__label">License number <span class="ppx-upload__optional">(optional)</span></span>
+                            <input class="ppx-field__input" type="text" name="license_number" maxlength="50" value="{{ old('license_number', $member?->license_number) }}" aria-describedby="ppx-upload-license_number-error" @error('license_number') aria-invalid="true" @enderror>
+                        </label>
+                        <p class="ppx-field__error" id="ppx-upload-license_number-error" data-ppx-field-error="license_number" @unless ($errors->has('license_number')) hidden @endunless>{{ $errors->first('license_number') }}</p>
+
+                        <div class="ppx-upload__pair">
+                            <div>
+                                <label class="ppx-field">
+                                    <span class="ppx-field__label">State</span>
+                                    <select class="ppx-field__input" name="license_state" aria-describedby="ppx-upload-license_state-error" @error('license_state') aria-invalid="true" @enderror>
+                                        <option value="">Choose…</option>
+                                        @foreach ($states as $code => $state)
+                                            <option value="{{ $code }}" @selected(old('license_state', $member?->license_state) === $code)>{{ $state }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                                <p class="ppx-field__error" id="ppx-upload-license_state-error" data-ppx-field-error="license_state" @unless ($errors->has('license_state')) hidden @endunless>{{ $errors->first('license_state') }}</p>
+                            </div>
+                            <div>
+                                <label class="ppx-field">
+                                    <span class="ppx-field__label">Expiration date</span>
+                                    <input class="ppx-field__input" type="date" name="license_expires_at" value="{{ old('license_expires_at', $member?->license_expires_at?->format('Y-m-d')) }}" aria-describedby="ppx-upload-license_expires_at-error" @error('license_expires_at') aria-invalid="true" @enderror>
+                                </label>
+                                <p class="ppx-field__error" id="ppx-upload-license_expires_at-error" data-ppx-field-error="license_expires_at" @unless ($errors->has('license_expires_at')) hidden @endunless>{{ $errors->first('license_expires_at') }}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </x-ppx.card>
 

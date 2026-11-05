@@ -36,6 +36,7 @@ class AuditLog extends Model
         'profile_updated',
         'document_uploaded',
         'document_downloaded',
+        'document_previewed',
         'document_deleted',
         'document_verified',
         'document_rejected',

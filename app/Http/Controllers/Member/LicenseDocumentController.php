@@ -9,8 +9,10 @@ use App\Member\LicenseDocumentList;
 use App\Member\MemberMenu;
 use App\Member\Overview;
 use App\Models\LicenseDocument;
+use App\Services\DocumentDownloader;
 use App\Services\Documents\DocumentVault;
 use App\Services\Documents\StorageHealth;
+use App\Support\UsStates;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +23,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 /**
@@ -67,6 +70,9 @@ class LicenseDocumentController extends Controller
             'page' => 'license-documents',
             'title' => 'Upload document',
             'documentTypes' => config('portal.member_area.license_document_types'),
+            'licenseTypes' => LicenseDocument::LICENSE_TYPES,
+            'states' => UsStates::ALL,
+            'member' => $request->user()->memberProfile,
             // Set when the request was too large to reach a session (bootstrap/app.php).
             'tooLarge' => $request->boolean('too_large'),
         ]);
@@ -76,10 +82,26 @@ class LicenseDocumentController extends Controller
     {
         abort_unless(Overview::for($request->user())->canUpload(), Response::HTTP_FORBIDDEN);
 
+        $profile = $request->user()->memberProfile;
+        $fromPage = $request->input('from') === 'page';
+        $isLicense = in_array($request->input('document_type'), LicenseDocument::LICENSE_TYPES, true);
+        $needed = $isLicense ? 'required' : 'nullable';
+
         $validated = $request->validate([
             'file' => ['required', ...DocumentVault::uploadRules()],
             'document_type' => ['required', Rule::in(array_keys(config('portal.member_area.license_document_types')))],
+            // The dashboard's short form asks for the type only; see $details below.
+            ...($fromPage ? [
+                'license_number' => ['nullable', 'string', 'max:50'],
+                'license_state' => [$needed, Rule::in(array_keys(UsStates::ALL))],
+                'license_expires_at' => [$needed, 'date_format:Y-m-d'],
+            ] : []),
         ], [
+            'license_state.required' => 'Choose the state of this license.',
+            'license_state.in' => 'Choose the state from the list.',
+            'license_expires_at.required' => 'Enter the date this license expires.',
+            'license_expires_at.date_format' => 'Enter the expiration date as a full date, e.g. 09/30/2027.',
+            'license_number.max' => 'The license number may not be longer than 50 characters.',
             'file.required' => 'Choose a file to upload.',
             'file.uploaded' => 'The file could not be uploaded. It may not be larger than 10 MB.',
             'file.file' => 'Choose a file to upload.',
@@ -104,7 +126,14 @@ class LicenseDocumentController extends Controller
                 : back()->withInput($request->only('document_type'))->withErrors(['file' => self::STORAGE_DOWN]);
         }
 
+        // Kept with the document; the profile is not overwritten. A form without these fields
+        // takes them from the profile, and a supporting file has none unless they were given.
+        $details = $fromPage
+            ? ['license_number' => $validated['license_number'] ?? null, 'license_state' => $validated['license_state'] ?? null, 'license_expires_at' => $validated['license_expires_at'] ?? null]
+            : ($isLicense ? ['license_number' => $profile?->license_number, 'license_state' => $profile?->license_state, 'license_expires_at' => $profile?->license_expires_at] : []);
+
         $document = (new LicenseDocument)->forceFill([
+            ...$details,
             'user_id' => $request->user()->getKey(),
             'stored_filename' => $stored->path,
             'original_filename' => $stored->originalName,
@@ -116,8 +145,11 @@ class LicenseDocumentController extends Controller
         ]);
         $document->save();
 
-        // A new document waits for staff, and so does the license (MemberProfileObserver audits it).
-        $request->user()->memberProfile?->update(['license_verification' => LicenseVerification::PendingReview]);
+        // A new license waits for staff, and so does the member's license status (MemberProfileObserver
+        // audits it). A supporting file ("other") leaves that status alone.
+        if ($isLicense) {
+            $profile?->update(['license_verification' => LicenseVerification::PendingReview]);
+        }
 
         $target = $request->input('from') === 'page'
             ? route('member.license-documents', ['document' => $document->getKey()])
@@ -130,6 +162,19 @@ class LicenseDocumentController extends Controller
         return $request->expectsJson()
             ? response()->json(['message' => $message, 'redirect' => $target], Response::HTTP_CREATED)
             : redirect($target);
+    }
+
+    /**
+     * Shows the file in the browser (Content-Disposition inline) through the server: the same
+     * policy as a download, and audited. Too large or another type: not found; Download remains.
+     */
+    public function preview(Request $request, LicenseDocument $document, DocumentDownloader $downloader): StreamedResponse
+    {
+        abort_unless(MemberMenu::visible($request->user(), 'license-documents'), Response::HTTP_NOT_FOUND);
+        Gate::authorize('view', $document);
+        abort_if(LicenseDocumentList::previewKind($document) === null, Response::HTTP_NOT_FOUND);
+
+        return $downloader->stream($document, inline: true);
     }
 
     /**

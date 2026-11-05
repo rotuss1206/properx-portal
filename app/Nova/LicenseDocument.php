@@ -7,6 +7,7 @@ use App\Nova\Actions\RejectLicenseDocument;
 use App\Nova\Actions\VerifyLicenseDocument;
 use App\Services\DocumentDownloader;
 use App\Services\Documents\DocumentVault;
+use App\Support\UsStates;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Laravel\Nova\Fields\Badge;
 use Laravel\Nova\Fields\BelongsTo;
+use Laravel\Nova\Fields\Date;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\File;
 use Laravel\Nova\Fields\ID;
@@ -101,6 +103,13 @@ class LicenseDocument extends Resource
             Text::make('Document Type', fn () => config('portal.member_area.license_document_types')[$this->resource->document_type] ?? null)
                 ->exceptOnForms()
                 ->hideFromIndex(),
+
+            // What the member stated when uploading; may differ from the profile.
+            Text::make('License Number')->onlyOnDetail(),
+
+            Text::make('License State', fn () => UsStates::ALL[$this->resource->license_state] ?? $this->resource->license_state)->onlyOnDetail(),
+
+            Date::make('License Expires At')->onlyOnDetail(),
 
             Text::make('Type', 'mime_type')->onlyOnDetail(),
 

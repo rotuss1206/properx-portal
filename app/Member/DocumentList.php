@@ -31,11 +31,7 @@ final class DocumentList
             $types = config('portal.member_area.license_document_types');
 
             foreach (LicenseDocument::query()->whereBelongsTo($user)->get() as $document) {
-                [$status, $variant] = match ($document->verification_status) {
-                    VerificationStatus::Approved => ['Approved', 'success'],
-                    VerificationStatus::Rejected => ['Needs attention', 'danger'],
-                    default => ['Pending review', 'warning'],
-                };
+                $review = $document->verification_status ?? VerificationStatus::Pending;
 
                 $rows->push([
                     'kind' => 'license',
@@ -43,8 +39,8 @@ final class DocumentList
                     'name' => $types[$document->document_type] ?? 'License document',
                     'detail' => 'Uploaded '.$document->uploaded_at?->format('M Y'),
                     'type' => 'License',
-                    'status' => $status,
-                    'variant' => $variant,
+                    'status' => $review->label(),
+                    'variant' => $review->variant(),
                     'updated' => $document->updated_at ?? $document->uploaded_at,
                     'url' => route('member.documents.download', ['type' => 'license', 'document' => $document->getKey()]),
                 ]);

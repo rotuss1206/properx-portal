@@ -119,7 +119,7 @@ final class ActivityFeed
             'certificate_generated' => ['certificate', 'yellow', 'Membership certificate generated', $log->created_at->year.' certificate · PDF'],
             'certificate_downloaded' => ['certificate', 'yellow', 'Membership certificate downloaded', $log->created_at->year.' certificate · PDF'],
             'document_verified' => ['document-check', 'green', 'License document approved', $licenseCaption],
-            'document_rejected' => ['license', 'red', 'License document needs attention', 'Please upload a new document'],
+            'document_rejected' => ['license', 'red', 'License document rejected', 'Please upload a new document'],
             'payment_status_changed' => ['calendar', 'blue', 'Membership status updated', self::statusChange($log->details ?? [])],
             default => null,
         };

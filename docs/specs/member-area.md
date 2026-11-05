@@ -328,7 +328,7 @@ announcements), saved to `notification_settings` with the same policy as the Nov
 | 4.9 | The area is off. | `member_area.enabled = env('MEMBER_AREA_ENABLED', false)` |
 | 4.10 | "Founding member" badge hidden for individual members (shown for agency people of a founding-rate agency). | `member_area.founding_badge_individuals = false` |
 | 4.11 | Header search: own documents and the library only (no site-wide search). | `member_area.header_search = true` |
-| 4.12 | License upload asks only for the document type. | `member_area.license_document_types` (resident, non-resident, other) |
+| 4.12 | License upload page asks for the document type and, for a license, number (optional), state and expiry, prefilled from the profile and kept with the document; the dashboard's short form asks for the type only. | `member_area.license_document_types` (resident, non-resident, other) |
 
 ---
 
@@ -459,7 +459,7 @@ Each stage: tests, Pint, commit, push; the area stays behind `MEMBER_AREA_ENABLE
 | 5 | "Download all" invoices | Dropped; "View all in Stripe" opens the Customer Portal. |
 | 6 | Email in the profile | Read-only. |
 | 7 | License documents page | License documents only; Tax / Certificate filters in the dashboard Documents tab. |
-| 8 | Upload metadata | Document type only (resident license / non-resident license / other); no license number or dates (current rules: NPN and state only). An approved document does not change the profile. |
+| 8 | Upload metadata | Document type (resident license / non-resident license / other); for a license also number (optional, encrypted), state and expiry, kept with the document. They never overwrite the profile, and neither does an approved document. Uploading a license sets `license_verification` to pending review; "other" does not. |
 | 9 | Middle name on the certificate | Not added; first and last name. |
 | 10 | Header search | Shown: own documents (license, tax, certificate) and the library (`App\Member\MemberSearch`). |
 | 11 | Certificate wording | "Membership valid through Mar 12, 2027" (date = `paid_through_at`); no "2026 membership term". |

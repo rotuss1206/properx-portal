@@ -74,7 +74,7 @@ final class NotificationFeed
         $title = match ($notification->type) {
             LicenseDocumentReviewed::class => ($data['status'] ?? null) === 'approved'
                 ? 'License document approved'
-                : 'License document needs attention',
+                : 'License document rejected',
             TaxDocumentAvailable::class => 'New tax document available',
             RenewalDue::class => self::renewalTitle($data['paid_through'] ?? null),
             default => null,

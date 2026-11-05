@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -45,8 +47,9 @@ class DocumentDownloader
      * Fails fast with StorageUnavailableException (a 503 "try again" page) when storage does
      * not answer, and with DocumentMissingException (a 404 "contact support" page) when it
      * answers without the file; the download is audited only once the file has been read.
+     * With $inline the browser shows the file instead of saving it (audited as a preview).
      */
-    public function stream(DownloadableDocument&Model $document): StreamedResponse
+    public function stream(DownloadableDocument&Model $document, bool $inline = false): StreamedResponse
     {
         $disk = Storage::disk(DocumentVault::diskName());
         $path = $document->storagePath();
@@ -69,9 +72,9 @@ class DocumentDownloader
 
             if (DocumentVault::isEncrypted($path)) {
                 $contents = $this->vault->read($path);
-                AuditLog::record('document_downloaded', $document);
+                AuditLog::record($inline ? 'document_previewed' : 'document_downloaded', $document);
 
-                return response()->streamDownload(fn () => print ($contents), $document->downloadName(), $headers);
+                return $this->respond(fn () => print ($contents), $document, $headers, $inline);
             }
 
             $stream = $disk->readStream($path);
@@ -81,11 +84,29 @@ class DocumentDownloader
             throw new StorageUnavailableException($kind, $document->getKey(), $e);
         }
 
-        AuditLog::record('document_downloaded', $document);
+        AuditLog::record($inline ? 'document_previewed' : 'document_downloaded', $document);
 
-        return response()->streamDownload(function () use ($stream) {
+        return $this->respond(function () use ($stream) {
             fpassthru($stream);
             fclose($stream);
-        }, $document->downloadName(), $headers);
+        }, $document, $headers, $inline);
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function respond(callable $body, DownloadableDocument $document, array $headers, bool $inline): StreamedResponse
+    {
+        $name = $document->downloadName();
+
+        if (! $inline) {
+            return response()->streamDownload($body, $name, $headers);
+        }
+
+        $fallback = str_replace(['%', '/', '\\'], '', Str::ascii($name));
+
+        return response()->stream($body, 200, $headers + [
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, str_replace(['/', '\\'], '', $name), $fallback),
+        ]);
     }
 }

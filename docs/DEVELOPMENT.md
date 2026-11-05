@@ -290,8 +290,12 @@ Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
 - License documents (`/member/license-documents`, mockups `Documents Management.jpg` and `Container.jpg`):
   `Member\LicenseDocumentController` + `App\Member\LicenseDocumentList`. Plain multipart form, `public/portal/upload.js`
   for drag & drop and progress; `public/portal/documents.js` searches the rows in the browser, so nothing is sent.
-  Withdrawing needs the policy's pending status and a confirmation step (`?document=id&withdraw=1`). An upload sets
-  `license_verification` to `pending_review`. `rejection_reason` (written in Nova's Reject action) is what the member
+  Withdrawing needs the policy's pending status and a confirmation step (`?document=id&withdraw=1`). Uploading a license
+  (`LicenseDocument::LICENSE_TYPES`, not "other") sets `license_verification` to `pending_review`; its number, state and
+  expiry stay with the document and never overwrite the profile. Status words: `VerificationStatus::label()`. Preview:
+  `member.license-documents.preview` (policy as a download, `Content-Disposition: inline`, audited as
+  `document_previewed`, up to `member_area.preview_max_kilobytes`). Images show in the panel; a PDF opens in a new tab,
+  because a frame would need an exception to `X-Frame-Options: DENY` and `frame-ancestors 'none'`. `rejection_reason` (written in Nova's Reject action) is what the member
   reads; `admin_notes` are internal and staff only. `portal.member_area.malware_scan` stays off: when a scan exists, it
   goes where the controller's comment says, and the upload page then promises it.
 - Profile (`/member/profile`): `Member\ProfileController` + `App\Member\ProfilePage` (who may edit what) +

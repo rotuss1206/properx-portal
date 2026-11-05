@@ -23,6 +23,50 @@
         var progress = form.querySelector('[data-ppx-upload-progress]')
         var error = form.querySelector('[data-ppx-upload-error]')
         var submit = form.querySelector('[type="submit"]')
+        var fieldErrors = form.querySelectorAll('[data-ppx-field-error]')
+        var typeSelect = form.querySelector('[data-ppx-upload-type]')
+        var license = form.querySelector('[data-ppx-upload-license]')
+
+        // A supporting file ("other") has no license details: hidden, and not sent.
+        function toggleLicense() {
+            var isLicense = typeSelect.getAttribute('data-license-types').split(',').indexOf(typeSelect.value) !== -1
+
+            license.hidden = !isLicense
+            license.querySelectorAll('input, select').forEach(function (field) { field.disabled = !isLicense })
+        }
+
+        if (typeSelect && license) {
+            typeSelect.addEventListener('change', toggleLicense)
+            toggleLicense()
+        }
+
+        function clearFieldErrors() {
+            fieldErrors.forEach(function (element) {
+                element.textContent = ''
+                element.hidden = true
+            })
+        }
+
+        // Errors of the other fields go under those fields; the file stays chosen. True if any did.
+        function showFieldErrors(errors) {
+            var first = null
+
+            fieldErrors.forEach(function (element) {
+                var name = element.getAttribute('data-ppx-field-error')
+
+                if (errors[name]) {
+                    element.textContent = errors[name][0]
+                    element.hidden = false
+                    first = first || form.querySelector('[name="' + name + '"]')
+                }
+            })
+
+            if (first) {
+                first.focus()
+            }
+
+            return first !== null
+        }
 
         function state(name) {
             if (row) {
@@ -140,6 +184,7 @@
             progress.value = 0
             submit.disabled = true
             showError('')
+            clearFieldErrors()
             state('uploading')
 
             xhr.upload.addEventListener('progress', function (e) {
@@ -164,6 +209,14 @@
 
                 if (xhr.status >= 200 && xhr.status < 300 && body.redirect) {
                     window.location.href = body.redirect
+
+                    return
+                }
+
+                if (body.errors && !body.errors.file && showFieldErrors(body.errors)) {
+                    progress.hidden = true
+                    submit.disabled = false
+                    state('selected')
 
                     return
                 }
