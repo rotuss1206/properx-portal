@@ -17,7 +17,7 @@ It goes out only while Forms > Settings > ProPerX Portal > **Approval email** is
 > Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.
 >
 > **1. Set your password and sign in**
-> Once you are signed in, the 2027 plans page shows the "Ready to enroll?" section.
+> Once you are signed in, the 2027 plans page shows the "How to enroll" section.
 > [Set your password] (a personal link)
 > If this link has expired, use "Lost your password?" on the sign-in page with the email address you applied with.
 >
@@ -36,15 +36,15 @@ It goes out only while Forms > Settings > ProPerX Portal > **Approval email** is
 
 | Part | Source |
 |---|---|
-| Item 3 and the small print | The members' block "Ready to enroll?" on the plans page (page 919), lightly joined into one paragraph |
+| Item 3 and the small print | The members' block "How to enroll" on the plans page (page 919), lightly joined into one paragraph |
 | Enrollment form link | The same block |
 | Phone | The same block's "Need help?" line |
 | Greeting | The member's first name from the application; "Hi there," if there is none |
 | "Lost your password?" sentence | The KEENEY plugin's current email |
 
-### Question for the client
+### The name of the section
 
-**The name of the section.** Signed-in Active Members see "Ready to enroll?" on the plans page. "How to enroll" is the version for everyone else, and it has no enrollment form link. The email therefore says "Ready to enroll?". If the client prefers "How to enroll", the page's heading has to change too.
+Signed-in Active Members see "How to enroll" on the plans page, after the page's headings were changed ([changes.md](changes.md), item 7). Change the page first, then install this version of the plugin: until then Active Members still see the old heading, "Ready to enroll?".
 
 ## Other emails
 

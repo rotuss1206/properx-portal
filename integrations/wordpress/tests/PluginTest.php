@@ -394,7 +394,8 @@ class PluginTest extends TestCase {
 			$this->assertStringContainsString( 'https://my-benefits.net/2027-group-health-coverage-enrollment-form/', $part );
 			$this->assertStringContainsString( '+1 (888) 388-1720', $part );
 			$this->assertStringContainsString( 'action=rp', $part );
-			$this->assertStringContainsString( 'Ready to enroll?', str_replace( array( '&ldquo;', '&rdquo;' ), '', $part ) );
+			$this->assertStringContainsString( 'How to enroll', str_replace( array( '&ldquo;', '&rdquo;' ), '', $part ) );
+			$this->assertStringNotContainsString( 'Ready to enroll', $part );
 			$this->assertStringNotContainsString( 'ProPerx', $part );
 		}
 
@@ -431,7 +432,7 @@ class PluginTest extends TestCase {
 		$sentences = array(
 			'Hi Taylor,',
 			'Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.',
-			'Once you are signed in, the 2027 plans page shows the "Ready to enroll?" section.',
+			'Once you are signed in, the 2027 plans page shows the "How to enroll" section.',
 			"Compare the five plans and open the full summary for any you're considering. Find your monthly rate by your age and who you're covering. Then complete the enrollment form; have your plan choice and the details for anyone you're covering ready.",
 			'Enrollment is subject to final plan approval and ProPerX Alliance membership requirements.',
 			'Call us at +1 (888) 388-1720.',

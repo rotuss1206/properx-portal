@@ -137,7 +137,7 @@ function properx_portal_send_approval_email( WP_User $user ) {
 
 /**
  * The email. Pending client approval: the same text is in docs/wordpress/emails.md.
- * The steps of the third item come from the members' block of the plans page ("Ready to enroll?").
+ * The steps of the third item come from the members' block of the plans page ("How to enroll").
  *
  * @return array{subject: string, html: string, text: string}
  */
@@ -167,7 +167,7 @@ function properx_portal_approval_email( $password_url, $plans_url, $login_url, $
 		. '</td></tr>'
 		. '<tr><td style="padding:8px 32px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
 		. '<tr><td style="' . $cell . '"><p style="' . $h . '">1. Set your password and sign in</p>'
-		. '<p style="' . $p . '">Once you are signed in, the 2027 plans page shows the &ldquo;Ready to enroll?&rdquo; section.</p>'
+		. '<p style="' . $p . '">Once you are signed in, the 2027 plans page shows the &ldquo;How to enroll&rdquo; section.</p>'
 		. '<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background:' . $navy . ';"><a href="' . esc_url( $password_url ) . '" style="display:inline-block;padding:12px 26px;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">Set your password</a></td></tr></table>'
 		. '<p style="' . $small . 'padding-top:10px;">If this link has expired, use &ldquo;Lost your password?&rdquo; on the <a href="' . esc_url( $login_url ) . '" style="color:' . $navy . ';">sign-in page</a> with the email address you applied with.</p></td></tr>'
 		. '<tr><td style="' . $cell . '"><p style="' . $h . '">2. See the 2027 health plans</p>'
@@ -184,7 +184,7 @@ function properx_portal_approval_email( $password_url, $plans_url, $login_url, $
 	$text = "{$greeting}\n\n"
 		. "Your ProPerX Alliance membership application has been reviewed and approved. Here is what to do next.\n\n"
 		. "1. Set your password and sign in\n"
-		. "Once you are signed in, the 2027 plans page shows the \"Ready to enroll?\" section.\n"
+		. "Once you are signed in, the 2027 plans page shows the \"How to enroll\" section.\n"
 		. "Set your password: {$password_url}\n"
 		. "If this link has expired, use \"Lost your password?\" on the sign-in page ({$login_url}) with the email address you applied with.\n\n"
 		. "2. See the 2027 health plans\n"

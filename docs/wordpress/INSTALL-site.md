@@ -77,7 +77,7 @@ Leave **Approval email** off until the client has approved the text ([emails.md]
    | Forms > Entries > the entry | Payment status Active; after a few minutes a note "Sent to portal: OK (created)" |
    | Portal (Kevin) | The member exists, license verification "Pending review", payment status Active |
 
-3. If the Approval email is already on: Users > the new user > **Approve & Activate**. You should get exactly one email, "Welcome to ProPerX Alliance — Your Membership Is Approved". Check that the logo shows and open the links. Set the password, sign in, and open the plans page: "Ready to enroll?" should be visible.
+3. If the Approval email is already on: Users > the new user > **Approve & Activate**. You should get exactly one email, "Welcome to ProPerX Alliance — Your Membership Is Approved". Check that the logo shows and open the links. Set the password, sign in, and open the plans page: "How to enroll" with the enrollment form button should be visible.
 
    > If the logo is missing, the site's Gravity SMTP uses an API connection rather than SMTP. Tell the developer; the email still works.
 
@@ -113,6 +113,10 @@ Pages > All Pages > **Apply Test** > Quick Edit > Status: **Draft** > **Update**
 ### 4. Turn off WP Dummy Content Generator
 
 Plugins > Installed Plugins > **WP Dummy Content Generator** > **Deactivate**.
+
+### 5. Plans page: who sees "How to enroll"
+
+Follow "Item 7" in [changes.md](changes.md), including its checks before changing anything. Do it before installing plugin 2.0.6 or later.
 
 ### Do not repeat these
 
