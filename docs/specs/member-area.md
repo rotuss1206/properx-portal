@@ -56,7 +56,7 @@ and the member area; the existing files then use the variables instead of their 
   --ppx-table-head: #f6f8fb;      /* table header row */
 
   /* Status badges (dot + text on a tint) */
-  --ppx-badge-success-bg: var(--ppx-green-50);   --ppx-badge-success-fg: var(--ppx-green-700);   /* Approved, Available, Ready, Current, Paid, Enrolled, Validated */
+  --ppx-badge-success-bg: var(--ppx-green-50);   --ppx-badge-success-fg: var(--ppx-green-700);   /* Approved, Available, Ready, Current, Paid, Enrolled */
   --ppx-badge-warning-bg: #fff3cf;               --ppx-badge-warning-fg: #9a6700;                /* Pending, Expiring soon (license card) */
   --ppx-badge-danger-bg:  #fde8e8;               --ppx-badge-danger-fg:  #c0362c;                /* Rejected, Past due, Expired */
   --ppx-badge-neutral-bg: #eef1f5;               --ppx-badge-neutral-fg: var(--ppx-muted);       /* Available (benefit not enrolled) */
@@ -259,7 +259,7 @@ expand-only; existing rows stay empty and show "—"). License number, issue and
 approved document never changes the profile.
 
 "Your documents are secure" box: text from config; the line "Automatically scanned for malware on
-upload" and the per-file "scanned for viruses" / "Validated" marks only when
+upload" and the per-file "scanned for viruses" mark only when
 `portal.member_area.malware_scan = true` (no scanning today). "Encrypted in transit (TLS 1.3)" is the
 platform's claim, so the default text says "Encrypted in transit and at rest".
 

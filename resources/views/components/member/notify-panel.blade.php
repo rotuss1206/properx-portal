@@ -38,6 +38,9 @@
                         <li @class(['ppx-notify__item', 'is-unread' => $item['unread']])>
                             <a class="ppx-notify__link" href="{{ $item['url'] }}">
                                 <span class="ppx-notify__item-title">{{ $item['title'] }}</span>
+                                @if ($item['detail'])
+                                    <span class="ppx-notify__item-detail">{{ $item['detail'] }}</span>
+                                @endif
                                 <time class="ppx-notify__time" datetime="{{ $item['at']->toIso8601String() }}">{{ $item['at']->diffForHumans() }}</time>
                             </a>
                             @if ($item['unread'])

@@ -145,6 +145,18 @@ html[data-ppx-notify="open"] .ppx-notify { transform: none; visibility: visible;
     font-weight: 600;
 }
 
+/* The whole reason is on the document's page. */
+.ppx-notify__item-detail {
+    display: -webkit-box;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    color: var(--ppx-muted);
+    font-size: 12.5px;
+    line-height: 18px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
 .ppx-notify__time { color: var(--ppx-subtle); font-size: 11.5px; }
 
 .ppx-notify__dot {

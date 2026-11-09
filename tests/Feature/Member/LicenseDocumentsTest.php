@@ -12,6 +12,7 @@ use App\Member\NotificationFeed;
 use App\Models\AuditLog;
 use App\Models\LicenseDocument;
 use App\Models\User;
+use App\Notifications\Member\LicenseDocumentDecision;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Services\Documents\DocumentVault;
 use Database\Seeders\Support\DemoFile;
@@ -97,8 +98,7 @@ class LicenseDocumentsTest extends TestCase
             ->assertSee('Resident license')->assertSee('Non-resident license')->assertSee('Other')
             ->assertSee('14 Mar 2026')
             ->assertSee('ppx-badge--warning', false)->assertSee('ppx-badge--success', false)->assertSee('ppx-badge--danger', false)
-            ->assertSeeInOrder(['Pending', 'Approved', 'Rejected'])
-            ->assertDontSee('Pending review')
+            ->assertSeeInOrder(['Pending review', 'Approved', 'Rejected'])
             ->assertDontSee('Needs attention');
     }
 
@@ -110,8 +110,8 @@ class LicenseDocumentsTest extends TestCase
         $rejected = $this->document($member, VerificationStatus::Rejected);
         $member->notify(LicenseDocumentReviewed::for($rejected));
 
-        $this->assertSame(['Pending', 'Rejected'], DocumentList::for($member, 'license')->pluck('status')->sort()->values()->all());
-        $this->assertSame(['Pending', 'Rejected'], LicenseDocumentList::for($member)->pluck('status')->sort()->values()->all());
+        $this->assertSame(['Pending review', 'Rejected'], DocumentList::for($member, 'license')->pluck('status')->sort()->values()->all());
+        $this->assertSame(['Pending review', 'Rejected'], LicenseDocumentList::for($member)->pluck('status')->sort()->values()->all());
         $this->assertSame('License document rejected', NotificationFeed::latest($member)->first()['title']);
 
         $this->assertModelExists($pending);
@@ -810,6 +810,123 @@ class LicenseDocumentsTest extends TestCase
         $this->actingAs($member)->getJson("/nova-api/license-documents/{$document->id}")->assertOk()
             ->assertSee('Please re-upload.')
             ->assertDontSee('Internal remark.');
+    }
+
+    public function test_the_upload_page_lists_the_latest_five_documents_with_their_decisions(): void
+    {
+        $member = $this->member();
+        $this->document($member, VerificationStatus::Approved, ['original_filename' => 'oldest.pdf', 'uploaded_at' => '2026-01-01 10:00:00']);
+
+        foreach ([2, 3, 4] as $day) {
+            $this->document($member, VerificationStatus::Approved, ['original_filename' => "middle-{$day}.pdf", 'uploaded_at' => "2026-02-0{$day} 10:00:00"]);
+        }
+
+        $this->document($member, VerificationStatus::Pending, ['original_filename' => 'waiting.pdf', 'uploaded_at' => '2026-03-01 10:00:00']);
+        $rejected = $this->document($member, VerificationStatus::Rejected, ['original_filename' => 'blurry.pdf', 'uploaded_at' => '2026-03-02 10:00:00', 'rejection_reason' => 'The scan is unreadable.', 'admin_notes' => 'Internal remark.']);
+        $this->document($this->member(), VerificationStatus::Pending, ['original_filename' => 'not-yours.pdf']);
+
+        $this->actingAs($member)->get(route('member.license-documents.upload'))->assertOk()
+            ->assertSee('Previously uploaded')
+            ->assertSee('href="'.route('member.license-documents').'"', false)
+            ->assertSee(route('member.license-documents', ['document' => $rejected->id]), false)
+            ->assertSeeInOrder(['blurry.pdf', 'Rejected', '2 Mar 2026', 'Reason: The scan is unreadable.', 'waiting.pdf', 'Pending review', 'middle-4.pdf', 'Approved'])
+            ->assertSee('#clock', false)->assertSee('#check', false)->assertSee('#close', false)
+            ->assertSee('ppx-badge--warning', false)->assertSee('ppx-badge--success', false)->assertSee('ppx-badge--danger', false)
+            ->assertDontSee('oldest.pdf')
+            ->assertDontSee('not-yours.pdf')
+            ->assertDontSee('Internal remark.');
+    }
+
+    public function test_the_upload_page_has_no_earlier_section_before_the_first_document(): void
+    {
+        $this->actingAs($this->member())->get(route('member.license-documents.upload'))->assertOk()
+            ->assertDontSee('Previously uploaded');
+    }
+
+    public function test_a_rejection_reaches_the_bell_with_its_reason_and_the_mailbox_with_a_link_to_upload_again(): void
+    {
+        config(['mail.default' => 'array']);
+        $member = $this->member();
+        $document = $this->document($member, VerificationStatus::Pending, ['original_filename' => 'jordan-secret.pdf', 'license_number' => 'OH-555']);
+
+        $this->actingAs($this->staff(Role::MembershipCoordinator))->postJson('/nova-api/license-documents/action?action=reject-license-document', [
+            'resources' => (string) $document->id,
+            'rejection_reason' => "The scan isn't readable.",
+            'admin_notes' => 'Internal remark.',
+        ])->assertOk();
+
+        $notification = $member->notifications()->sole();
+        $this->assertSame(['document_id' => $document->id, 'status' => 'rejected'], $notification->data);
+
+        $item = NotificationFeed::latest($member)->sole();
+        $this->assertSame('License document rejected', $item['title']);
+        $this->assertSame("Reason: The scan isn't readable.", $item['detail']);
+
+        $this->actingAs($member)->get(route('member.profile'))->assertOk()
+            ->assertSee('ppx-notify__item-detail', false)
+            ->assertSee("Reason: The scan isn't readable.");
+
+        $sent = app('mailer')->getSymfonyTransport()->messages();
+        $this->assertCount(1, $sent);
+        $message = $sent->sole()->getOriginalMessage();
+        $this->assertSame('Action needed: your ProPerX Alliance document was not approved', $message->getSubject());
+        $this->assertSame($member->email, $message->getTo()[0]->getAddress());
+
+        $html = html_entity_decode((string) $message->getHtmlBody(), ENT_QUOTES);
+        $this->assertStringContainsString("Reason: The scan isn't readable.", $html);
+        $this->assertStringContainsString(route('member.license-documents.upload'), $html);
+        $this->assertStringContainsString('src="cid:properx-logo"', (string) $message->getHtmlBody());
+
+        foreach (['jordan-secret', 'OH-555', 'Internal remark.', $member->email, $member->memberProfile->last_name] as $private) {
+            $this->assertStringNotContainsString($private, $html.$message->getSubject());
+        }
+    }
+
+    public function test_an_approval_reaches_the_bell_and_the_mailbox_with_a_link_to_the_document(): void
+    {
+        config(['mail.default' => 'array']);
+        $member = $this->member();
+        $document = $this->document($member, VerificationStatus::Pending);
+
+        $this->actingAs($this->staff(Role::MembershipCoordinator))
+            ->postJson('/nova-api/license-documents/action?action=verify-license-document', ['resources' => (string) $document->id])
+            ->assertOk();
+
+        $item = NotificationFeed::latest($member)->sole();
+        $this->assertSame('License document approved', $item['title']);
+        $this->assertNull($item['detail']);
+
+        $message = app('mailer')->getSymfonyTransport()->messages()->sole()->getOriginalMessage();
+        $this->assertSame('Your ProPerX Alliance document has been approved', $message->getSubject());
+        $this->assertStringContainsString(e(route('member.license-documents', ['document' => $document->id])), (string) $message->getHtmlBody());
+        $this->assertStringNotContainsString('Reason:', (string) $message->getHtmlBody());
+    }
+
+    public function test_the_queued_email_carries_ids_only_and_is_dropped_once_the_decision_has_changed(): void
+    {
+        $member = $this->member();
+        $document = $this->document($member, VerificationStatus::Rejected, ['rejection_reason' => 'The scan is unreadable.']);
+        $email = LicenseDocumentDecision::for($document);
+
+        $this->assertStringNotContainsString('unreadable', serialize($email));
+        $this->assertTrue($email->shouldSend($member, 'mail'));
+
+        $document->forceFill(['verification_status' => VerificationStatus::Approved, 'rejection_reason' => null])->saveQuietly();
+        $this->assertFalse($email->shouldSend($member, 'mail'));
+
+        $document->delete();
+        $this->assertFalse($email->shouldSend($member, 'mail'));
+    }
+
+    public function test_the_emails_links_lead_somewhere_open_to_a_restricted_member(): void
+    {
+        $member = $this->member();
+        $document = $this->document($member, VerificationStatus::Rejected, ['rejection_reason' => 'Please re-upload.']);
+        $member->memberProfile->forceFill(['payment_status' => PaymentStatus::Canceled])->saveQuietly();
+
+        $mail = LicenseDocumentDecision::for($document)->toMail($member->fresh());
+
+        $this->assertSame(route('member.dashboard'), $mail->actionUrl);
     }
 
     public function test_a_review_notification_opens_the_document(): void

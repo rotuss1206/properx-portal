@@ -1,7 +1,7 @@
 /*
  * The upload page (form[data-ppx-upload-page], resources/views/member/license-documents/upload.blade.php):
- * choose or drop several files; each gets a row, "Validated" or "Rejected" at once, from its size and its
- * first bytes, nothing sent. "Save document" sends the validated ones one at a time with a progress bar;
+ * choose or drop several files; each gets a row, "Ready" or "Rejected" at once, from its size and its
+ * first bytes, nothing sent. "Save document" sends the ready ones one at a time with a progress bar;
  * each becomes its own document, and the server checks it again by content, which can still reject it.
  * Nothing is kept on the server before Save. Without JavaScript the form posts all files at once.
  * Also shows the fields each document type needs. DOM APIs only (CSP: no inline handlers, no eval).
@@ -109,7 +109,7 @@
                 line.appendChild(el('span', 'ppx-upload-file__name', row.file.name))
 
                 if (row.state === 'validated') {
-                    line.appendChild(badge('success', 'Validated', 'shield-check'))
+                    line.appendChild(badge('success', 'Ready', 'shield-check'))
                 } else if (row.state === 'saved') {
                     line.appendChild(badge('success', 'Saved', 'shield-check'))
                 } else if (row.state === 'rejected') {

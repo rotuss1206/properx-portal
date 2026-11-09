@@ -42,6 +42,9 @@ class LicenseDocumentController extends Controller
 
     public const TOO_LARGE = 'Too large — the file may not be larger than 10 MB.';
 
+    /** How many earlier documents the upload page lists. */
+    private const EARLIER_DOCUMENTS = 5;
+
     private const STORAGE_DOWN = 'Document storage is temporarily unavailable, so nothing was saved. Please try again in a few minutes.';
 
     public function index(Request $request): Response
@@ -73,6 +76,9 @@ class LicenseDocumentController extends Controller
         abort_unless(Overview::for($request->user())->canUpload(), Response::HTTP_NOT_FOUND);
 
         return view('member.license-documents.upload', [
+            'earlier' => MemberMenu::visible($request->user(), 'license-documents')
+                ? LicenseDocumentList::for($request->user(), self::EARLIER_DOCUMENTS)
+                : collect(),
             'page' => 'license-documents',
             'title' => 'Upload document',
             'documentTypes' => config('portal.member_area.license_document_types'),

@@ -28,7 +28,7 @@ class RejectLicenseDocument extends ReviewLicenseDocument
         return [
             Textarea::make('Reason for the member', 'rejection_reason')
                 ->rules('required', 'max:2000')
-                ->help('Shown to the member.'),
+                ->help('Shown to the member and sent in their email. Do not include names, license numbers or dates.'),
 
             Textarea::make('Admin Notes')
                 ->rules('nullable', 'max:2000')

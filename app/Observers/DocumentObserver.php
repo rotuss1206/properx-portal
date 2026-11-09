@@ -6,13 +6,15 @@ use App\Enums\VerificationStatus;
 use App\Models\AuditLog;
 use App\Models\LicenseDocument;
 use App\Models\TaxDocument;
+use App\Notifications\Member\LicenseDocumentDecision;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\TaxDocumentAvailable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Audits uploads and deletions of license, tax and library documents (Spec 8), and tells the
- * member in the member area when staff add a tax document or review a license document.
+ * member in the member area when staff add a tax document or review a license document; a review
+ * also goes out by email.
  */
 class DocumentObserver
 {
@@ -31,6 +33,7 @@ class DocumentObserver
             && $document->wasChanged('verification_status')
             && in_array($document->verification_status, [VerificationStatus::Approved, VerificationStatus::Rejected], true)) {
             $document->user?->notify(LicenseDocumentReviewed::for($document));
+            $document->user?->notify(LicenseDocumentDecision::for($document));
         }
     }
 

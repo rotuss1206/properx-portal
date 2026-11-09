@@ -3,8 +3,8 @@
 namespace App\Enums;
 
 /**
- * A license document's review status. The words come from the mockups and are the same on every
- * member page. Not to be confused with App\Enums\LicenseVerification, the license's own status.
+ * A license document's review status, in the same words on every member page. Not to be confused
+ * with App\Enums\LicenseVerification, the license's own status.
  */
 enum VerificationStatus: string
 {
@@ -15,9 +15,21 @@ enum VerificationStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Pending',
+            self::Pending => 'Pending review',
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
+        };
+    }
+
+    /**
+     * Its icon in public/portal/img/icons.svg.
+     */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Pending => 'clock',
+            self::Approved => 'check',
+            self::Rejected => 'close',
         };
     }
 

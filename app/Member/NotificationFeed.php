@@ -2,6 +2,8 @@
 
 namespace App\Member;
 
+use App\Enums\VerificationStatus;
+use App\Models\LicenseDocument;
 use App\Models\User;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\RenewalDue;
@@ -18,14 +20,37 @@ use Illuminate\Support\Collection;
 final class NotificationFeed
 {
     /**
-     * @return Collection<int, array{id: string, title: string, at: CarbonInterface, unread: bool, url: ?string}>
+     * @return Collection<int, array{id: string, title: string, detail: ?string, at: CarbonInterface, unread: bool, url: ?string}>
      */
     public static function latest(User $user, int $limit = 10): Collection
     {
-        return $user->notifications()->latest()->limit($limit)->get()
-            ->map(fn (DatabaseNotification $notification) => self::describe($notification))
+        $notifications = $user->notifications()->latest()->limit($limit)->get();
+        $rejected = self::rejectedDocuments($user, $notifications);
+
+        return $notifications
+            ->map(fn (DatabaseNotification $notification) => self::describe($notification, $rejected))
             ->filter()
             ->values();
+    }
+
+    /**
+     * The rejected documents these notifications are about. Their reasons stay encrypted on the
+     * document; the notification itself keeps ids only.
+     *
+     * @param  Collection<int, DatabaseNotification>  $notifications
+     * @return Collection<int, LicenseDocument>
+     */
+    private static function rejectedDocuments(User $user, Collection $notifications): Collection
+    {
+        $ids = $notifications
+            ->filter(fn (DatabaseNotification $notification) => $notification->type === LicenseDocumentReviewed::class
+                && ($notification->data['status'] ?? null) === VerificationStatus::Rejected->value)
+            ->map(fn (DatabaseNotification $notification) => $notification->data['document_id'] ?? null)
+            ->filter();
+
+        return $ids->isEmpty()
+            ? new Collection
+            : $user->licenseDocuments()->whereKey($ids->all())->where('verification_status', VerificationStatus::Rejected)->get()->keyBy('id')->toBase();
     }
 
     public static function unreadCount(User $user): int
@@ -65,9 +90,10 @@ final class NotificationFeed
     }
 
     /**
-     * @return array{id: string, title: string, at: CarbonInterface, unread: bool, url: ?string}|null
+     * @param  Collection<int, LicenseDocument>  $rejected
+     * @return array{id: string, title: string, detail: ?string, at: CarbonInterface, unread: bool, url: ?string}|null
      */
-    private static function describe(DatabaseNotification $notification): ?array
+    private static function describe(DatabaseNotification $notification, Collection $rejected): ?array
     {
         $data = $notification->data;
 
@@ -84,9 +110,14 @@ final class NotificationFeed
             return null;
         }
 
+        $reason = $notification->type === LicenseDocumentReviewed::class && ($data['status'] ?? null) === VerificationStatus::Rejected->value
+            ? $rejected->get($data['document_id'] ?? 0)?->rejection_reason
+            : null;
+
         return [
             'id' => $notification->getKey(),
             'title' => $title,
+            'detail' => $reason ? 'Reason: '.$reason : null,
             'at' => $notification->created_at,
             'unread' => $notification->read_at === null,
             'url' => route('member.notifications.open', $notification->getKey()),

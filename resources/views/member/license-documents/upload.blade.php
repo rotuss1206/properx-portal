@@ -46,6 +46,32 @@
                     <p class="ppx-upload__none" data-ppx-upload-none @if ($fileErrors) hidden @endif>No files selected yet.</p>
                     <ul class="ppx-upload__list" data-ppx-upload-list aria-live="polite"></ul>
                     <p class="ppx-upload__message" role="status" data-ppx-upload-message hidden></p>
+
+                    @if ($earlier->isNotEmpty())
+                        <section class="ppx-upload__earlier" aria-labelledby="ppx-upload-earlier">
+                            <div class="ppx-upload__earlier-head">
+                                <h4 class="ppx-upload__earlier-title" id="ppx-upload-earlier">Previously uploaded</h4>
+                                <a class="ppx-upload__earlier-all" href="{{ route('member.license-documents') }}">View all</a>
+                            </div>
+                            <ul class="ppx-upload__earlier-list">
+                                @foreach ($earlier as $document)
+                                    <li class="ppx-upload-file">
+                                        <span class="ppx-upload-file__icon"><x-member.icon name="license" class="ppx-upload-file__svg" /></span>
+                                        <div class="ppx-upload-file__text">
+                                            <div class="ppx-upload-file__line">
+                                                <a class="ppx-upload-file__name ppx-upload-file__link" href="{{ route('member.license-documents', ['document' => $document['id']]) }}">{{ $document['name'] }}</a>
+                                                <x-ppx.badge :variant="$document['variant']" :dot="false" class="ppx-upload-file__badge"><x-member.icon :name="$document['statusIcon']" class="ppx-upload-file__status-icon" />{{ $document['status'] }}</x-ppx.badge>
+                                            </div>
+                                            <p class="ppx-upload-file__meta">{{ $document['type'] }} · {{ $document['uploadedAt']?->format('j M Y') ?? '—' }}</p>
+                                            @if ($document['reason'])
+                                                <p class="ppx-upload-file__error">Reason: {{ $document['reason'] }}</p>
+                                            @endif
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </section>
+                    @endif
                 </div>
             </x-ppx.card>
         </div>

@@ -21,9 +21,9 @@ final class LicenseDocumentList
     private const FORMATS = ['application/pdf' => 'PDF', 'image/jpeg' => 'JPG', 'image/png' => 'PNG'];
 
     /**
-     * @return Collection<int, array{id: int, name: string, type: string, status: string, variant: string, statusKey: string, uploadedAt: ?CarbonInterface, size: string, format: string, reason: ?string, canWithdraw: bool, downloadUrl: string, number: ?string, state: ?string, issuedAt: ?CarbonInterface, expiresAt: ?CarbonInterface, preview: ?string, previewUrl: string}>
+     * @return Collection<int, array{id: int, name: string, type: string, status: string, variant: string, statusIcon: string, statusKey: string, uploadedAt: ?CarbonInterface, size: string, format: string, reason: ?string, canWithdraw: bool, downloadUrl: string, number: ?string, state: ?string, issuedAt: ?CarbonInterface, expiresAt: ?CarbonInterface, preview: ?string, previewUrl: string}>
      */
-    public static function for(User $user): Collection
+    public static function for(User $user, ?int $limit = null): Collection
     {
         $types = config('portal.member_area.license_document_types');
 
@@ -31,6 +31,7 @@ final class LicenseDocumentList
             ->whereBelongsTo($user)
             ->latest('uploaded_at')
             ->latest('id')
+            ->when($limit !== null, fn ($query) => $query->limit($limit))
             ->get()
             ->map(function (LicenseDocument $document) use ($user, $types) {
                 $status = $document->verification_status ?? VerificationStatus::Pending;
@@ -41,6 +42,7 @@ final class LicenseDocumentList
                     'type' => $types[$document->document_type] ?? 'License document',
                     'status' => $status->label(),
                     'variant' => $status->variant(),
+                    'statusIcon' => $status->icon(),
                     'statusKey' => $status->value,
                     'uploadedAt' => $document->uploaded_at,
                     'size' => Number::fileSize((int) $document->size, maxPrecision: 1),

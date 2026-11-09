@@ -79,6 +79,13 @@
     <path d="M4 12H20"/>
     <path d="M4 18H20"/>
   </symbol>
+  <symbol id="clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 7V12L15 14"/>
+  </symbol>
+  <symbol id="check" viewBox="0 0 24 24">
+    <path d="M5 12.5L10 17.5L19 7.5"/>
+  </symbol>
   <symbol id="close" viewBox="0 0 24 24">
     <path d="M6 6L18 18"/>
     <path d="M18 6L6 18"/>
