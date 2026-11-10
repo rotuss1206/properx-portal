@@ -40,6 +40,32 @@
                         @if ($blocked) disabled aria-describedby="people-minimum" @else wire:loading.attr="disabled" @endif>Continue</button>
                 @endif
             </div>
+
+            {{-- From screen 3 on (Agency spec 5.6): a one-time link to the principal's email. --}}
+            @if ($step >= 3)
+                <div class="save-later">
+                    <button type="button" class="link" wire:click="openSaveLater" aria-expanded="{{ $saveLaterOpen ? 'true' : 'false' }}" aria-controls="save-later-panel">Save and continue later</button>
+                    @if ($saveLaterOpen)
+                        <div class="save-later-panel" id="save-later-panel">
+                            <h3 class="section-title" id="save-later-title" tabindex="-1">Save and continue later</h3>
+                            @if (trim($principal->email) !== '')
+                                <p class="hint">We'll save your answers and email a one-time link to the principal, <strong>{{ $principal->email }}</strong>. It opens this screen again.</p>
+                            @else
+                                <p class="hint">We'll save your answers and email a one-time link that opens this screen again.</p>
+                                <x-join.input name="saveLaterEmail" type="email" label="Principal's email" required autocomplete="email"
+                                    hint="The link goes here. This also becomes the principal's login." wire:keydown.enter.prevent="sendContinueLink" />
+                            @endif
+                            <div class="save-later-actions">
+                                <button type="button" class="btn btn-secondary" wire:click="sendContinueLink" wire:loading.attr="disabled">Email me the link</button>
+                                <button type="button" class="link" wire:click="openSaveLater">Close</button>
+                            </div>
+                            @if ($saveLaterStatus)
+                                <p @class(['save-later-status', 'notice-ok' => $saveLaterSent, 'notice-info' => ! $saveLaterSent]) id="save-later-status" role="status" tabindex="-1">{{ $saveLaterStatus }}</p>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endif
         </form>
 
         @include('livewire.agency-registration.price')

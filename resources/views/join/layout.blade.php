@@ -147,6 +147,51 @@
         .problems-head h3:focus { outline: none; }
         .problems .count { font-size: 14px; font-weight: 400; color: var(--muted); }
         .tag-row { background: #fee2e2; color: var(--error); font-weight: 600; }
+
+        /* Screen 6 · Review & payment */
+        .review { display: grid; gap: 12px; margin-bottom: 24px; }
+        .review-block { padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; }
+        .review-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .review-head h3 { margin: 0; }
+        .review-list { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 14px; }
+        .review-list dt { color: var(--muted); }
+        .review-list dd { margin: 0; overflow-wrap: anywhere; }
+        .review-note { display: block; font-size: 13px; color: var(--muted); }
+        .review-people li .review-note, .review-list dd .review-note { display: inline; margin-left: 6px; }
+        .review-list dd .review-note { display: block; margin-left: 0; }
+        .review-counts { margin: 0 0 8px; font-size: 14px; }
+        .review-people summary { cursor: pointer; color: var(--navy-600); font-size: 14px; }
+        .review-people ol { margin: 8px 0 0; padding-left: 22px; font-size: 14px; max-height: 320px; overflow: auto; }
+        .review-total { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 12px; padding: 14px 16px;
+                        border-radius: 10px; background: #f8fafc; border: 1px solid var(--line); }
+        .review-total strong { font-size: 24px; color: var(--navy); }
+        .review-total .review-note { grid-column: 1 / -1; }
+        .consents { margin-bottom: 20px; }
+        .consents .check { margin-bottom: 10px; }
+        .consents .check + .error { margin: -6px 0 10px 28px; }
+        .payment h3 { margin: 0 0 10px; }
+        .payment .placeholder { margin-bottom: 14px; }
+        .btn.pay { margin-left: 0; }
+        .payment .hint { margin-top: 8px; }
+        .payment-message { margin: 12px 0 0; }
+        .payment-message:focus { outline: none; }
+        @media (max-width: 640px) {
+            .review-list { grid-template-columns: 1fr; gap: 0; }
+            .review-list dd { margin-bottom: 8px; }
+            .btn.pay { width: 100%; }
+        }
+
+        /* Save and continue later */
+        .save-later { margin-top: 16px; }
+        .save-later-panel { margin-top: 12px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 10px; background: #f9fafb; }
+        .save-later-panel h3 { margin: 0 0 6px; }
+        .save-later-panel h3:focus { outline: none; }
+        .save-later-panel .field { margin: 12px 0 0; }
+        .save-later-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 14px; }
+        .save-later-status { margin: 12px 0 0; }
+        .save-later-status:focus { outline: none; }
+        .link-unavailable-list { margin: 0 0 8px; padding-left: 20px; color: #374151; }
+        a.btn { display: inline-block; text-decoration: none; }
         .choices-compact .choice { padding: 12px 14px; }
         .choices-compact .choice span { font-size: 13px; }
         .person-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }

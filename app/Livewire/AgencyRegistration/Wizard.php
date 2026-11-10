@@ -9,25 +9,30 @@ use App\Enums\RateType;
 use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\PartnerCode;
+use App\Notifications\AgencyEnrollmentContinueLink;
 use App\Services\Agencies\AgencyPricingService;
 use App\Services\Agencies\AgencyQuote;
 use App\Support\Money;
 use App\Support\UsStates;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Throwable;
 
 /**
  * Public agency enrollment (/join/agency), six screens in a fixed order. Each "Continue"
  * validates the current screen and saves the encrypted draft; "Back" saves without
  * validating. The draft id lives in the session. On screen 5 (People) every added, changed
- * or removed person is saved too, and the tier follows the headcount. Screen 6 (Review and
- * payment) is a placeholder for now.
+ * or removed person is saved too, and the tier follows the headcount. Screen 6 shows the
+ * summary and takes the four consents (each one's time is kept); the payment itself is still a
+ * placeholder. From screen 3 on, "Save and continue later" emails the principal a one-time link.
  */
 #[Layout('join.layout')]
 #[Title('Enroll your agency')]
@@ -73,6 +78,28 @@ class Wizard extends Component
     public string $importMessage = '';
 
     public bool $importOk = false;
+
+    public ReviewForm $review;
+
+    /**
+     * When each consent was given (ISO 8601), by key; saved in the draft. Locked: only the
+     * server writes it, when a box is ticked.
+     *
+     * @var array<string, string>
+     */
+    #[Locked]
+    public array $consentsGivenAt = [];
+
+    public string $paymentMessage = '';
+
+    /** "Save and continue later": the panel, the email it asks for while the principal has none, its outcome. */
+    public bool $saveLaterOpen = false;
+
+    public string $saveLaterEmail = '';
+
+    public string $saveLaterStatus = '';
+
+    public bool $saveLaterSent = false;
 
     /**
      * Every request, the page and each Livewire round trip: a 404 while enrollment is off
@@ -143,6 +170,9 @@ class Wizard extends Component
         $this->tierNotice = '';
         $this->peopleStatus = '';
         $this->importMessage = '';
+        $this->saveLaterOpen = false;
+        $this->saveLaterStatus = '';
+        $this->paymentMessage = '';
 
         $this->step = min($this->step + 1, array_key_last(self::STEPS));
         $this->furthestStep = max($this->furthestStep, $this->step);
@@ -167,6 +197,9 @@ class Wizard extends Component
         $this->tierNotice = '';
         $this->peopleStatus = '';
         $this->importMessage = '';
+        $this->saveLaterOpen = false;
+        $this->saveLaterStatus = '';
+        $this->paymentMessage = '';
         $this->step = $step;
         $this->save();
     }
@@ -506,6 +539,144 @@ class Wizard extends Component
         );
     }
 
+    /**
+     * A consent box changed on screen 6: note when it was given (or drop the time) and save.
+     */
+    public function updated(string $property): void
+    {
+        $key = Str::after($property, 'review.');
+
+        if ($this->step !== 6 || ! str_starts_with($property, 'review.') || ! array_key_exists($key, ReviewForm::CONSENTS)) {
+            return;
+        }
+
+        if ($this->review->{$key}) {
+            $this->consentsGivenAt[$key] = now()->toIso8601String();
+        } else {
+            unset($this->consentsGivenAt[$key]);
+        }
+
+        $this->resetErrorBag($property);
+        $this->paymentMessage = '';
+        $this->save();
+    }
+
+    /**
+     * Screen 6. The payment itself comes next (Stripe Payment Element); until then the consents
+     * are checked and the visitor is told that payment is not open yet.
+     */
+    public function pay(): void
+    {
+        if ($this->step !== 6) {
+            return;
+        }
+
+        $this->review->validate();
+
+        $this->paymentMessage = 'Online payment is not open yet. Your enrollment and consents are saved; use "Save and continue later" to come back to it.';
+        $this->focus('payment-message');
+    }
+
+    /**
+     * People on the list by kind, the principal counted as a licensed producer.
+     *
+     * @return array{producers: int, employees: int}
+     */
+    public function peopleCounts(): array
+    {
+        $employees = count(array_filter($this->people->rows, fn (array $row) => ($row['type'] ?? '') === PersonType::AgencyEmployee->value));
+
+        return ['producers' => $this->people->headcount() - $employees, 'employees' => $employees];
+    }
+
+    public function openSaveLater(): void
+    {
+        if ($this->step < 3) {
+            return;
+        }
+
+        $this->saveLaterOpen = ! $this->saveLaterOpen;
+        $this->saveLaterStatus = '';
+        $this->saveLaterSent = false;
+        $this->resetErrorBag('saveLaterEmail');
+
+        if ($this->saveLaterOpen) {
+            $this->focus('save-later-title');
+        }
+    }
+
+    /**
+     * Saves the answers as they are and emails the principal a one-time link back to this screen
+     * (Agency spec 5.6). At most one email per draft every few minutes, and a few per IP an hour.
+     * A new link replaces the previous one. Nothing about the enrollment goes into the email.
+     */
+    public function sendContinueLink(): void
+    {
+        if ($this->step < 3) {
+            return;
+        }
+
+        $this->saveLaterSent = false;
+        $this->saveLaterStatus = '';
+
+        // Until screen 4 is filled in, the principal's email is asked for here.
+        if (trim($this->principal->email) === '') {
+            $this->saveLaterEmail = Str::lower(trim($this->saveLaterEmail));
+            $this->validate(['saveLaterEmail' => ['required', 'email', 'max:255']], [
+                'saveLaterEmail.required' => "Enter the principal's email.",
+                'saveLaterEmail.email' => 'Enter a valid email address.',
+            ]);
+            $this->principal->email = $this->saveLaterEmail;
+        }
+
+        $email = Str::lower(trim($this->principal->email));
+
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $this->saveLaterStatus = "The principal's email on step 4 is not valid. Correct it there, then try again.";
+
+            return;
+        }
+
+        $this->save();
+        $draft = $this->draft();
+
+        $perDraft = 'agency-continue-link:draft:'.$draft->getKey();
+        $perIp = 'agency-continue-link:ip:'.request()->ip();
+        $minutes = (int) config('portal.registration.continue_link_minutes_between');
+
+        if (RateLimiter::tooManyAttempts($perDraft, 1)) {
+            $wait = max(1, (int) ceil(RateLimiter::availableIn($perDraft) / 60));
+            $this->saveLaterStatus = "We emailed a link a short while ago. You can ask for another in {$wait} ".($wait === 1 ? 'minute' : 'minutes').'.';
+
+            return;
+        }
+
+        if (RateLimiter::tooManyAttempts($perIp, (int) config('portal.registration.continue_links_per_hour_per_ip'))) {
+            $this->saveLaterStatus = 'Too many links were asked for from this network. Please try again later.';
+
+            return;
+        }
+
+        RateLimiter::hit($perDraft, $minutes * 60);
+        RateLimiter::hit($perIp, 3600);
+
+        $token = $draft->issueToken();
+        $draft->save();
+
+        try {
+            Notification::route('mail', $email)->notifyNow(new AgencyEnrollmentContinueLink(route('join.agency.continue', $token)));
+        } catch (Throwable) {
+            RateLimiter::clear($perDraft);
+            $this->saveLaterStatus = "We couldn't send the email just now. Please try again in a few minutes.";
+
+            return;
+        }
+
+        $this->saveLaterSent = true;
+        $this->saveLaterStatus = "We've emailed a link to {$email}. It opens your enrollment on this screen and works once. You can close this page.";
+        $this->focus('save-later-status');
+    }
+
     public function render(): View
     {
         return view('livewire.agency-registration.wizard', [
@@ -517,6 +688,9 @@ class Wizard extends Component
             'states' => UsStates::ALL,
             'personTypes' => collect(PersonType::cases())->mapWithKeys(fn (PersonType $type) => [$type->value => $type->label()])->all(),
             'minimumHeadcount' => (int) config('agency.minimum_headcount'),
+            'consents' => ReviewForm::CONSENTS,
+            'termsUrl' => config('portal.registration.terms_url'),
+            'privacyUrl' => config('portal.registration.privacy_url'),
         ]);
     }
 
@@ -549,13 +723,36 @@ class Wizard extends Component
         foreach ($this->forms() as $key => $form) {
             $form->fillFromDraft((array) ($draft->data[$key] ?? []));
         }
+
+        // Consents to an earlier wording are asked for again.
+        $consents = (array) ($draft->data['consents'] ?? []);
+
+        if (($consents['version'] ?? null) !== ReviewForm::CONSENT_VERSION) {
+            $this->review->reset();
+            $this->consentsGivenAt = [];
+
+            return;
+        }
+
+        $this->consentsGivenAt = array_filter(
+            array_intersect_key((array) ($consents['given_at'] ?? []), ReviewForm::CONSENTS),
+            fn (mixed $at, string $key) => is_string($at) && $this->review->{$key},
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        foreach (array_keys(ReviewForm::CONSENTS) as $key) {
+            $this->review->{$key} = isset($this->consentsGivenAt[$key]);
+        }
     }
 
     private function save(): void
     {
         $draft = $this->draft() ?? AgencyRegistrationDraft::start();
 
-        $draft->data = array_map(fn (StepForm $form) => $form->toDraft(), $this->forms());
+        $draft->data = [
+            ...array_map(fn (StepForm $form) => $form->toDraft(), $this->forms()),
+            'consents' => ['version' => ReviewForm::CONSENT_VERSION, 'given_at' => $this->consentsGivenAt],
+        ];
         $draft->step = $this->step;
         $draft->furthest_step = $this->furthestStep;
         $draft->extend();
@@ -575,6 +772,7 @@ class Wizard extends Component
             'agency' => $this->agency,
             'principal' => $this->principal,
             'people' => $this->people,
+            'review' => $this->review,
         ];
     }
 }

@@ -239,10 +239,16 @@ return [
     ],
 
     'registration' => [
-        // Off (404) unless enabled: screens 5-6 are still placeholders.
+        // Off (404) unless enabled: the payment on screen 6 is still a placeholder.
         'enabled' => (bool) env('AGENCY_ENROLLMENT_ENABLED', false),
         'individual_url' => env('INDIVIDUAL_MEMBERSHIP_URL'),
         'draft_days' => 30,
+        // Linked from the first consent on screen 6; the pages of properx.org unless set.
+        'terms_url' => env('PORTAL_TERMS_URL') ?: 'https://properx.org/terms-of-service/',
+        'privacy_url' => env('PORTAL_PRIVACY_URL') ?: 'https://properx.org/privacy-policy/',
+        // "Save and continue later": one email per draft in this many minutes, and per IP an hour.
+        'continue_link_minutes_between' => 10,
+        'continue_links_per_hour_per_ip' => 5,
         // Per IP: page loads, and Livewire round trips (every "Continue", "Back", blurred field).
         'page_requests_per_minute' => 30,
         'livewire_requests_per_minute' => 120,

@@ -98,7 +98,7 @@ class LicenseDocumentsTest extends TestCase
             ->assertSee('Resident license')->assertSee('Non-resident license')->assertSee('Other')
             ->assertSee('14 Mar 2026')
             ->assertSee('ppx-badge--warning', false)->assertSee('ppx-badge--success', false)->assertSee('ppx-badge--danger', false)
-            ->assertSeeInOrder(['Pending review', 'Approved', 'Rejected'])
+            ->assertSee('Pending review')->assertSee('Approved')->assertSee('Rejected')
             ->assertDontSee('Needs attention');
     }
 

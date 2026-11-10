@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DocumentDownloadController;
+use App\Http\Controllers\Join\ContinueEnrollmentController;
 use App\Http\Controllers\Join\PeopleTemplateController;
 use App\Http\Controllers\VerifyCertificateController;
 use App\Http\Middleware\RequireTwoFactor;
@@ -50,3 +51,8 @@ Route::livewire('/join/agency', Wizard::class)
 Route::get('/join/agency/people-template.csv', PeopleTemplateController::class)
     ->middleware('throttle:agency-registration')
     ->name('join.agency.people-template');
+
+// The link of a "Save and continue later" email.
+Route::get('/join/agency/continue/{token}', ContinueEnrollmentController::class)
+    ->middleware('throttle:agency-registration')
+    ->name('join.agency.continue');

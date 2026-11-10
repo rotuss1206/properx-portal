@@ -17,6 +17,9 @@ class AgencyRegistrationDraft extends Model
 {
     use MassPrunable;
 
+    /** Characters in the plain token of a "continue" link. */
+    public const TOKEN_LENGTH = 48;
+
     /**
      * @var array<string, mixed>
      */
@@ -53,7 +56,7 @@ class AgencyRegistrationDraft extends Model
      */
     public function issueToken(): string
     {
-        $token = Str::random(48);
+        $token = Str::random(self::TOKEN_LENGTH);
         $this->token_hash = hash('sha256', $token);
 
         return $token;

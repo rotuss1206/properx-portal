@@ -10,10 +10,15 @@ use App\Models\AgencyRegistrationDraft;
 use App\Models\MemberProfile;
 use App\Models\PartnerCode;
 use App\Models\User;
+use App\Notifications\AgencyEnrollmentContinueLink;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\Markdown;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Features\SupportTesting\Testable;
@@ -91,6 +96,9 @@ class AgencyRegistrationWizardTest extends TestCase
         }
         if ($step > 4) {
             $this->fill($wizard, 'principal', self::PRINCIPAL)->call('next');
+        }
+        if ($step > 5) {
+            $this->fill($wizard, 'people.entry', self::EMPLOYEE)->call('savePerson')->call('next');
         }
 
         return $wizard->assertHasNoErrors()->assertSet('step', $step);
@@ -588,15 +596,271 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertSet('furthestStep', 4);
     }
 
-    public function test_screen_6_is_a_placeholder_for_now(): void
+    // Screen 6 · Review & payment
+
+    public function test_the_review_sums_up_the_enrollment_at_the_founding_rate(): void
     {
-        $this->addPerson($this->wizardAt(5), self::EMPLOYEE)
-            ->call('next')
-            ->assertHasNoErrors()
-            ->assertSet('step', 6)
+        $this->wizardAt(6)
             ->assertSee('Review & payment')
-            ->assertSee('This step is not available yet.')
-            ->assertDontSeeHtml('type="submit"');
+            ->assertSeeInOrder([
+                'Membership type', 'Agency membership', 'Tier', 'Agency', 'Price per person', '$159 a year', 'Founding rate, locked while you stay a member',
+                'Legal name', 'Lone Star Benefits Group LLC', 'Agency type', 'Health and Life', 'Legal address', '400 Congress Ave, Suite 210, Austin, TX 78701',
+                'Main phone', '(512) 555-0142', 'Billing email', 'billing@lonestarbenefits.example',
+                'Dana Whitfield', 'Owner', 'dana@lonestarbenefits.example', '18273645', 'Texas',
+                '2 people: 1 licensed producer (the principal included), 1 agency employee', 'Priya Nair', 'Agency employee',
+                'Total for the year', '$318', 'Credit cards add 2.9%; debit cards and bank transfers (ACH) do not.',
+            ])
+            ->assertDontSee('Partner code')
+            ->assertDontSeeHtml('type="submit"')
+            ->assertSee('Payment coming next')
+            // "Edit" goes back to the screen.
+            ->call('goTo', 3)
+            ->assertSet('step', 3);
+    }
+
+    public function test_the_review_shows_the_standard_rate_after_the_cutoff(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2027-02-01 10:00', 'America/New_York'));
+
+        $this->wizardAt(6)
+            ->assertSee('$179 a year')
+            ->assertSee('Standard rate')
+            ->assertDontSee('Founding rate')
+            ->assertSee('$358');
+    }
+
+    public function test_the_review_shows_the_partner_code_and_rate(): void
+    {
+        PartnerCode::factory()->create(['code' => 'MGA-7']);
+
+        $this->wizardAt(6, ['partner' => 'MGA-7'])
+            ->assertSeeInOrder(['Price per person', '$149 a year', 'Partner rate', 'Partner code', 'MGA-7', 'Partner rate applied', 'Total for the year', '$298']);
+    }
+
+    public function test_the_four_consents_are_required_and_their_times_are_kept(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-11-02 10:30:00', 'America/New_York'));
+
+        $wizard = $this->wizardAt(6)
+            ->assertSeeInOrder([
+                'I agree to the',
+                'I understand that membership dues are separate from health plan premiums billed by the plan administrator, and that ProPerX does not sell insurance.',
+                'I understand that membership is billed annually, dues are non-refundable, and a member whose membership is canceled cannot reapply for 24 months.',
+                'I confirm that every person listed is either a licensed agent or an employee of this agency.',
+            ])
+            ->assertSeeHtml('<a href="https://properx.org/terms-of-service/" target="_blank" rel="noopener">Terms of Service')
+            ->assertSeeHtml('<a href="https://properx.org/privacy-policy/" target="_blank" rel="noopener">Privacy Policy')
+            ->assertSeeHtml('wire:key="pay-blocked"')
+            ->assertSee('Tick all four boxes above to continue.')
+            ->call('pay')
+            ->assertHasErrors(['review.terms' => 'accepted', 'review.dues_separate' => 'accepted', 'review.annual_no_refund' => 'accepted', 'review.roster_confirmed' => 'accepted'])
+            ->assertSet('paymentMessage', '');
+
+        $wizard->set('review.terms', true)
+            ->assertSet('consentsGivenAt', ['terms' => now()->toIso8601String()]);
+        $this->assertSame(['version' => 1, 'given_at' => ['terms' => now()->toIso8601String()]], AgencyRegistrationDraft::query()->sole()->data['consents']);
+
+        $wizard->set('review.terms', false)->assertSet('consentsGivenAt', []);
+
+        foreach (['terms', 'dues_separate', 'annual_no_refund', 'roster_confirmed'] as $key) {
+            $wizard->set("review.{$key}", true);
+        }
+
+        $wizard->assertSeeHtml('wire:key="pay-ready"')
+            ->assertDontSee('Tick all four boxes above to continue.')
+            ->call('pay')
+            ->assertHasNoErrors()
+            ->assertSee('Online payment is not open yet.')
+            ->assertDispatched('join-focus', id: 'payment-message');
+
+        $this->assertCount(4, AgencyRegistrationDraft::query()->sole()->data['consents']['given_at']);
+    }
+
+    public function test_the_browser_cannot_write_the_consent_times(): void
+    {
+        $this->expectException(CannotUpdateLockedPropertyException::class);
+
+        $this->wizardAt(6)->set('consentsGivenAt', ['terms' => '2020-01-01T00:00:00+00:00']);
+    }
+
+    public function test_the_terms_and_privacy_links_come_from_the_settings(): void
+    {
+        config(['portal.registration.terms_url' => 'https://example.test/terms', 'portal.registration.privacy_url' => 'https://example.test/privacy']);
+
+        $this->wizardAt(6)
+            ->assertSeeHtml('href="https://example.test/terms"')
+            ->assertSeeHtml('href="https://example.test/privacy"');
+    }
+
+    public function test_consents_come_back_with_the_draft_unless_the_wording_changed(): void
+    {
+        $this->wizardAt(6)->set('review.terms', true)->set('review.roster_confirmed', true);
+
+        Livewire::test(Wizard::class)
+            ->assertSet('step', 6)
+            ->assertSet('review.terms', true)
+            ->assertSet('review.dues_separate', false)
+            ->assertSet('review.roster_confirmed', true)
+            ->assertCount('consentsGivenAt', 2);
+
+        $draft = AgencyRegistrationDraft::query()->sole();
+        $draft->data = ['consents' => ['version' => 0, 'given_at' => $draft->data['consents']['given_at']]] + $draft->data;
+        $draft->save();
+
+        Livewire::test(Wizard::class)
+            ->assertSet('review.terms', false)
+            ->assertSet('consentsGivenAt', []);
+    }
+
+    // Save and continue later
+
+    /**
+     * @return array{0: Testable, 1: string} the wizard and the link that was emailed
+     */
+    private function sendLink(Testable $wizard): array
+    {
+        Notification::fake();
+        $wizard->call('openSaveLater')->call('sendContinueLink');
+
+        $url = null;
+        Notification::assertSentOnDemand(AgencyEnrollmentContinueLink::class, function (AgencyEnrollmentContinueLink $notification, array $channels, AnonymousNotifiable $notifiable) use (&$url) {
+            $url = $notification->url;
+
+            return $notifiable->routes['mail'] === 'dana@lonestarbenefits.example';
+        });
+
+        return [$wizard, $url];
+    }
+
+    public function test_save_and_continue_later_is_offered_from_screen_3(): void
+    {
+        $this->wizardAt(2)->assertDontSee('Save and continue later')->call('openSaveLater')->assertSet('saveLaterOpen', false);
+        $this->wizardAt(3)->assertSee('Save and continue later');
+    }
+
+    public function test_before_screen_4_the_principals_email_is_asked_for(): void
+    {
+        Notification::fake();
+
+        $wizard = $this->wizardAt(3)->set('agency.legal_name', 'Half done LLC')
+            ->call('openSaveLater')
+            ->assertSee("Principal's email")
+            ->assertDispatched('join-focus', id: 'save-later-title')
+            ->call('sendContinueLink')
+            ->assertHasErrors(['saveLaterEmail' => 'required'])
+            ->set('saveLaterEmail', ' Dana@LoneStarBenefits.example ')
+            ->call('sendContinueLink')
+            ->assertHasNoErrors()
+            ->assertSet('principal.email', 'dana@lonestarbenefits.example')
+            ->assertSet('saveLaterSent', true)
+            ->assertSee("We've emailed a link to dana@lonestarbenefits.example.");
+
+        Notification::assertSentOnDemandTimes(AgencyEnrollmentContinueLink::class, 1);
+
+        // Saved as it was, unvalidated, on this screen.
+        $draft = AgencyRegistrationDraft::query()->sole();
+        $this->assertSame('Half done LLC', $draft->data['agency']['legal_name']);
+        $this->assertSame(3, $draft->step);
+        $wizard->assertSet('step', 3);
+    }
+
+    public function test_the_link_opens_the_draft_on_its_screen_once(): void
+    {
+        [, $url] = $this->sendLink($this->wizardAt(5)->set('principal.first_name', 'Dana'));
+        $token = basename($url);
+
+        $this->assertSame(route('join.agency.continue', $token), $url);
+        $this->assertSame(AgencyRegistrationDraft::TOKEN_LENGTH, strlen($token));
+        $this->assertSame(hash('sha256', $token), AgencyRegistrationDraft::query()->sole()->token_hash);
+
+        // Another browser, without the session.
+        $this->flushSession();
+        $this->get($url)->assertRedirect(route('join.agency'));
+        $this->assertSame(AgencyRegistrationDraft::query()->sole()->getKey(), session(Wizard::SESSION_KEY));
+
+        Livewire::test(Wizard::class)
+            ->assertSet('step', 5)
+            ->assertSet('furthestStep', 5)
+            ->assertSet('agency.legal_name', 'Lone Star Benefits Group LLC')
+            ->assertSee('Dana Whitfield');
+
+        // Used: the same link now explains itself.
+        $this->flushSession();
+        $this->get($url)->assertStatus(410)
+            ->assertSee("This link can't be used any more", false)
+            ->assertSee('Go to the enrollment')
+            ->assertDontSee('Lone Star');
+        $this->assertNull(session(Wizard::SESSION_KEY));
+    }
+
+    public function test_a_new_link_replaces_the_previous_one(): void
+    {
+        [$wizard, $first] = $this->sendLink($this->wizardAt(5));
+
+        $this->travel(11)->minutes();
+        [, $second] = $this->sendLink($wizard);
+
+        $this->assertNotSame($first, $second);
+        $this->get($first)->assertStatus(410);
+        $this->get($second)->assertRedirect(route('join.agency'));
+    }
+
+    public function test_an_expired_or_unknown_link_explains_itself(): void
+    {
+        [, $url] = $this->sendLink($this->wizardAt(5));
+
+        $this->travel(31)->days();
+        $this->flushSession();
+        $this->get($url)->assertStatus(410)->assertSee("This link can't be used any more", false);
+
+        $this->get(route('join.agency.continue', 'not-a-token'))->assertStatus(410);
+
+        config(['portal.registration.enabled' => false]);
+        $this->get($url)->assertNotFound();
+    }
+
+    public function test_one_email_per_draft_every_10_minutes(): void
+    {
+        [$wizard] = $this->sendLink($this->wizardAt(5));
+
+        $wizard->call('sendContinueLink')
+            ->assertSet('saveLaterSent', false)
+            ->assertSee('We emailed a link a short while ago. You can ask for another in 10 minutes.');
+        Notification::assertSentOnDemandTimes(AgencyEnrollmentContinueLink::class, 1);
+
+        $this->travel(10)->minutes();
+        $this->travel(1)->seconds();
+        $wizard->call('sendContinueLink')->assertSet('saveLaterSent', true);
+        Notification::assertSentOnDemandTimes(AgencyEnrollmentContinueLink::class, 2);
+    }
+
+    public function test_five_emails_an_hour_per_ip(): void
+    {
+        foreach (range(1, 5) as $i) {
+            RateLimiter::hit('agency-continue-link:ip:127.0.0.1', 3600);
+        }
+
+        Notification::fake();
+        $this->wizardAt(5)->call('openSaveLater')->call('sendContinueLink')
+            ->assertSee('Too many links were asked for from this network. Please try again later.');
+        Notification::assertNothingSent();
+    }
+
+    public function test_the_email_has_only_the_link_and_the_brand(): void
+    {
+        [, $url] = $this->sendLink($this->wizardAt(6));
+
+        $mail = (new AgencyEnrollmentContinueLink($url))->toMail(new AnonymousNotifiable);
+        $html = (string) app(Markdown::class)->render($mail->markdown, $mail->data());
+
+        $this->assertSame('Continue your ProPerX Alliance agency enrollment', $mail->subject);
+        $this->assertStringContainsString(e($url), $html);
+        $this->assertStringContainsString('src="cid:properx-logo"', $html);
+        $this->assertStringContainsString('The link works once.', $html);
+
+        foreach (['Lone Star', 'Dana', 'Whitfield', 'dana@', '18273645', 'Priya', '$318', 'Agency Plus'] as $private) {
+            $this->assertStringNotContainsString($private, $html.$mail->subject);
+        }
     }
 
     // Screen 5 · People
