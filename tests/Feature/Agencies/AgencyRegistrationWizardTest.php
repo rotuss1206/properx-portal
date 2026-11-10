@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Agencies;
 
+use App\Livewire\AgencyRegistration\PeopleForm;
 use App\Livewire\AgencyRegistration\Wizard;
 use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
@@ -71,10 +72,12 @@ class AgencyRegistrationWizardTest extends TestCase
 
     /**
      * A wizard on $step with every earlier screen completed.
+     *
+     * @param  array<string, string>  $query
      */
-    private function wizardAt(int $step): Testable
+    private function wizardAt(int $step, array $query = []): Testable
     {
-        $wizard = Livewire::test(Wizard::class);
+        $wizard = Livewire::withQueryParams($query)->test(Wizard::class);
 
         if ($step > 1) {
             $wizard->set('membership.type', 'agency')->call('next');
@@ -584,14 +587,292 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertSet('furthestStep', 4);
     }
 
-    public function test_screens_5_and_6_are_placeholders_for_now(): void
+    public function test_screen_6_is_a_placeholder_for_now(): void
     {
-        $this->wizardAt(5)
-            ->assertSee('Add your people')
+        $this->addPerson($this->wizardAt(5), self::EMPLOYEE)
             ->call('next')
+            ->assertHasNoErrors()
             ->assertSet('step', 6)
             ->assertSee('Review & payment')
+            ->assertSee('This step is not available yet.')
             ->assertDontSeeHtml('type="submit"');
+    }
+
+    // Screen 5 · People
+
+    private const PRODUCER = ['type' => 'licensed_producer', 'first_name' => 'Marcus', 'last_name' => 'Reyes', 'email' => 'Marcus@LoneStarBenefits.example', 'npn' => '20304050', 'license_state' => 'TX'];
+
+    private const EMPLOYEE = ['type' => 'agency_employee', 'first_name' => 'Priya', 'last_name' => 'Nair', 'email' => 'priya@lonestarbenefits.example', 'npn' => '', 'license_state' => ''];
+
+    /**
+     * @param  array<string, string>  $person
+     */
+    private function addPerson(Testable $wizard, array $person): Testable
+    {
+        return $this->fill($wizard, 'people.entry', $person)->call('savePerson');
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function rows(int $count, int $from = 1): array
+    {
+        return array_map(fn (int $i) => ['type' => 'agency_employee', 'first_name' => 'Person', 'last_name' => (string) $i, 'email' => "person{$i}@lonestarbenefits.example", 'npn' => '', 'license_state' => ''], range($from, $from + $count - 1));
+    }
+
+    public function test_the_principal_is_person_1_and_continue_needs_a_second_person(): void
+    {
+        config(['portal.registration.individual_url' => 'https://www.properx.example/join']);
+
+        $this->wizardAt(5)
+            ->assertSeeInOrder(['Your people', '1 person', 'Dana Whitfield', 'Principal', 'Licensed producer', 'dana@lonestarbenefits.example', 'NPN 18273645', 'Texas', 'Change on step 4'])
+            ->assertSee('Agency membership needs at least 2 people.')
+            ->assertSeeHtml('href="https://www.properx.example/join">switch to individual membership</a>')
+            ->assertSeeHtml('disabled aria-describedby="people-minimum"')
+            ->assertSee('Add at least one more person to see your tier and price.')
+            ->call('next')
+            ->assertHasErrors(['people.rows' => 'min'])
+            ->assertSet('step', 5);
+    }
+
+    public function test_people_are_added_and_priced_by_the_actual_headcount(): void
+    {
+        $wizard = $this->wizardAt(5);
+        $this->addPerson($wizard, self::PRODUCER)
+            ->assertHasNoErrors()
+            ->assertSet('peopleStatus', 'Added Marcus Reyes. 2 people.')
+            ->assertDispatched('join-focus', id: 'people-entry-first_name')
+            ->assertSet('people.entry.type', 'licensed_producer')
+            ->assertSet('people.entry.email', '');
+
+        // An employee's NPN and state are dropped, whatever was typed.
+        $this->addPerson($wizard, ['npn' => '99999999', 'license_state' => 'CA'] + self::EMPLOYEE)
+            ->assertHasNoErrors()
+            ->assertSet('people.rows', [
+                ['email' => 'marcus@lonestarbenefits.example'] + self::PRODUCER,
+                self::EMPLOYEE,
+            ])
+            ->assertSee('3 people · Agency · $159 each · $477 a year')
+            ->assertSee('For the people on your list')
+            ->assertDontSeeHtml('disabled aria-describedby="people-minimum"')
+            ->assertSeeInOrder(['Dana Whitfield', 'Marcus Reyes', 'Licensed producer', 'NPN 20304050', 'Priya Nair', 'Agency employee'])
+            ->call('next')
+            ->assertHasNoErrors()
+            ->assertSet('step', 6)
+            ->assertSet('tier.tier', 'agency_2to9');
+    }
+
+    public function test_a_person_needs_a_type_names_and_email_and_a_producer_an_npn_and_state(): void
+    {
+        $wizard = $this->wizardAt(5)->call('savePerson')
+            ->assertHasErrors(['people.entry.type' => 'required', 'people.entry.first_name' => 'required', 'people.entry.last_name' => 'required', 'people.entry.email' => 'required'])
+            ->assertSee('Choose licensed producer or agency employee.');
+
+        $this->addPerson($wizard, ['npn' => '', 'license_state' => '', 'email' => 'not-an-email'] + self::PRODUCER)
+            ->assertHasErrors(['people.entry.npn' => 'required', 'people.entry.license_state' => 'required', 'people.entry.email' => 'email'])
+            ->assertSee('Enter the NPN of this licensed producer.')
+            ->assertSee('Choose the resident license state.')
+            ->assertSet('people.rows', []);
+
+        $this->addPerson($wizard, ['npn' => '12ab'] + self::PRODUCER)
+            ->assertHasErrors(['people.entry.npn' => 'regex'])
+            ->assertSee('The NPN must be up to 10 digits, numbers only.');
+
+        // An employee needs neither, and the fields are not shown.
+        $this->addPerson($wizard, self::EMPLOYEE)->assertHasNoErrors()->assertCount('people.rows', 1);
+        $wizard->set('people.entry.type', 'agency_employee')->assertDontSee('Individual NPN')
+            ->set('people.entry.type', 'licensed_producer')->assertSee('Individual NPN');
+    }
+
+    public function test_email_and_npn_are_unique_within_the_enrollment(): void
+    {
+        $wizard = $this->addPerson($this->wizardAt(5), self::PRODUCER);
+
+        $this->addPerson($wizard, ['email' => 'DANA@lonestarbenefits.example', 'npn' => '18273645'] + self::PRODUCER)
+            ->assertHasErrors(['people.entry.email', 'people.entry.npn'])
+            ->assertSee("This is the principal's email. Each person needs their own email.")
+            ->assertSee("This is the principal's NPN. Each person needs their own NPN.");
+
+        $this->addPerson($wizard, ['email' => 'marcus@LONESTARBENEFITS.example', 'first_name' => 'Mark'] + self::PRODUCER)
+            ->assertSee('This email is already on your list.')
+            ->assertSee('This NPN is already on your list.')
+            ->assertCount('people.rows', 1);
+    }
+
+    public function test_email_and_npn_already_in_the_portal_are_blocked(): void
+    {
+        User::factory()->create(['email' => 'marcus@lonestarbenefits.example']);
+        MemberProfile::factory()->create(['npn' => '20304050']);
+
+        $this->addPerson($this->wizardAt(5), self::PRODUCER)
+            ->assertHasErrors(['people.entry.email', 'people.entry.npn'])
+            ->assertSee('This email is already registered in the portal. Please contact ProPerX.')
+            ->assertSee('This NPN is already registered in the portal. Please contact ProPerX.')
+            ->assertSet('people.rows', []);
+    }
+
+    public function test_continue_checks_the_whole_list_again(): void
+    {
+        $wizard = $this->addPerson($this->addPerson($this->wizardAt(5), self::PRODUCER), self::EMPLOYEE);
+
+        // Someone registered in the meantime, and a list forged in the browser.
+        User::factory()->create(['email' => 'priya@lonestarbenefits.example']);
+        $wizard->set('people.rows.2', ['email' => 'MARCUS@lonestarbenefits.example', 'npn' => '20304050'] + self::PRODUCER)
+            ->call('next')
+            ->assertSet('step', 5)
+            ->assertHasErrors(['people.rows.1.email', 'people.rows.0.email', 'people.rows.2.email', 'people.rows.2.npn'])
+            ->assertSee('Email: This email is already registered in the portal. Please contact ProPerX.')
+            ->assertSee('Email: This email is already on your list.')
+            ->assertSee('NPN: This NPN is already on your list.');
+
+        // Removing the copy fixes the list, apart from the new account.
+        $wizard->call('removePerson', 2)
+            ->assertSet('peopleStatus', 'Removed Marcus Reyes. 3 people.')
+            ->call('removePerson', 1)
+            ->call('next')
+            ->assertHasNoErrors()
+            ->assertSet('step', 6);
+    }
+
+    public function test_a_person_is_edited_and_removed(): void
+    {
+        $wizard = $this->addPerson($this->addPerson($this->wizardAt(5), self::PRODUCER), self::EMPLOYEE)
+            ->call('editPerson', 0)
+            ->assertSet('people.editing', 0)
+            ->assertSet('people.entry.first_name', 'Marcus')
+            ->assertSee('Edit person 2')
+            ->assertSee('Save changes')
+            ->assertDispatched('join-focus', id: 'people-entry-first_name');
+
+        // Its own email and NPN are not duplicates of itself.
+        $wizard->set('people.entry.first_name', 'Marc')
+            ->call('savePerson')
+            ->assertHasNoErrors()
+            ->assertSet('people.rows.0.first_name', 'Marc')
+            ->assertCount('people.rows', 2)
+            ->assertSet('people.editing', -1)
+            ->assertSet('peopleStatus', 'Saved changes for Marc Reyes.')
+            ->assertDispatched('join-focus', id: 'person-0-edit');
+
+        // Editing the second person while the first is removed keeps pointing at the same person.
+        $wizard->call('editPerson', 1)
+            ->call('removePerson', 0)
+            ->assertSet('people.editing', 0)
+            ->assertSet('people.entry.first_name', 'Priya')
+            ->assertDispatched('join-focus', id: 'person-0-edit')
+            ->call('clearPerson')
+            ->assertSet('people.editing', -1)
+            ->assertSet('people.entry', PeopleForm::ROW);
+    }
+
+    public function test_a_person_left_in_the_form_stops_continue(): void
+    {
+        $this->addPerson($this->wizardAt(5), self::EMPLOYEE)
+            ->set('people.entry.first_name', 'Half')
+            ->call('next')
+            ->assertSet('step', 5)
+            ->assertHasErrors('people.entry')
+            ->assertSee('This person is not on your list yet.')
+            ->call('clearPerson')
+            ->call('next')
+            ->assertSet('step', 6);
+    }
+
+    public function test_the_tier_follows_the_headcount_across_10_and_50(): void
+    {
+        $wizard = $this->wizardAt(5)->set('people.rows', $this->rows(8));
+
+        $this->addPerson($wizard, self::EMPLOYEE)
+            ->assertSet('tier.tier', 'agency_10to49')
+            ->assertSet('tierMovedUp', true)
+            ->assertSet('tierNotice', "You've moved up to Agency Plus. Everyone now pays $149.")
+            ->assertSeeHtml('class="notice-ok tier-notice"')
+            ->assertSee('10 people · Agency Plus · $149 each · $1,490 a year');
+
+        $wizard->call('removePerson', 0)
+            ->assertSet('tier.tier', 'agency_2to9')
+            ->assertSet('tierMovedUp', false)
+            ->assertSet('tierNotice', 'Your agency is now on Agency, for 2 to 9 people. Everyone pays $159.')
+            ->assertSee('9 people · Agency · $159 each · $1,431 a year');
+
+        $wizard->set('people.rows', $this->rows(48));
+        $this->addPerson($wizard, self::PRODUCER)
+            ->assertSet('tier.tier', 'agency_50plus')
+            ->assertSet('tierNotice', "You've moved up to Agency Enterprise. Everyone now pays $129.")
+            ->assertSee('50 people · Agency Enterprise · $129 each · $6,450 a year');
+    }
+
+    public function test_continue_corrects_a_tier_chosen_too_high(): void
+    {
+        $wizard = $this->wizardAt(5)->set('tier.tier', 'agency_50plus')->set('people.rows', $this->rows(3));
+
+        $wizard->assertSee('4 people · Agency · $159 each · $636 a year')
+            ->call('next')
+            ->assertSet('step', 6)
+            ->assertSet('tier.tier', 'agency_2to9');
+    }
+
+    public function test_the_partner_code_applies_to_the_actual_headcount(): void
+    {
+        PartnerCode::factory()->create(['code' => 'MGA-7']);
+
+        $wizard = $this->addPerson($this->wizardAt(5, ['partner' => 'MGA-7']), self::EMPLOYEE)
+            ->assertSee('2 people · Agency · $149 each · $298 a year')
+            ->assertSee('Partner rate applied.');
+
+        $wizard->set('people.rows', $this->rows(59))->call('removePerson', 0)
+            ->assertSee('59 people · Agency Enterprise · $129 each · $7,611 a year')
+            ->assertSee("Your agency's rate is lower than the partner rate, so we applied it.");
+    }
+
+    public function test_the_list_has_an_upper_limit(): void
+    {
+        $this->addPerson($this->wizardAt(5)->set('people.rows', $this->rows(PeopleForm::MAX_HEADCOUNT - 1)), ['email' => 'one-more@lonestarbenefits.example'] + self::EMPLOYEE)
+            ->assertHasErrors('people.entry')
+            ->assertSee('Please contact ProPerX to enroll a larger agency.')
+            ->assertCount('people.rows', PeopleForm::MAX_HEADCOUNT - 1);
+    }
+
+    public function test_people_are_saved_encrypted_after_each_change_and_restored(): void
+    {
+        $this->addPerson($this->wizardAt(5), self::PRODUCER)
+            ->set('people.entry.first_name', 'Unfinished')
+            ->call('back')
+            ->assertHasNoErrors()
+            ->assertSet('step', 4);
+
+        $draft = AgencyRegistrationDraft::query()->sole();
+        $this->assertSame('marcus@lonestarbenefits.example', $draft->data['people']['rows'][0]['email']);
+        $this->assertSame('Unfinished', $draft->data['people']['entry']['first_name']);
+
+        $raw = DB::table('agency_registration_drafts')->value('data');
+        foreach (['marcus@', 'Reyes', '20304050', 'Unfinished'] as $plain) {
+            $this->assertStringNotContainsString($plain, $raw);
+        }
+
+        // Later, in the same session.
+        Livewire::test(Wizard::class)
+            ->assertSet('step', 4)
+            ->assertSet('people.rows.0.npn', '20304050')
+            ->assertSet('people.entry.first_name', 'Unfinished')
+            ->call('next')
+            ->assertSet('step', 5)
+            ->assertSee('Marcus Reyes');
+    }
+
+    public function test_a_damaged_draft_restores_only_well_formed_people(): void
+    {
+        $this->wizardAt(5);
+        $draft = AgencyRegistrationDraft::query()->sole();
+        $draft->data = ['people' => ['rows' => [['email' => ' A@B.example ', 'type' => 'agency_employee', 'npn' => '1', 'extra' => 'x'], 'junk', [['nested']]], 'editing' => 7]] + $draft->data;
+        $draft->save();
+
+        Livewire::test(Wizard::class)
+            ->assertSet('people.rows', [
+                ['type' => 'agency_employee', 'first_name' => '', 'last_name' => '', 'email' => 'a@b.example', 'npn' => '', 'license_state' => ''],
+                PeopleForm::ROW,
+            ])
+            ->assertSet('people.editing', -1);
     }
 
     public function test_nothing_is_logged_while_enrolling(): void

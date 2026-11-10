@@ -34,7 +34,10 @@
                     <button type="button" class="btn btn-secondary" wire:click="back" wire:loading.attr="disabled">Back</button>
                 @endif
                 @if ($step < count($steps))
-                    <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">Continue</button>
+                    @php($blocked = $step === 5 && ! $this->people->minimumMet())
+                    {{-- A blocked button is another element (wire:key): wire:loading.attr on the earlier one would take "disabled" off again after the request. --}}
+                    <button type="submit" @class(['btn', 'btn-primary', 'is-blocked' => $blocked]) wire:key="continue-{{ $blocked ? 'blocked' : 'open' }}"
+                        @if ($blocked) disabled aria-describedby="people-minimum" @else wire:loading.attr="disabled" @endif>Continue</button>
                 @endif
             </div>
         </form>

@@ -4,12 +4,14 @@ namespace App\Livewire\AgencyRegistration;
 
 use App\Enums\AgencyTier;
 use App\Enums\AgencyType;
+use App\Enums\PersonType;
 use App\Enums\RateType;
 use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\PartnerCode;
 use App\Services\Agencies\AgencyPricingService;
 use App\Services\Agencies\AgencyQuote;
+use App\Support\Money;
 use App\Support\UsStates;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -23,8 +25,9 @@ use Livewire\Component;
 /**
  * Public agency enrollment (/join/agency), six screens in a fixed order. Each "Continue"
  * validates the current screen and saves the encrypted draft; "Back" saves without
- * validating. The draft id lives in the session. Screens 5 (People) and 6 (Review and
- * payment) are placeholders for now.
+ * validating. The draft id lives in the session. On screen 5 (People) every added, changed
+ * or removed person is saved too, and the tier follows the headcount. Screen 6 (Review and
+ * payment) is a placeholder for now.
  */
 #[Layout('join.layout')]
 #[Title('Enroll your agency')]
@@ -55,6 +58,16 @@ class Wizard extends Component
     public AgencyForm $agency;
 
     public PrincipalForm $principal;
+
+    public PeopleForm $people;
+
+    /** The note after the headcount moved the agency to another tier; $tierMovedUp colours it. */
+    public string $tierNotice = '';
+
+    public bool $tierMovedUp = false;
+
+    /** Read out to screen readers after a person is added, changed or removed. */
+    public string $peopleStatus = '';
 
     /**
      * Every request, the page and each Livewire round trip: a 404 while enrollment is off
@@ -102,6 +115,21 @@ class Wizard extends Component
             $form->validate();
         }
 
+        if ($this->step === 5) {
+            // Someone typed into the form but never added: do not leave them behind unnoticed.
+            if (! $this->people->entryIsEmpty()) {
+                $this->addError('people.entry', 'This person is not on your list yet. Choose "'.($this->people->editing >= 0 ? 'Save changes' : 'Add person').'", or clear the form.');
+                $this->focus('person-form-title');
+
+                return;
+            }
+
+            $this->syncTier();
+        }
+
+        $this->tierNotice = '';
+        $this->peopleStatus = '';
+
         $this->step = min($this->step + 1, array_key_last(self::STEPS));
         $this->furthestStep = max($this->furthestStep, $this->step);
         $this->save();
@@ -122,8 +150,112 @@ class Wizard extends Component
         }
 
         $this->resetErrorBag();
+        $this->tierNotice = '';
+        $this->peopleStatus = '';
         $this->step = $step;
         $this->save();
+    }
+
+    /**
+     * Screen 5: adds the person in the form to the list, or saves the changes to the row being edited.
+     */
+    public function savePerson(): void
+    {
+        if ($this->step !== 5) {
+            return;
+        }
+
+        $people = $this->people;
+        $people->entry = PeopleForm::tidy($people->entry);
+        $people->resetErrorBag('entry*');
+
+        $adding = ! isset($people->rows[$people->editing]);
+
+        if ($adding && $people->headcount() >= PeopleForm::MAX_HEADCOUNT) {
+            $people->addError('entry', $people->messages()['rows.max']);
+
+            return;
+        }
+
+        $people->validate($people->entryRules(), $people->messages(), $people->validationAttributes());
+
+        $name = $people->entry['first_name'].' '.$people->entry['last_name'];
+
+        if ($adding) {
+            $people->rows[] = $people->entry;
+            $this->peopleStatus = "Added {$name}. {$people->headcount()} people.";
+            $focus = 'people-entry-first_name';
+        } else {
+            $people->rows[$people->editing] = $people->entry;
+            $this->peopleStatus = "Saved changes for {$name}.";
+            $focus = "person-{$people->editing}-edit";
+        }
+
+        // The next person is often of the same kind.
+        $people->entry = ['type' => $people->entry['type']] + PeopleForm::ROW;
+        $people->editing = -1;
+        $this->resetErrorBag('people.rows*');
+
+        $this->syncTier();
+        $this->save();
+        $this->focus($focus);
+    }
+
+    public function editPerson(int $index): void
+    {
+        if ($this->step !== 5 || ! isset($this->people->rows[$index])) {
+            return;
+        }
+
+        $this->people->entry = $this->people->rows[$index];
+        $this->people->editing = $index;
+        $this->people->resetErrorBag('entry*');
+        $this->peopleStatus = '';
+        $this->focus('people-entry-first_name');
+    }
+
+    public function removePerson(int $index): void
+    {
+        if ($this->step !== 5 || ! isset($this->people->rows[$index])) {
+            return;
+        }
+
+        $people = $this->people;
+        $row = $people->rows[$index];
+
+        array_splice($people->rows, $index, 1);
+
+        if ($people->editing === $index) {
+            $people->entry = PeopleForm::ROW;
+            $people->editing = -1;
+        } elseif ($people->editing > $index) {
+            $people->editing--;
+        }
+
+        // Row errors are numbered by position, which has just changed.
+        $this->resetErrorBag('people.rows*');
+        $this->peopleStatus = "Removed {$row['first_name']} {$row['last_name']}. {$people->headcount()} ".($people->headcount() === 1 ? 'person' : 'people').'.';
+
+        $this->syncTier();
+        $this->save();
+        $this->focus(isset($people->rows[$index]) ? "person-{$index}-edit" : 'person-form-title');
+    }
+
+    /**
+     * Leaves editing, or empties the add form.
+     */
+    public function clearPerson(): void
+    {
+        if ($this->step !== 5) {
+            return;
+        }
+
+        $this->people->entry = PeopleForm::ROW;
+        $this->people->editing = -1;
+        $this->people->resetErrorBag('entry*');
+        $this->resetErrorBag('people.entry');
+        $this->save();
+        $this->focus('people-entry-first_name');
     }
 
     #[Computed]
@@ -133,16 +265,73 @@ class Wizard extends Component
     }
 
     /**
-     * The running price. Until the People screen exists the headcount is the chosen tier's
-     * minimum (an estimate).
+     * The running price: from the People screen on, for the people on the list (null below the
+     * minimum); before it, an estimate for the chosen tier's smallest headcount.
      */
     #[Computed]
-    public function quote(): AgencyQuote
+    public function quote(): ?AgencyQuote
     {
+        if ($this->counted()) {
+            return $this->people->minimumMet()
+                ? app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode)
+                : null;
+        }
+
         $tier = AgencyTier::tryFrom($this->tier->tier);
         $headcount = max((int) config('agency.minimum_headcount'), $tier?->minHeadcount() ?? 0);
 
         return app(AgencyPricingService::class)->quote($headcount, now(), $this->partnerCode);
+    }
+
+    /**
+     * Whether the price counts the people on the list rather than estimating from the tier.
+     */
+    public function counted(): bool
+    {
+        return $this->furthestStep >= 5;
+    }
+
+    /**
+     * The tier follows the headcount (Agency spec 3.7, 5.4): crossing 10 or 50 moves everyone to
+     * that tier's rate, and dropping below moves back, each with a note.
+     */
+    private function syncTier(): void
+    {
+        unset($this->quote);
+
+        if (! $this->people->minimumMet()) {
+            $this->tierNotice = '';
+
+            return;
+        }
+
+        $new = AgencyTier::forHeadcount($this->people->headcount());
+        $old = AgencyTier::tryFrom($this->tier->tier);
+
+        if ($old === $new) {
+            return;
+        }
+
+        $this->tier->tier = $new->value;
+        $rate = Money::format($this->quote->rate);
+
+        $this->tierMovedUp = $old !== null && $new->minHeadcount() > $old->minHeadcount();
+        // No headcount in the words: they stay true until the tier changes again.
+        $size = $new->maxHeadcount() === null
+            ? "{$new->minHeadcount()} or more people"
+            : "{$new->minHeadcount()} to {$new->maxHeadcount()} people";
+
+        $this->tierNotice = $this->tierMovedUp
+            ? "You've moved up to {$new->label()}. Everyone now pays {$rate}."
+            : "Your agency is now on {$new->label()}, for {$size}. Everyone pays {$rate}.";
+    }
+
+    /**
+     * Moves the keyboard focus once the page has updated (listener in join/layout.blade.php).
+     */
+    private function focus(string $id): void
+    {
+        $this->dispatch('join-focus', id: $id);
     }
 
     /**
@@ -168,6 +357,8 @@ class Wizard extends Component
             'referralSources' => Agency::REFERRAL_SOURCES,
             'titles' => PrincipalForm::TITLES,
             'states' => UsStates::ALL,
+            'personTypes' => collect(PersonType::cases())->mapWithKeys(fn (PersonType $type) => [$type->value => $type->label()])->all(),
+            'minimumHeadcount' => (int) config('agency.minimum_headcount'),
         ]);
     }
 
@@ -178,6 +369,7 @@ class Wizard extends Component
             2 => $this->tier,
             3 => $this->agency,
             4 => $this->principal,
+            5 => $this->people,
             default => null,
         };
     }
@@ -224,6 +416,7 @@ class Wizard extends Component
             'tier' => $this->tier,
             'agency' => $this->agency,
             'principal' => $this->principal,
+            'people' => $this->people,
         ];
     }
 }

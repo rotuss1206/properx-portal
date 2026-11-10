@@ -100,6 +100,47 @@
         .btn-secondary { background: #fff; color: var(--navy); }
         .btn[disabled] { opacity: .6; cursor: wait; }
         .placeholder { padding: 20px; border: 2px dashed var(--line); border-radius: 10px; color: #374151; }
+        .btn.is-blocked { cursor: not-allowed; }
+        .link { padding: 0; border: 0; background: none; font: inherit; color: var(--navy-600); text-decoration: underline; cursor: pointer; }
+        .notice-info { background: #eff6ff; color: #1e3a8a; border-radius: 8px; padding: 10px 12px; font-size: 14px; margin: 0 0 16px; }
+        .notice-ok.tier-notice { font-size: 14px; padding: 10px 12px; margin: 0 0 16px; }
+
+        /* Screen 5 · People */
+        .people-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+        .people-title .count { font-size: 14px; font-weight: 400; color: var(--muted); }
+        .people { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+        .person { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 14px;
+                  border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+        .person.has-error { border-color: var(--error); background: #fef2f2; }
+        .person.is-editing { border-color: var(--navy-600); box-shadow: 0 0 0 3px rgba(33, 87, 157, .12); }
+        .person-text { min-width: 0; flex: 1 1 260px; }
+        .person-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; overflow-wrap: anywhere; }
+        .person-meta { display: flex; flex-wrap: wrap; gap: 0 14px; margin: 2px 0 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+        .person-fixed { margin: 0; font-size: 13px; color: var(--muted); }
+        .person-errors { list-style: none; margin: 6px 0 0; padding: 0; }
+        .person-actions { display: flex; gap: 8px; }
+        .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #eef2f7; color: #334155; }
+        .tag-principal { background: var(--navy); color: #fff; }
+        .tag-editing { background: #dbeafe; color: #1e3a8a; }
+        .btn-small { font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;
+                     color: var(--navy); cursor: pointer; }
+        .btn-small:hover { border-color: var(--navy); }
+        .btn-remove { color: var(--error); }
+        .btn-remove:hover { border-color: var(--error); }
+        .minimum { margin-top: 4px; }
+        .person-form { margin-top: 20px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: #f9fafb; }
+        .person-form h3 { margin: 0 0 12px; }
+        .person-form h3:focus { outline: none; }
+        .person-form h3:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+        .person-form .grid { margin-bottom: 16px; }
+        .choices-compact .choice { padding: 12px 14px; }
+        .choices-compact .choice span { font-size: 13px; }
+        .person-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+        @media (max-width: 640px) {
+            .person-form { padding: 14px; }
+            .person-actions { width: 100%; }
+            .person-actions .btn-small { flex: 1; }
+        }
 
         .footer { margin: 24px 0; font-size: 12px; color: var(--muted); text-align: center; }
     </style>
@@ -115,5 +156,19 @@
     <div class="footer">Questions? Contact ProPerX Alliance. Your answers are saved after each step.</div>
 </div>
 @livewireScripts
+{{-- Focus requested by the wizard (Wizard::focus), once Livewire has updated the page. --}}
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+    window.addEventListener('join-focus', function (event) {
+        var id = event.detail && event.detail.id;
+
+        requestAnimationFrame(function () {
+            var target = id && document.getElementById(id);
+
+            if (target) {
+                target.focus();
+            }
+        });
+    });
+</script>
 </body>
 </html>
