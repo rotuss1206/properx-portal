@@ -156,6 +156,19 @@ the sidebar's "Renewal due" card) comes from the subscription items' `current_pe
 forward: an older event never shortens it. `agencies.paid_through_at` exists but is filled once agency customers are
 matched (Stripe work for agencies).
 
+### Agency prices in a Stripe test account
+
+The agency enrollment charges one of six yearly prices (founding or standard rate for each tier), found by the
+lookup keys in `config/agency.php`. With a test-mode key (`sk_test_...`) in `STRIPE_SECRET`:
+
+```bash
+php artisan app:stripe:agency-prices            # check: lists the six prices, exit 1 if one is missing or wrong
+php artisan app:stripe:agency-prices --create   # creates the product and the missing prices; run again, it adds nothing
+```
+
+`--create` refuses live keys and production. On the platform the prices are created by the account owner; run the
+check after deployment. A price can also be pinned with its ID (`STRIPE_PRICE_AGENCY_FOUNDING_2TO9` etc.).
+
 ### Testing locally with the Stripe CLI
 
 1. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli) and run `stripe login` (test mode).

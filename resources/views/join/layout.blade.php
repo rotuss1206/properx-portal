@@ -133,6 +133,20 @@
         .person-form h3:focus { outline: none; }
         .person-form h3:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
         .person-form .grid { margin-bottom: 16px; }
+        a.btn-small, label.btn-small { display: inline-flex; align-items: center; text-decoration: none; }
+        .csv { margin-top: 20px; padding: 16px 18px; border: 1px dashed #cbd5e1; border-radius: 10px; }
+        .csv h3 { margin: 0 0 4px; }
+        .csv-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .csv-upload:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+        .csv #csv-client-status { margin-top: 10px; }
+        .csv-status { margin: 12px 0 0; }
+        .csv-status:focus { outline: none; }
+        .problems { margin-top: 20px; }
+        .problems-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+        .problems-head h3 { margin: 0; }
+        .problems-head h3:focus { outline: none; }
+        .problems .count { font-size: 14px; font-weight: 400; color: var(--muted); }
+        .tag-row { background: #fee2e2; color: var(--error); font-weight: 600; }
         .choices-compact .choice { padding: 12px 14px; }
         .choices-compact .choice span { font-size: 13px; }
         .person-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
@@ -156,6 +170,7 @@
     <div class="footer">Questions? Contact ProPerX Alliance. Your answers are saved after each step.</div>
 </div>
 @livewireScripts
+<script src="{{ \App\Support\PortalAsset::url('join-csv.js') }}" defer nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
 {{-- Focus requested by the wizard (Wizard::focus), once Livewire has updated the page. --}}
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.addEventListener('join-focus', function (event) {

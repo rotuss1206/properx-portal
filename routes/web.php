@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DocumentDownloadController;
+use App\Http\Controllers\Join\PeopleTemplateController;
 use App\Http\Controllers\VerifyCertificateController;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Livewire\AgencyRegistration\Wizard;
@@ -45,3 +46,7 @@ Route::get('/verify-certificate/{code}', VerifyCertificateController::class)
 Route::livewire('/join/agency', Wizard::class)
     ->middleware('throttle:agency-registration')
     ->name('join.agency');
+
+Route::get('/join/agency/people-template.csv', PeopleTemplateController::class)
+    ->middleware('throttle:agency-registration')
+    ->name('join.agency.people-template');

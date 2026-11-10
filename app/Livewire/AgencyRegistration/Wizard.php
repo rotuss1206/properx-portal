@@ -69,6 +69,11 @@ class Wizard extends Component
     /** Read out to screen readers after a person is added, changed or removed. */
     public string $peopleStatus = '';
 
+    /** The outcome of the last CSV upload; $importOk when every row was taken. */
+    public string $importMessage = '';
+
+    public bool $importOk = false;
+
     /**
      * Every request, the page and each Livewire round trip: a 404 while enrollment is off
      * (AGENCY_ENROLLMENT_ENABLED).
@@ -116,6 +121,14 @@ class Wizard extends Component
         }
 
         if ($this->step === 5) {
+            // Rows of a CSV are corrected or skipped before going on (Agency spec 5.4).
+            if ($this->people->problems !== []) {
+                $this->addError('people.problems', 'Fix or skip the rows from your CSV before you continue.');
+                $this->focus('problems-title');
+
+                return;
+            }
+
             // Someone typed into the form but never added: do not leave them behind unnoticed.
             if (! $this->people->entryIsEmpty()) {
                 $this->addError('people.entry', 'This person is not on your list yet. Choose "'.($this->people->editing >= 0 ? 'Save changes' : 'Add person').'", or clear the form.');
@@ -129,6 +142,7 @@ class Wizard extends Component
 
         $this->tierNotice = '';
         $this->peopleStatus = '';
+        $this->importMessage = '';
 
         $this->step = min($this->step + 1, array_key_last(self::STEPS));
         $this->furthestStep = max($this->furthestStep, $this->step);
@@ -152,6 +166,7 @@ class Wizard extends Component
         $this->resetErrorBag();
         $this->tierNotice = '';
         $this->peopleStatus = '';
+        $this->importMessage = '';
         $this->step = $step;
         $this->save();
     }
@@ -191,9 +206,17 @@ class Wizard extends Component
             $focus = "person-{$people->editing}-edit";
         }
 
+        // A fixed CSV row leaves the list of rows to fix.
+        if (isset($people->problems[$people->fixing])) {
+            $this->peopleStatus = "Added {$name} from row {$people->problems[$people->fixing]['line']}. {$people->headcount()} people.";
+            array_splice($people->problems, $people->fixing, 1);
+            $focus = $people->problems === [] ? 'people-entry-first_name' : 'problem-0-fix';
+        }
+
         // The next person is often of the same kind.
         $people->entry = ['type' => $people->entry['type']] + PeopleForm::ROW;
         $people->editing = -1;
+        $people->fixing = -1;
         $this->resetErrorBag('people.rows*');
 
         $this->syncTier();
@@ -209,6 +232,7 @@ class Wizard extends Component
 
         $this->people->entry = $this->people->rows[$index];
         $this->people->editing = $index;
+        $this->people->fixing = -1;
         $this->people->resetErrorBag('entry*');
         $this->peopleStatus = '';
         $this->focus('people-entry-first_name');
@@ -250,10 +274,144 @@ class Wizard extends Component
             return;
         }
 
+        // A row being fixed stays on the list of rows to fix.
+        $fixing = $this->people->fixing;
+
         $this->people->entry = PeopleForm::ROW;
         $this->people->editing = -1;
+        $this->people->fixing = -1;
         $this->people->resetErrorBag('entry*');
         $this->resetErrorBag('people.entry');
+        $this->save();
+        $this->focus(isset($this->people->problems[$fixing]) ? "problem-{$fixing}-fix" : 'people-entry-first_name');
+    }
+
+    /**
+     * Screen 5: the people of an uploaded CSV (read in the browser by public/portal/join-csv.js;
+     * parsed here in memory, never stored). Valid rows join the list at once; rows already on it
+     * are skipped, so uploading the same file again adds no one twice; the rest wait in "Rows to
+     * fix". A new upload replaces the rows to fix of the previous one.
+     */
+    public function importPeople(string $filename, string $content): void
+    {
+        if ($this->step !== 5) {
+            return;
+        }
+
+        $people = $this->people;
+        $this->importOk = false;
+
+        try {
+            $file = PeopleCsv::read($filename, $content, PeopleForm::MAX_HEADCOUNT - $people->headcount());
+        } catch (PeopleCsvException $e) {
+            $this->importMessage = $e->getMessage();
+            $this->focus('csv-status');
+
+            return;
+        }
+
+        $added = 0;
+        $already = 0;
+        $problems = [];
+
+        foreach ($file['rows'] as ['line' => $line, 'row' => $row]) {
+            $row = PeopleForm::tidy($row);
+
+            if ($people->isListed($row)) {
+                $already++;
+
+                continue;
+            }
+
+            $errors = $people->rowErrors($row);
+
+            if ($errors === []) {
+                $people->rows[] = $row;
+                $added++;
+            } else {
+                $problems[] = ['line' => $line, 'row' => $row, 'errors' => $errors];
+            }
+        }
+
+        $people->problems = $problems;
+        $people->fixing = -1;
+        $this->resetErrorBag('people.rows*');
+
+        $count = fn (int $n, string $one, string $many) => $n.' '.($n === 1 ? $one : $many);
+        $this->importOk = $problems === [];
+        $this->importMessage = implode(' ', array_filter([
+            'Added '.$count($added, 'person', 'people').' from '.Str::limit(basename($filename), 60).'.',
+            $already > 0 ? $count($already, 'row was', 'rows were').' already on your list.' : null,
+            $file['examples'] > 0 ? 'The example rows from the template were left out.' : null,
+            $problems !== [] ? $count(count($problems), 'row needs', 'rows need').' fixing below.' : null,
+        ]));
+
+        $this->syncTier();
+        $this->save();
+        $this->focus($problems === [] ? 'csv-status' : 'problems-title');
+    }
+
+    /**
+     * Moves a CSV row into the form, with its problems shown at the fields.
+     */
+    public function fixProblem(int $index): void
+    {
+        $problem = $this->people->problems[$index] ?? null;
+
+        if ($this->step !== 5 || $problem === null) {
+            return;
+        }
+
+        $this->people->entry = $problem['row'];
+        $this->people->editing = -1;
+        $this->people->fixing = $index;
+        $this->people->resetErrorBag('entry*');
+
+        foreach ($problem['errors'] as $field => $message) {
+            $this->people->addError("entry.{$field}", $message);
+        }
+
+        $this->focus('person-form-title');
+    }
+
+    public function skipProblem(int $index): void
+    {
+        if ($this->step !== 5 || ! isset($this->people->problems[$index])) {
+            return;
+        }
+
+        $people = $this->people;
+        $line = $people->problems[$index]['line'];
+
+        array_splice($people->problems, $index, 1);
+
+        if ($people->fixing === $index) {
+            $people->entry = PeopleForm::ROW;
+            $people->fixing = -1;
+            $people->resetErrorBag('entry*');
+        } elseif ($people->fixing > $index) {
+            $people->fixing--;
+        }
+
+        $this->peopleStatus = "Skipped row {$line}.";
+        $this->save();
+        $this->focus(isset($people->problems[$index]) ? "problem-{$index}-fix" : 'people-entry-first_name');
+    }
+
+    public function skipAllProblems(): void
+    {
+        if ($this->step !== 5 || $this->people->problems === []) {
+            return;
+        }
+
+        if (isset($this->people->problems[$this->people->fixing])) {
+            $this->people->entry = PeopleForm::ROW;
+            $this->people->resetErrorBag('entry*');
+        }
+
+        $this->people->problems = [];
+        $this->people->fixing = -1;
+        $this->peopleStatus = 'Skipped the rows that needed fixing.';
         $this->save();
         $this->focus('people-entry-first_name');
     }

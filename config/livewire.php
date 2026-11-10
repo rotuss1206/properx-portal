@@ -20,6 +20,15 @@ return [
     // join/layout.blade.php); they carry the per-request nonce from Vite::cspNonce().
     'inject_assets' => false,
 
+    // The People screen sends an uploaded CSV of up to 1 MB as text in one call
+    // (App\Livewire\AgencyRegistration\PeopleCsv), so a request may be a little larger
+    // than Livewire's default of 1 MB. The other limits stay at Livewire's defaults.
+    'payload' => [
+        'max_size' => 2 * 1024 * 1024,
+        'max_nesting_depth' => 10,
+        'max_calls' => 50,
+    ],
+
     'make_command' => [
         'type' => 'class',
         'emoji' => false,

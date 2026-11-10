@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Rules\UniqueBlindIndex;
 use App\Support\UsStates;
 use Closure;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -33,6 +34,17 @@ class PeopleForm extends StepForm
     /** The row being edited, or -1 while adding. */
     public int $editing = -1;
 
+    /**
+     * Rows of the last CSV upload that could not be added, each with its spreadsheet row and
+     * the problem per field; "Fix" moves one into the form, "Skip" drops it.
+     *
+     * @var list<array{line: int, row: array<string, string>, errors: array<string, string>}>
+     */
+    public array $problems = [];
+
+    /** The problem being fixed in the form, or -1. */
+    public int $fixing = -1;
+
     public function headcount(): int
     {
         return 1 + count($this->rows);
@@ -46,6 +58,32 @@ class PeopleForm extends StepForm
     public function entryIsEmpty(): bool
     {
         return collect(self::tidy($this->entry))->except('type')->filter()->isEmpty();
+    }
+
+    /**
+     * Whether exactly this person is already on the list (an upload repeated, or a row already added).
+     *
+     * @param  array<string, string>  $row
+     */
+    public function isListed(array $row): bool
+    {
+        return in_array(self::tidy($row), $this->rows, true);
+    }
+
+    /**
+     * The problems of one person by field, with the same rules as the add form; empty when the
+     * person can join the list as it is now.
+     *
+     * @param  array<string, string>  $row
+     * @return array<string, string>
+     */
+    public function rowErrors(array $row): array
+    {
+        $validator = Validator::make(['entry' => self::tidy($row)], $this->personRules('entry', fn () => -1), $this->messages(), $this->validationAttributes());
+
+        return collect($validator->errors()->messages())
+            ->mapWithKeys(fn (array $messages, string $key) => [Str::after($key, 'entry.') => $messages[0]])
+            ->all();
     }
 
     public function normalize(): void
@@ -138,7 +176,7 @@ class PeopleForm extends StepForm
 
     public function toDraft(): array
     {
-        return ['rows' => $this->rows, 'entry' => $this->entry, 'editing' => $this->editing];
+        return ['rows' => $this->rows, 'entry' => $this->entry, 'editing' => $this->editing, 'problems' => $this->problems, 'fixing' => $this->fixing];
     }
 
     public function fillFromDraft(array $data): void
@@ -149,6 +187,22 @@ class PeopleForm extends StepForm
         $this->entry = self::tidy($data['entry'] ?? []);
         $editing = $data['editing'] ?? -1;
         $this->editing = is_int($editing) && isset($this->rows[$editing]) ? $editing : -1;
+
+        $problems = [];
+
+        foreach (is_array($data['problems'] ?? null) ? array_slice($data['problems'], 0, self::MAX_HEADCOUNT) : [] as $problem) {
+            if (is_array($problem) && is_int($problem['line'] ?? null) && is_array($problem['errors'] ?? null)) {
+                $problems[] = [
+                    'line' => $problem['line'],
+                    'row' => self::tidy($problem['row'] ?? []),
+                    'errors' => array_filter(array_intersect_key($problem['errors'], self::ROW), 'is_string'),
+                ];
+            }
+        }
+
+        $this->problems = $problems;
+        $fixing = $data['fixing'] ?? -1;
+        $this->fixing = is_int($fixing) && isset($this->problems[$fixing]) ? $fixing : -1;
     }
 
     /**
@@ -159,7 +213,8 @@ class PeopleForm extends StepForm
     {
         $producer = 'exclude_unless:'.$prefix.'.type,'.PersonType::LicensedProducer->value;
         $principal = $this->getComponent()->principal;
-        $registered = $this->registeredEmails();
+        // The whole list is checked against the portal in one query; one person by itself, below.
+        $registered = $prefix === 'rows.*' ? $this->registeredEmails() : [];
 
         return [
             "{$prefix}.type" => ['required', Rule::enum(PersonType::class)],

@@ -16,6 +16,14 @@ return [
 
     'minimum_headcount' => 2,
 
+    // The Stripe product the six prices belong to (created in a test account by
+    // `php artisan app:stripe:agency-prices --create`), and their currency.
+    'stripe_product_name' => 'ProPerX Agency Membership',
+    'currency' => 'usd',
+
+    // How long the price IDs found by lookup key are kept in the cache, in seconds.
+    'stripe_price_cache_seconds' => 3600,
+
     // Founding rates for payments completed before 12:00 a.m. Eastern on January 1, 2027.
     // They stay locked at every renewal while the agency remains a member without a break.
     'founding_cutoff' => '2027-01-01 00:00:00',

@@ -6,7 +6,7 @@ use Stripe\StripeClient;
 
 /**
  * Reads one subscription from the Stripe API (STRIPE_SECRET; a restricted read-only key is enough).
- * The portal's only Stripe API call: it takes no payments and changes nothing in Stripe.
+ * It takes no payments and changes nothing in Stripe (the agency prices are read by AgencyPriceCatalog).
  */
 class SubscriptionReader
 {

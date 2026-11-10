@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Agencies;
 
+use App\Livewire\AgencyRegistration\PeopleCsv;
 use App\Livewire\AgencyRegistration\PeopleForm;
 use App\Livewire\AgencyRegistration\Wizard;
 use App\Models\Agency;
@@ -873,6 +874,236 @@ class AgencyRegistrationWizardTest extends TestCase
                 PeopleForm::ROW,
             ])
             ->assertSet('people.editing', -1);
+    }
+
+    // Screen 5 · CSV
+
+    private const CSV_HEADER = "type,first_name,last_name,email,npn,state\r\n";
+
+    private function upload(Testable $wizard, string $csv, string $name = 'people.csv'): Testable
+    {
+        return $wizard->call('importPeople', $name, $csv);
+    }
+
+    public function test_the_template_has_the_columns_and_sample_rows(): void
+    {
+        $response = $this->get(route('join.agency.people-template'))->assertOk()
+            ->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->assertHeader('Content-Disposition', 'attachment; filename="properx-agency-people.csv"');
+
+        $this->assertSame(
+            "\xEF\xBB\xBF".self::CSV_HEADER."licensed_producer,Jordan,Lee,jordan.lee@youragency.com,12345678,TX\r\nagency_employee,Sam,Rivera,sam.rivera@youragency.com,,\r\n",
+            $response->getContent(),
+        );
+        $this->assertContains('throttle:agency-registration', Route::getRoutes()->getByName('join.agency.people-template')->middleware());
+
+        config(['portal.registration.enabled' => false]);
+        $this->get(route('join.agency.people-template'))->assertNotFound();
+    }
+
+    public function test_a_valid_csv_adds_everyone_with_the_same_rules_as_the_form(): void
+    {
+        // Byte order mark, friendly spellings, state names, a column order of its own, blank lines.
+        $csv = "\xEF\xBB\xBF".'Email,First Name,Last Name,Type,NPN,State'."\r\n"
+            ."Marcus@LoneStarBenefits.example,Marcus,Reyes,Licensed producer,20304050,texas\r\n"
+            ."\r\n"
+            ."priya@lonestarbenefits.example,Priya,Nair,employee,99999999,CA\r\n"
+            ."\"owen@lonestarbenefits.example\",\"Owen, Jr.\",Brooks,producer,30405060,OK\r\n";
+
+        $this->upload($this->wizardAt(5), $csv)
+            ->assertHasNoErrors()
+            ->assertSet('people.rows', [
+                ['email' => 'marcus@lonestarbenefits.example'] + self::PRODUCER,
+                self::EMPLOYEE,
+                ['type' => 'licensed_producer', 'first_name' => 'Owen, Jr.', 'last_name' => 'Brooks', 'email' => 'owen@lonestarbenefits.example', 'npn' => '30405060', 'license_state' => 'OK'],
+            ])
+            ->assertSet('people.problems', [])
+            ->assertSet('importOk', true)
+            ->assertSet('importMessage', 'Added 3 people from people.csv.')
+            ->assertDispatched('join-focus', id: 'csv-status')
+            ->assertSee('4 people · Agency · $159 each · $636 a year')
+            ->call('next')
+            ->assertSet('step', 6);
+
+        $this->assertCount(3, AgencyRegistrationDraft::query()->sole()->data['people']['rows']);
+    }
+
+    public function test_semicolon_separated_files_from_excel_are_read(): void
+    {
+        $this->upload($this->wizardAt(5), "type;first_name;last_name;email;npn;state\nagency_employee;Priya;Nair;priya@lonestarbenefits.example;;\n")
+            ->assertSet('people.rows', [self::EMPLOYEE]);
+    }
+
+    public function test_rows_with_problems_wait_with_their_row_number_and_field(): void
+    {
+        $csv = self::CSV_HEADER
+            ."agency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n"   // row 2: fine
+            ."licensed_producer,Marcus,Reyes,,20304050,TX\r\n"                   // row 3: no email
+            ."licensed_producer,Owen,Brooks,owen@lonestarbenefits.example,,\r\n" // row 4: no NPN or state
+            ."contractor,Lena,Ortiz,lena@lonestarbenefits.example,,\r\n"         // row 5: unknown type
+            ."licensed_producer,Ana,Diaz,ana@lonestarbenefits.example,123,ZZ\r\n"; // row 6: unknown state
+
+        $wizard = $this->upload($this->wizardAt(5), $csv)
+            ->assertSet('people.rows', [self::EMPLOYEE])
+            ->assertCount('people.problems', 4)
+            ->assertSet('importOk', false)
+            ->assertSet('importMessage', 'Added 1 person from people.csv. 4 rows need fixing below.')
+            ->assertDispatched('join-focus', id: 'problems-title')
+            ->assertSet('people.problems.0.line', 3)
+            ->assertSet('people.problems.0.errors', ['email' => 'The email field is required.'])
+            ->assertSet('people.problems.1.errors', ['npn' => 'Enter the NPN of this licensed producer.', 'license_state' => 'Choose the resident license state.'])
+            ->assertSet('people.problems.2.errors', ['type' => 'Choose licensed producer or agency employee.'])
+            ->assertSet('people.problems.3.errors', ['license_state' => 'Choose the resident license state.'])
+            ->assertSeeInOrder(['Rows to fix', 'Row 3', 'Marcus Reyes', 'Email: The email field is required.', 'Row 4', 'NPN: Enter the NPN of this licensed producer.', 'Row 5', 'Person type: Choose licensed producer or agency employee.', 'Row 6']);
+
+        // The rows are fixed or skipped before going on.
+        $wizard->call('next')
+            ->assertSet('step', 5)
+            ->assertHasErrors('people.problems')
+            ->assertSee('Fix or skip the rows from your CSV before you continue.');
+    }
+
+    public function test_a_row_is_fixed_in_the_form_or_skipped(): void
+    {
+        $csv = self::CSV_HEADER
+            ."licensed_producer,Marcus,Reyes,,20304050,TX\r\n"
+            ."agency_employee,Lena,Ortiz,,,\r\n"
+            ."agency_employee,Sam,Cole,,,\r\n";
+
+        $wizard = $this->upload($this->wizardAt(5), $csv)->assertCount('people.problems', 3)
+            ->call('fixProblem', 0)
+            ->assertSet('people.fixing', 0)
+            ->assertSet('people.entry.first_name', 'Marcus')
+            ->assertHasErrors('people.entry.email')
+            ->assertSee('Fix row 2')
+            ->assertDispatched('join-focus', id: 'person-form-title');
+
+        // Clearing the form keeps the row to fix.
+        $wizard->call('clearPerson')->assertCount('people.problems', 3)->assertDispatched('join-focus', id: 'problem-0-fix');
+
+        $wizard->call('fixProblem', 0)
+            ->set('people.entry.email', 'marcus@lonestarbenefits.example')
+            ->call('savePerson')
+            ->assertHasNoErrors()
+            ->assertSet('people.rows.0.email', 'marcus@lonestarbenefits.example')
+            ->assertCount('people.problems', 2)
+            ->assertSet('people.fixing', -1)
+            ->assertSet('peopleStatus', 'Added Marcus Reyes from row 2. 2 people.')
+            ->assertDispatched('join-focus', id: 'problem-0-fix');
+
+        $wizard->call('skipProblem', 0)
+            ->assertSet('peopleStatus', 'Skipped row 3.')
+            ->assertSet('people.problems.0.line', 4)
+            ->call('skipAllProblems')
+            ->assertSet('people.problems', [])
+            ->call('next')
+            ->assertSet('step', 6);
+    }
+
+    public function test_duplicates_in_the_file_on_the_list_and_in_the_portal_are_rows_to_fix(): void
+    {
+        User::factory()->create(['email' => 'taken@lonestarbenefits.example']);
+        MemberProfile::factory()->create(['npn' => '55555555']);
+
+        $csv = self::CSV_HEADER
+            ."agency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n"           // row 2: added
+            ."agency_employee,Priya,Patel,PRIYA@lonestarbenefits.example,,\r\n"          // row 3: same email as row 2
+            ."agency_employee,Dana,Copy,dana@lonestarbenefits.example,,\r\n"             // row 4: the principal's email
+            ."licensed_producer,Kim,Ito,kim@lonestarbenefits.example,18273645,TX\r\n"    // row 5: the principal's NPN
+            ."agency_employee,Tom,Hall,taken@lonestarbenefits.example,,\r\n"             // row 6: in the portal
+            ."licensed_producer,Ann,Lowe,ann@lonestarbenefits.example,55555555,TX\r\n";  // row 7: NPN in the portal
+
+        $this->upload($this->wizardAt(5), $csv)
+            ->assertSet('people.rows', [self::EMPLOYEE])
+            ->assertSet('people.problems.0.errors', ['email' => 'This email is already on your list.'])
+            ->assertSet('people.problems.1.errors', ['email' => "This is the principal's email. Each person needs their own email."])
+            ->assertSet('people.problems.2.errors', ['npn' => "This is the principal's NPN. Each person needs their own NPN."])
+            ->assertSet('people.problems.3.errors', ['email' => 'This email is already registered in the portal. Please contact ProPerX.'])
+            ->assertSet('people.problems.4.errors', ['npn' => 'This NPN is already registered in the portal. Please contact ProPerX.']);
+    }
+
+    public function test_uploading_the_same_file_again_adds_no_one_twice(): void
+    {
+        $csv = self::CSV_HEADER."licensed_producer,Marcus,Reyes,marcus@lonestarbenefits.example,20304050,TX\r\nagency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n";
+
+        $wizard = $this->upload($this->wizardAt(5), $csv)->assertCount('people.rows', 2);
+
+        $this->upload($wizard, $csv)
+            ->assertCount('people.rows', 2)
+            ->assertSet('people.problems', [])
+            ->assertSet('importMessage', 'Added 0 people from people.csv. 2 rows were already on your list.');
+
+        // The same email with other details is a row to fix, not a second person.
+        $this->upload($wizard, self::CSV_HEADER."agency_employee,Priya,Nair-Shah,priya@lonestarbenefits.example,,\r\n")
+            ->assertCount('people.rows', 2)
+            ->assertSet('people.problems.0.errors', ['email' => 'This email is already on your list.']);
+    }
+
+    public function test_the_template_sample_rows_are_left_out(): void
+    {
+        $this->upload($this->wizardAt(5), PeopleCsv::template()."agency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n")
+            ->assertSet('people.rows', [self::EMPLOYEE])
+            ->assertSet('importMessage', 'Added 1 person from people.csv. The example rows from the template were left out.');
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function unreadableFiles(): iterable
+    {
+        yield 'not a CSV' => ['people.xlsx', self::CSV_HEADER, 'Choose a .csv file.'];
+        yield 'larger than 1 MB' => ['people.csv', self::CSV_HEADER.str_repeat('x', 1024 * 1024), 'The file is larger than 1 MB.'];
+        yield 'not UTF-8' => ['people.csv', self::CSV_HEADER."agency_employee,Jos\xE9,Ruiz,jose@lonestarbenefits.example,,\r\n", 'The file is not in UTF-8.'];
+        yield 'missing columns' => ['people.csv', "first_name,last_name,email\r\nPriya,Nair,priya@lonestarbenefits.example\r\n", 'Missing: type, npn, state.'];
+        yield 'empty' => ['people.csv', "\xEF\xBB\xBF \r\n", 'The file is empty.'];
+        yield 'header only' => ['people.csv', self::CSV_HEADER, 'The file has no people in it.'];
+    }
+
+    #[DataProvider('unreadableFiles')]
+    public function test_a_file_that_cannot_be_read_changes_nothing(string $name, string $csv, string $message): void
+    {
+        $this->upload($this->wizardAt(5), $csv, $name)
+            ->assertSet('people.rows', [])
+            ->assertSet('people.problems', [])
+            ->assertSet('importOk', false)
+            ->assertSee($message)
+            ->assertDispatched('join-focus', id: 'csv-status');
+    }
+
+    public function test_a_file_cannot_take_the_list_past_the_limit(): void
+    {
+        $wizard = $this->wizardAt(5)->set('people.rows', $this->rows(PeopleForm::MAX_HEADCOUNT - 3));
+        $csv = self::CSV_HEADER.implode("\r\n", array_map(fn (int $i) => "agency_employee,New,{$i},new{$i}@lonestarbenefits.example,,", range(1, 3)));
+
+        $this->upload($wizard, $csv)
+            ->assertSee('The file lists more people than can still be added (2).')
+            ->assertCount('people.rows', PeopleForm::MAX_HEADCOUNT - 3);
+
+        $this->upload($wizard, self::CSV_HEADER."agency_employee,New,1,new1@lonestarbenefits.example,,\r\nagency_employee,New,2,new2@lonestarbenefits.example,,\r\n")
+            ->assertCount('people.rows', PeopleForm::MAX_HEADCOUNT - 1);
+    }
+
+    public function test_rows_to_fix_are_kept_in_the_draft(): void
+    {
+        $this->upload($this->wizardAt(5), self::CSV_HEADER."licensed_producer,Marcus,Reyes,,20304050,TX\r\n")
+            ->call('fixProblem', 0)
+            ->call('back');
+
+        $raw = DB::table('agency_registration_drafts')->value('data');
+        $this->assertStringNotContainsString('20304050', $raw);
+
+        Livewire::test(Wizard::class)->call('next')
+            ->assertSet('people.problems.0.line', 2)
+            ->assertSet('people.problems.0.errors', ['email' => 'The email field is required.'])
+            ->assertSet('people.fixing', 0)
+            ->assertSee('Rows to fix');
+    }
+
+    public function test_a_csv_upload_works_only_on_the_people_screen(): void
+    {
+        $this->wizardAt(4)->call('importPeople', 'people.csv', self::CSV_HEADER."agency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n")
+            ->assertSet('people.rows', [])
+            ->assertSet('importMessage', '');
     }
 
     public function test_nothing_is_logged_while_enrolling(): void

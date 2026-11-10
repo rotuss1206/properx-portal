@@ -80,8 +80,61 @@
 @endif
 <x-join.error name="people.rows" />
 
+<div class="csv">
+    <h3 class="section-title">Add people from a spreadsheet <span class="optional">(optional)</span></h3>
+    <p class="hint" id="csv-hint">Download the template, put one person per row, and upload it as CSV (UTF-8, up to 1 MB). People already on your list are not added twice.</p>
+    <div class="csv-actions">
+        <a class="btn-small" href="{{ route('join.agency.people-template') }}" download>Download template</a>
+        <label class="btn-small csv-upload">
+            Upload CSV
+            <input class="sr-only" type="file" accept=".csv,text/csv" data-join-csv data-status="csv-client-status" aria-describedby="csv-hint" wire:ignore>
+        </label>
+    </div>
+    <p class="error" id="csv-client-status" role="status" hidden wire:ignore></p>
+    @if ($importMessage)
+        <p @class(['csv-status', 'notice-ok' => $importOk, 'notice-info' => ! $importOk]) id="csv-status" role="status" tabindex="-1">{{ $importMessage }}</p>
+    @endif
+</div>
+
+@if ($people->problems !== [])
+    <section class="problems" aria-labelledby="problems-title">
+        <div class="problems-head">
+            <h3 class="section-title" id="problems-title" tabindex="-1">Rows to fix <span class="count">{{ count($people->problems) }}</span></h3>
+            <button type="button" class="link" wire:click="skipAllProblems">Skip all</button>
+        </div>
+        <x-join.error name="people.problems" />
+        <ol class="people">
+            @foreach ($people->problems as $index => $problem)
+                @php($name = trim($problem['row']['first_name'].' '.$problem['row']['last_name']))
+                <li @class(['person', 'has-error', 'is-editing' => $people->fixing === $index]) wire:key="problem-{{ $index }}-{{ $problem['line'] }}">
+                    <div class="person-text">
+                        <p class="person-name">
+                            <span class="tag tag-row">Row {{ $problem['line'] }}</span>
+                            <strong>{{ $name !== '' ? $name : 'No name' }}</strong>
+                            @if ($people->fixing === $index)<span class="tag tag-editing">In the form</span>@endif
+                        </p>
+                        @if ($problem['row']['email'] !== '')
+                            <p class="person-meta"><span>{{ $problem['row']['email'] }}</span></p>
+                        @endif
+                        <ul class="person-errors" id="problem-{{ $index }}-errors">
+                            @foreach ($problem['errors'] as $field => $message)
+                                <li class="error">{{ $fields[$field] ?? $field }}: {{ $message }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    <div class="person-actions">
+                        <button type="button" class="btn-small" id="problem-{{ $index }}-fix" wire:click="fixProblem({{ $index }})" aria-describedby="problem-{{ $index }}-errors">Fix<span class="sr-only"> row {{ $problem['line'] }}</span></button>
+                        <button type="button" class="btn-small btn-remove" wire:click="skipProblem({{ $index }})">Skip<span class="sr-only"> row {{ $problem['line'] }}</span></button>
+                    </div>
+                </li>
+            @endforeach
+        </ol>
+    </section>
+@endif
+
 <div class="person-form">
-    <h3 class="section-title" id="person-form-title" tabindex="-1">{{ $editing ? 'Edit person '.($people->editing + 2) : 'Add a person' }}</h3>
+    @php($fixingLine = $people->problems[$people->fixing]['line'] ?? null)
+    <h3 class="section-title" id="person-form-title" tabindex="-1">{{ $editing ? 'Edit person '.($people->editing + 2) : ($fixingLine ? 'Fix row '.$fixingLine : 'Add a person') }}</h3>
     <x-join.error name="people.entry" />
 
     <fieldset @if ($errors->has('people.entry.type')) aria-describedby="people-entry-type-error" @endif>
@@ -115,7 +168,7 @@
 
     <div class="person-form-actions">
         <button type="button" class="btn btn-secondary" wire:click="savePerson" wire:loading.attr="disabled">{{ $editing ? 'Save changes' : 'Add person' }}</button>
-        @if ($editing)
+        @if ($editing || $fixingLine)
             <button type="button" class="link" wire:click="clearPerson">Cancel</button>
         @elseif (! $people->entryIsEmpty())
             <button type="button" class="link" wire:click="clearPerson">Clear the form</button>
