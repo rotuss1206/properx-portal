@@ -31,7 +31,7 @@ class MembershipForm extends StepForm
             'type' => ['required', Rule::in([self::AGENCY])],
             'partner_code' => ['nullable', 'string', 'max:50', function (string $attribute, mixed $value, Closure $fail) {
                 if (PartnerCode::findValid((string) $value) === null) {
-                    $fail('This partner code is not valid or has expired. Check the code or leave the field empty.');
+                    $fail("This partner code is not valid or has expired. Check the code. Leave it empty if you don't have one.");
                 }
             }],
         ];

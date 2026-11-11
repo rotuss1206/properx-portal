@@ -334,7 +334,9 @@ class AgencyPaymentTest extends TestCase
         $wizard->assertSet('enrolledAgencyId', $agency->id)
             ->assertSee('Your agency is enrolled')
             ->assertSeeInOrder(['Dana Whitfield', 'Principal', 'Invitation will be sent', 'Marcus Reyes', 'Invitation will be sent', 'Priya Nair', 'Agency employee', 'Invitation will be sent'])
-            ->assertSeeInOrder(['Receipt', '$477', 'Credit card surcharge', '$13.83', 'Total paid', '$490.83']);
+            ->assertSeeInOrder(['Receipt', '$477', 'Credit card surcharge', '$13.83', 'Total paid', '$490.83'])
+            ->assertSee('A receipt will be emailed to billing@lonestarbenefits.example.')
+            ->assertDontSee('Your answers are saved after each step.');
 
         // Reloading the page shows the confirmation again, and nothing is created twice.
         Livewire::test(Wizard::class)->assertSee('Your agency is enrolled')->call('finishPayment', 'pi_agency');

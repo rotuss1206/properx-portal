@@ -50,6 +50,13 @@ class AgencyForm extends StepForm
 
         $this->billing_email = Str::lower($this->billing_email);
 
+        // "123456789" and "12 3456789" are the FEIN 12-3456789; it is kept in that form.
+        $digits = preg_replace('/\D/', '', $this->fein);
+
+        if (strlen((string) $digits) === 9 && preg_match('/^[\d\s-]+$/', $this->fein)) {
+            $this->fein = substr($digits, 0, 2).'-'.substr($digits, 2);
+        }
+
         // "www.example.com" is accepted as https://www.example.com.
         if ($this->website !== '' && ! preg_match('#^[a-z][a-z0-9+.-]*://#i', $this->website)) {
             $this->website = 'https://'.$this->website;
@@ -62,13 +69,14 @@ class AgencyForm extends StepForm
             'legal_name' => ['required', 'string', 'max:255'],
             'dba' => ['nullable', 'string', 'max:255'],
             'agency_type' => ['required', Rule::enum(AgencyType::class)],
-            'agency_npn' => ['nullable', 'regex:/^\d{7,10}$/', new UniqueBlindIndex(Agency::class, 'agency_npn')],
-            'fein' => ['nullable', 'regex:/^\d{2}-?\d{7}$/', new UniqueBlindIndex(Agency::class, 'fein')],
+            'agency_npn' => ['nullable', 'regex:/^\d{1,10}$/', new UniqueBlindIndex(Agency::class, 'agency_npn')],
+            'fein' => ['nullable', 'regex:/^\d{2}-\d{7}$/', new UniqueBlindIndex(Agency::class, 'fein')],
             ...self::addressRules('legal_address', physical: true),
             'mailing_same_as_legal' => ['boolean'],
             ...($this->mailing_same_as_legal ? [] : self::addressRules('mailing_address', physical: false)),
             'phone' => ['required', new UsPhone],
-            'website' => ['nullable', 'url:http,https', 'max:255'],
+            // A real address: a host with a dot, no spaces ("https://localhost" or "https://my site" are not).
+            'website' => ['nullable', 'url:http,https', 'regex:#^https?://[^\s/?.]+(\.[^\s/?.]+)+([/?\#]\S*)?$#i', 'max:255'],
             'billing_email' => ['required', 'email', 'max:255'],
             'referral_source' => ['nullable', Rule::in(array_keys(Agency::REFERRAL_SOURCES))],
         ];
@@ -93,8 +101,9 @@ class AgencyForm extends StepForm
     public function messages(): array
     {
         return [
-            'agency_npn.regex' => 'The agency NPN must be 7 to 10 digits.',
+            'agency_npn.regex' => 'The agency NPN is numbers only, up to 10 digits.',
             'fein.regex' => 'Enter the FEIN as 9 digits, e.g. 12-3456789.',
+            'website.regex' => 'Enter a web address such as www.example.com.',
             'legal_address.zip.regex' => 'Enter a 5-digit ZIP code (or ZIP+4).',
             'mailing_address.zip.regex' => 'Enter a 5-digit ZIP code (or ZIP+4).',
             'legal_address.state.in' => 'Choose a state.',

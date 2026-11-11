@@ -5,9 +5,6 @@
 @endphp
 <div class="field">
     <label for="{{ $id }}">{{ $label }}@unless ($required) <span class="optional">(optional)</span>@endunless</label>
-    @if ($hint)
-        <p class="hint" id="{{ $id }}-hint">{{ $hint }}</p>
-    @endif
     <select id="{{ $id }}"
         {{ $attributes->merge([$model => $name]) }}
         @if ($required) aria-required="true" @endif
@@ -18,5 +15,8 @@
             <option value="{{ $value }}">{{ $text }}</option>
         @endforeach
     </select>
+    @if ($hint)
+        <p class="hint" id="{{ $id }}-hint">{{ $hint }}</p>
+    @endif
     <x-join.error :name="$name" />
 </div>

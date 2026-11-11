@@ -70,4 +70,6 @@
 
         @include('livewire.agency-registration.price')
     </div>
+    {{-- Only while the enrollment is open: not on the processing and confirmation screens. --}}
+    <p class="saved-note">Your answers are saved after each step.</p>
 </div>

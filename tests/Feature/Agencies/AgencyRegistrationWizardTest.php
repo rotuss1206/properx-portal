@@ -161,6 +161,29 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertSee('My agency (2 or more)');
     }
 
+    public function test_just_me_is_a_link_to_the_marketing_site_not_a_choice(): void
+    {
+        config(['portal.registration.individual_url' => 'https://www.properx.example/join']);
+
+        Livewire::test(Wizard::class)
+            ->assertSeeHtml('<a href="https://www.properx.example/join" class="external">Apply as an individual on properx.org')
+            ->assertDontSee('Just me')
+            ->assertSeeHtml('class="choices choices-single"');
+
+        config(['portal.registration.individual_url' => null]);
+
+        Livewire::test(Wizard::class)
+            ->assertSee('Individual membership applications are on properx.org.')
+            ->assertDontSeeHtml('class="external"');
+    }
+
+    public function test_an_invalid_partner_code_says_it_may_be_left_empty(): void
+    {
+        Livewire::test(Wizard::class)->set('membership.type', 'agency')->set('membership.partner_code', 'NOPE-1')->call('next')
+            ->assertHasErrors('membership.partner_code')
+            ->assertSee("Leave it empty if you don't have one.");
+    }
+
     public function test_screen_1_requires_the_agency_choice(): void
     {
         Livewire::test(Wizard::class)
@@ -398,6 +421,66 @@ class AgencyRegistrationWizardTest extends TestCase
             ->call('next')
             ->assertHasNoErrors()
             ->assertSet('step', 4);
+    }
+
+    public function test_screen_3_is_in_titled_blocks_with_hints_under_the_fields(): void
+    {
+        $html = $this->wizardAt(3)
+            ->assertSeeInOrder(['Agency details', 'Legal agency name', 'DBA', 'Agency type', 'Agency NPN', 'FEIN', 'Legal address', 'Street address', 'Mailing address same as legal address', 'Contact &amp; billing', 'Main phone', 'Website', 'Billing email', 'How did you hear about us?'], false)
+            ->html();
+
+        // The hint follows its input, so fields side by side start at the same height.
+        // (Livewire marks @if blocks with comments in between.)
+        $between = '(\s|<!--\[if BLOCK\]><!\[endif\]-->)*';
+        $this->assertMatchesRegularExpression('#id="agency-agency_npn"[^>]*>'.$between.'<p class="hint" id="agency-agency_npn-hint">#', $html);
+        $this->assertMatchesRegularExpression('#id="agency-legal_address-line1"[^>]*>'.$between.'<p class="hint"[^>]*>A street address\. PO boxes are not accepted\.#', $html);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function feins(): iterable
+    {
+        yield 'with the hyphen' => ['74-1234567', '74-1234567'];
+        yield 'digits only' => ['741234567', '74-1234567'];
+        yield 'with a space' => ['74 1234567', '74-1234567'];
+    }
+
+    #[DataProvider('feins')]
+    public function test_the_fein_is_accepted_with_or_without_the_hyphen_and_kept_with_it(string $typed, string $kept): void
+    {
+        $this->fill($this->wizardAt(3), 'agency', ['fein' => $typed] + self::AGENCY)
+            ->call('next')
+            ->assertHasNoErrors()
+            ->assertSet('agency.fein', $kept);
+    }
+
+    public function test_the_agency_npn_is_numbers_only_up_to_10_digits(): void
+    {
+        $wizard = $this->wizardAt(3);
+
+        foreach (['12a', '12345678901', '12 34'] as $npn) {
+            $this->fill($wizard, 'agency', ['agency_npn' => $npn] + self::AGENCY)->call('next')
+                ->assertHasErrors('agency.agency_npn')
+                ->assertSee('The agency NPN is numbers only, up to 10 digits.');
+        }
+
+        $this->fill($wizard, 'agency', ['agency_npn' => '7'] + self::AGENCY)->call('next')->assertHasNoErrors()->assertSet('step', 4);
+    }
+
+    public function test_the_website_must_be_a_real_address_and_gets_https(): void
+    {
+        $wizard = $this->wizardAt(3);
+
+        foreach (['not a site', 'localhost', 'https://intranet', 'www.example .com'] as $website) {
+            $this->fill($wizard, 'agency', ['website' => $website] + self::AGENCY)->call('next')
+                ->assertHasErrors('agency.website')
+                ->assertSee('Enter a web address such as www.example.com.');
+        }
+
+        $this->fill($wizard, 'agency', ['website' => 'lonestarbenefits.example/team?x=1'] + self::AGENCY)->call('next')
+            ->assertHasNoErrors()
+            ->assertSet('agency.website', 'https://lonestarbenefits.example/team?x=1');
     }
 
     public function test_screen_3_checks_formats_and_existing_agency_identifiers(): void

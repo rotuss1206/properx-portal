@@ -37,7 +37,7 @@
                 @endif
                 <dt class="payment-total">Total paid</dt><dd class="payment-total">{{ \App\Support\Money::format((int) ($receipt['total'] ?? 0)) }}</dd>
             </dl>
-            <p class="hint">Stripe emails the invoice and receipt to {{ $enrolled?->billing_email ?? 'your billing email' }}.</p>
+            <p class="hint">A receipt will be emailed to {{ $enrolled?->billing_email ?? 'your billing email' }}.</p>
         @endif
 
         <h3 class="section-title">What happens next</h3>

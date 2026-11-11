@@ -63,7 +63,18 @@
         fieldset { border: 0; padding: 0; margin: 0 0 20px; min-width: 0; }
         legend { padding: 0; margin-bottom: 8px; }
         .section-title { font-weight: 600; font-size: 16px; color: #111827; }
-        .grid { display: grid; gap: 16px; }
+        .grid { display: grid; gap: 16px; margin-bottom: 16px; }
+        /* Screen 3: titled blocks. */
+        .form-block { margin: 0 0 8px; }
+        .form-block + .form-block { margin-top: 12px; padding-top: 22px; border-top: 1px solid var(--line); }
+        .form-block > h3, .form-block legend.section-title { display: block; margin: 0 0 12px; }
+        .form-block fieldset.address { margin-bottom: 12px; }
+        /* Screen 1: the individual application is a link to the marketing site, not a choice here. */
+        .choices-single { grid-template-columns: 1fr !important; }
+        .individual { margin: 14px 0 22px; font-size: 14px; color: #374151; }
+        .external { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+        .external svg { flex: none; }
+        .saved-note { margin: 16px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
         @media (min-width: 640px) { .grid-2 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: 2fr 1fr 1fr; } }
         .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
         .grid .field { margin-bottom: 0; }
@@ -236,7 +247,7 @@
 
     {{ $slot }}
 
-    <div class="footer">Questions? Contact ProPerX Alliance. Your answers are saved after each step.</div>
+    <div class="footer">Questions? Contact ProPerX Alliance.</div>
 </div>
 @livewireScripts
 <script src="{{ \App\Support\PortalAsset::url('join-csv.js') }}" defer nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
