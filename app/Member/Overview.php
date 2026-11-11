@@ -49,7 +49,10 @@ final class Overview
     }
 
     /**
-     * @return array{label: string, variant: string, renews: ?CarbonInterface, founding: bool}
+     * The card's second line ("term"): "Renews <date>", "Payment overdue" while past due, or
+     * "Ended <date>" once the membership is inactive (the date only while it is known).
+     *
+     * @return array{label: string, variant: string, term: ?string, founding: bool}
      */
     public function membership(): array
     {
@@ -66,7 +69,11 @@ final class Overview
             return [
                 'label' => $status->label(),
                 'variant' => $variant,
-                'renews' => $this->paidThrough(),
+                'term' => $this->term(match ($status) {
+                    AgencyStatus::PastDue => 'overdue',
+                    AgencyStatus::Inactive => 'ended',
+                    default => 'renews',
+                }),
                 'founding' => $profile->agency?->rate_type === RateType::Founding,
             ];
         }
@@ -82,11 +89,26 @@ final class Overview
                 $status === PaymentStatus::PastDue => 'warning',
                 default => 'success',
             },
-            'renews' => $this->paidThrough(),
+            'term' => $this->term(match (true) {
+                $restricted => 'ended',
+                $status === PaymentStatus::PastDue => 'overdue',
+                default => 'renews',
+            }),
             // Hidden for individual members: there is no founding-rate data for them yet;
             // portal.member_area.founding_badge_individuals is the switch for when there is.
             'founding' => false,
         ];
+    }
+
+    private function term(string $kind): ?string
+    {
+        $date = $this->paidThrough()?->format('j M Y');
+
+        return match ($kind) {
+            'overdue' => 'Payment overdue',
+            'ended' => $date === null ? 'Ended' : 'Ended '.$date,
+            default => $date === null ? null : 'Renews '.$date,
+        };
     }
 
     /**

@@ -3,6 +3,7 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\start-dev.ps1
 #
 # Each command travels as -EncodedCommand, so its quotes and ">" need no escaping.
+# The Stripe listeners use the portal's test key from .env (STRIPE_SECRET), so no "stripe login" is needed.
 
 $ErrorActionPreference = 'Stop'
 
@@ -102,6 +103,27 @@ function Get-PhpPath {
     return $php
 }
 
+# The portal's STRIPE_SECRET from .env, accepted only as a test-mode key (sk_test_ / rk_test_), so the
+# listeners need no "stripe login". The key is never printed: callers hand it to the windows through an
+# environment variable, not through the command text.
+function Get-StripeTestKey {
+    $envFile = Join-Path $root '.env'
+    $line = if (Test-Path -LiteralPath $envFile) {
+        Get-Content -LiteralPath $envFile | Where-Object { $_ -match '^\s*STRIPE_SECRET\s*=' } | Select-Object -Last 1
+    }
+    $key = if ($line) { ($line -replace '^\s*STRIPE_SECRET\s*=\s*', '').Trim().Trim('"', "'") } else { '' }
+
+    if ($key -eq '') {
+        throw 'STRIPE_SECRET is empty in the portal''s .env. Put the Stripe test-mode secret key (sk_test_...) there; the Stripe listeners use it instead of "stripe login".'
+    }
+
+    if (-not ($key.StartsWith('sk_test_') -or $key.StartsWith('rk_test_'))) {
+        throw 'STRIPE_SECRET in the portal''s .env is not a test-mode key (sk_test_ / rk_test_). The local listeners never use a live key; put the test key there.'
+    }
+
+    return $key
+}
+
 function ConvertTo-QuotedLiteral([string] $Text) {
     return "'" + ($Text -replace "'", "''") + "'"
 }
@@ -141,14 +163,24 @@ if (-not (Get-Process mysqld -ErrorAction SilentlyContinue)) {
 }
 
 $php = Get-PhpPath
+$stripeKey = Get-StripeTestKey
 
 $stripeToSite = 'https://properx-org.local/?callback=gravityformsstripe'
 $stripeToPortal = 'https://properx-portal.local/api/webhooks/stripe'
 
 Start-DevService 'Azurite' (Test-PortListening 10000) 'npm run azurite'
 Start-DevService 'Mailpit' ((Test-PortListening 8025) -or (Test-PortListening 1025)) 'mailpit'
-Start-DevService 'Stripe -> site' (Test-StripeListening $stripeToSite) "stripe listen --all-snapshot --forward-to `"$stripeToSite`" --skip-verify"
-Start-DevService 'Stripe -> portal' (Test-StripeListening $stripeToPortal) "stripe listen --all-snapshot --forward-to `"$stripeToPortal`" --skip-verify"
+
+# The Stripe windows inherit the key as an environment variable for --api-key; it leaves this
+# process again before the queue window opens.
+$env:PORTAL_STRIPE_TEST_KEY = $stripeKey
+try {
+    Start-DevService 'Stripe -> site' (Test-StripeListening $stripeToSite) "stripe listen --api-key `$env:PORTAL_STRIPE_TEST_KEY --all-snapshot --forward-to `"$stripeToSite`" --skip-verify"
+    Start-DevService 'Stripe -> portal' (Test-StripeListening $stripeToPortal) "stripe listen --api-key `$env:PORTAL_STRIPE_TEST_KEY --all-snapshot --forward-to `"$stripeToPortal`" --skip-verify"
+} finally {
+    Remove-Item Env:PORTAL_STRIPE_TEST_KEY -ErrorAction SilentlyContinue
+}
+
 Start-DevService 'Queue' (Test-QueueWorkerRunning) ('& ' + (ConvertTo-QuotedLiteral $php) + ' artisan queue:work')
 
 Start-Sleep -Seconds 4

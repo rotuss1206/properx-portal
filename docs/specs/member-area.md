@@ -163,7 +163,7 @@ Greeting "Good morning, {first_name}" (time of day in `PORTAL_SCHEDULE_TIMEZONE`
 
 | Block | Data | Notes |
 |---|---|---|
-| Membership (hero) | `MemberProfile::payment_status` (Active / Past due / Canceled / Unknown), "Renews {paid_through_at}" (agency people: the agency's `paid_through_at`) | "Founding member" badge: agency people → agency `rate_type = founding`; individuals → hidden (no source; `member_area.founding_badge_individuals = false` for later). |
+| Membership (hero) | `MemberProfile::payment_status` (Active / Past due / Canceled / Unknown), "Renews {paid_through_at}" (agency people: the agency's `paid_through_at`); "Payment overdue" while past due, "Ended {paid_through_at}" once inactive | "Founding member" badge: agency people → agency `rate_type = founding`; individuals → hidden (no source; `member_area.founding_badge_individuals = false` for later). |
 | License | `license_expires_at`, `license_status` (Current / Expiring / Expired) | Agency employees: card replaced by "Not required for your role". |
 | CE credits | — | **Not our data** (out of scope, Spec). Hidden: `portal.member_area.ce_credits = false`. |
 | Membership timeline | Joined = `users.created_at` (or the agency's enrollment date); Renewed = last `invoice.paid` matched to the member (`stripe_events`); Today; Next renewal = `paid_through_at`. Cycle label from the period. | Hidden while `paid_through_at` is null. |

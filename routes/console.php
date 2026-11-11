@@ -25,6 +25,14 @@ Schedule::command('app:send-renewal-notices')
     ->withoutOverlapping(5)
     ->onOneServer();
 
+// Agency invitation reminders (day 3, day 7). Hourly 09:00-11:00 so a run stopped by the 120-second
+// limit is finished by the next; each reminder is logged first and never sent twice.
+Schedule::command('app:send-invitation-reminders')
+    ->cron('0 9-11 * * *')
+    ->timezone(config('portal.schedule_timezone'))
+    ->withoutOverlapping(5)
+    ->onOneServer();
+
 // Unfinished agency enrollments are kept for portal.registration.draft_days after their last save.
 Schedule::command('model:prune', ['--model' => [AgencyRegistrationDraft::class]])
     ->dailyAt('01:30')

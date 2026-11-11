@@ -4,7 +4,9 @@ namespace App\Member;
 
 use App\Enums\VerificationStatus;
 use App\Models\LicenseDocument;
+use App\Models\MemberProfile;
 use App\Models\User;
+use App\Notifications\Member\AgencyInvitationNotice;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\RenewalDue;
 use App\Notifications\Member\TaxDocumentAvailable;
@@ -67,6 +69,7 @@ final class NotificationFeed
             TaxDocumentAvailable::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
             LicenseDocumentReviewed::class => self::licenseDocumentTarget($notification),
             RenewalDue::class => route('member.dashboard'),
+            AgencyInvitationNotice::class => route('member.dashboard'),
             default => null,
         };
     }
@@ -103,6 +106,7 @@ final class NotificationFeed
                 : 'License document rejected',
             TaxDocumentAvailable::class => 'New tax document available',
             RenewalDue::class => self::renewalTitle($data['paid_through'] ?? null),
+            AgencyInvitationNotice::class => self::invitationTitle($notification),
             default => null,
         };
 
@@ -138,5 +142,40 @@ final class NotificationFeed
             $days === 0 => 'Membership renews today',
             default => 'Membership renewal is due',
         };
+    }
+
+    /**
+     * The principal's notices about their people's invitations: names of people still on the
+     * principal's own agency only.
+     */
+    private static function invitationTitle(DatabaseNotification $notification): ?string
+    {
+        $user = $notification->notifiable;
+        $agencyId = $user instanceof User ? $user->memberProfile?->agency_id : null;
+
+        if ($agencyId === null) {
+            return null;
+        }
+
+        $names = MemberProfile::query()
+            ->where('agency_id', $agencyId)
+            ->whereKey((array) ($notification->data['profile_ids'] ?? []))
+            ->get(['id', 'first_name', 'last_name'])
+            ->map(fn (MemberProfile $profile) => trim($profile->first_name.' '.$profile->last_name))
+            ->filter()
+            ->values();
+
+        if ($names->isEmpty()) {
+            return null;
+        }
+
+        if (($notification->data['kind'] ?? null) === AgencyInvitationNotice::REQUESTED) {
+            return $names->first().' asked for a new invitation';
+        }
+
+        $shown = $names->take(3)->implode(', ');
+        $more = $names->count() - 3;
+
+        return 'Not yet set up: '.$shown.($more > 0 ? " and {$more} more" : '');
     }
 }

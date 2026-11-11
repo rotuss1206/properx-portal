@@ -14,6 +14,7 @@ use App\Exceptions\CertificateUnavailableException;
 use App\Models\NotificationSetting;
 use App\Nova\Actions\DownloadMyCertificate;
 use App\Nova\Actions\GenerateCertificate;
+use App\Nova\Actions\ResendInvitation;
 use App\Services\Certificates\CertificateGeneratorService;
 use App\Support\UsStates;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -434,6 +435,12 @@ class MemberProfile extends Resource
                 ->showInline()
                 ->canSee(fn (Request $request) => static::viewerIsStaff($request))
                 ->canRun($canDownload),
+
+            ResendInvitation::make()
+                ->showInline()
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
+                ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => ResendInvitation::applies($profile)
+                    && Gate::forUser($request->user())->check('update', $profile)),
 
             DownloadMyCertificate::make()
                 ->showInline()

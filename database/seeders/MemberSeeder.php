@@ -267,7 +267,7 @@ class MemberSeeder extends Seeder
     {
         $statuses = [DeliveryStatus::Delivered, DeliveryStatus::Delivered, DeliveryStatus::Sent, DeliveryStatus::Skipped];
 
-        foreach (ReminderType::cases() as $position => $type) {
+        foreach (ReminderType::licenseExpiry() as $position => $type) {
             $dueAt = $profile->license_expires_at->copy()->subDays($type->value)->setTime(2, 0);
 
             if ($dueAt->isFuture()) {

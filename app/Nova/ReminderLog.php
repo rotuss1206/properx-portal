@@ -43,7 +43,7 @@ class ReminderLog extends Resource
 
             Select::make('Reminder', 'reminder_type')
                 ->options(collect(ReminderType::cases())
-                    ->mapWithKeys(fn (ReminderType $type) => [$type->value => "{$type->value} days before expiry"])
+                    ->mapWithKeys(fn (ReminderType $type) => [$type->value => $type->label()])
                     ->all())
                 ->displayUsingLabels()
                 ->sortable()

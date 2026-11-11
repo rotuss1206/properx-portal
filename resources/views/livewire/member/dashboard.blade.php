@@ -12,8 +12,8 @@
                     @if ($membership['founding'])
                         <x-ppx.badge variant="founding" :dot="false">Founding member</x-ppx.badge>
                     @endif
-                    @if ($membership['renews'])
-                        <span>Renews {{ $membership['renews']->format('j M Y') }}</span>
+                    @if ($membership['term'])
+                        <span>{{ $membership['term'] }}</span>
                     @endif
                 </p>
             </section>

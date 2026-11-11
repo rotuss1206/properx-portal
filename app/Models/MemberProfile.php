@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 use LogicException;
 
@@ -244,6 +245,33 @@ class MemberProfile extends Model
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    /**
+     * @return HasMany<AgencyInvitation, $this>
+     */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(AgencyInvitation::class);
+    }
+
+    /**
+     * The principal of this person's agency by the agency's own record (agencies.principal_user_id).
+     */
+    public function isPrincipalOfAgency(): bool
+    {
+        return $this->agency_id !== null && $this->agency?->principal_user_id === $this->user_id;
+    }
+
+    /**
+     * An agency person who set their password through an invitation but has not yet checked their
+     * profile and given the consents (App\Http\Middleware\RequireAcceptedInvitation).
+     */
+    public function mustFinishInvitation(): bool
+    {
+        return $this->agency_id !== null
+            && $this->invite_status !== InviteStatus::AccountActive
+            && $this->invitations()->whereNotNull('used_at')->exists();
     }
 
     public function isAgencyEmployee(): bool

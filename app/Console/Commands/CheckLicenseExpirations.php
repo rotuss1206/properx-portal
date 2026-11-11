@@ -121,7 +121,7 @@ class CheckLicenseExpirations extends Command
 
         $daysLeft = (int) $today->copy()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay());
 
-        $types = ReminderType::cases();
+        $types = ReminderType::licenseExpiry();
         usort($types, fn (ReminderType $a, ReminderType $b) => $a->value <=> $b->value);
 
         foreach ($types as $type) {

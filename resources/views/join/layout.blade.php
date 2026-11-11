@@ -81,7 +81,7 @@
         .field label, .label { font-weight: 600; font-size: 14px; }
         .optional { font-weight: 400; color: var(--muted); }
         .hint { font-size: 13px; color: var(--muted); margin: 0; }
-        input[type=text], input[type=email], input[type=tel], input[type=url], select {
+        input[type=text], input[type=email], input[type=tel], input[type=url], input[type=password], select {
             width: 100%; font: inherit; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: inherit; }
         input[aria-invalid=true], select[aria-invalid=true] { border-color: var(--error); }
         .error { color: var(--error); font-size: 13px; margin: 0; }
@@ -236,6 +236,14 @@
             .person-actions .btn-small { flex: 1; }
         }
 
+        /* Agency invitations (join/invitation/*) */
+        .narrow { max-width: 640px; }
+        .readonly-value { margin: 0; padding: 10px 12px; border-radius: 8px; background: #f3f4f6; overflow-wrap: anywhere; }
+        .grid-spaced { margin-top: 12px; }
+        .steps-mini { margin: 0 0 20px; padding-left: 20px; color: #374151; }
+        .steps-mini .now { font-weight: 600; color: #111827; }
+        .notice-ok.block { font-size: 14px; padding: 10px 12px; margin: 0 0 16px; }
+
         .footer { margin: 24px 0; font-size: 12px; color: var(--muted); text-align: center; }
     </style>
     @livewireStyles
@@ -243,7 +251,7 @@
 <body>
 <div class="page">
     <img class="brand" src="{{ asset('portal/img/logo-color.svg') }}" alt="ProPerX Alliance">
-    <h1>Enroll your agency</h1>
+    <h1>{{ $heading ?? 'Enroll your agency' }}</h1>
 
     {{ $slot }}
 

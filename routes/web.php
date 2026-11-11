@@ -3,8 +3,10 @@
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\Join\ContinueEnrollmentController;
+use App\Http\Controllers\Join\InvitationController;
 use App\Http\Controllers\Join\PeopleTemplateController;
 use App\Http\Controllers\VerifyCertificateController;
+use App\Http\Middleware\RequireAcceptedInvitation;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Livewire\AgencyRegistration\Wizard;
 use Illuminate\Support\Facades\Route;
@@ -14,7 +16,7 @@ Route::redirect('/', '/nova');
 
 // Files are delivered only through short-lived signed routes (URL::temporarySignedRoute)
 // that also require the session and re-check authorisation before streaming the blob.
-Route::middleware(['auth', 'signed', RequireTwoFactor::class])->group(function () {
+Route::middleware(['auth', 'signed', RequireTwoFactor::class, RequireAcceptedInvitation::class])->group(function () {
     Route::get('/certificates/{memberProfile}/download', [CertificateController::class, 'download'])
         ->name('certificates.download');
 
@@ -26,7 +28,7 @@ Route::middleware(['auth', 'signed', RequireTwoFactor::class])->group(function (
 
 // The certificate button on the profile page: re-checks access, then redirects to the signed route.
 Route::get('/certificates/{memberProfile}', [CertificateController::class, 'open'])
-    ->middleware(['auth', RequireTwoFactor::class])
+    ->middleware(['auth', RequireTwoFactor::class, RequireAcceptedInvitation::class])
     ->whereNumber('memberProfile')
     ->name('certificates.open');
 
@@ -56,3 +58,23 @@ Route::get('/join/agency/people-template.csv', PeopleTemplateController::class)
 Route::get('/join/agency/continue/{token}', ContinueEnrollmentController::class)
     ->middleware('throttle:agency-registration')
     ->name('join.agency.continue');
+
+// Agency invitations (Agency spec 7): the emailed one-time link sets the password; after the
+// two-factor setup, the profile check and the consents finish it.
+Route::middleware('throttle:agency-invitation')->group(function () {
+    Route::get('/join/invitation/{token}', [InvitationController::class, 'show'])
+        ->where('token', '[A-Za-z0-9]{1,100}')
+        ->name('join.invitation');
+    Route::post('/join/invitation/{token}', [InvitationController::class, 'setPassword'])
+        ->where('token', '[A-Za-z0-9]{1,100}')
+        ->name('join.invitation.password');
+    Route::post('/join/invitation/{token}/request', [InvitationController::class, 'requestNew'])
+        ->where('token', '[A-Za-z0-9]{1,100}')
+        ->middleware('throttle:agency-invitation-request')
+        ->name('join.invitation.request');
+});
+
+Route::middleware(['auth', RequireTwoFactor::class])->group(function () {
+    Route::get('/join/welcome', [InvitationController::class, 'completeForm'])->name('join.invitation.complete');
+    Route::post('/join/welcome', [InvitationController::class, 'complete'])->name('join.invitation.accept');
+});

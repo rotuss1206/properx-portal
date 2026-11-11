@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['reminder_type', 'license_expires_at', 'sent_at', 'delivery_status'])]
+#[Fillable(['reminder_type', 'license_expires_at', 'agency_invitation_id', 'sent_at', 'delivery_status'])]
 class ReminderLog extends Model
 {
     /** @use HasFactory<ReminderLogFactory> */

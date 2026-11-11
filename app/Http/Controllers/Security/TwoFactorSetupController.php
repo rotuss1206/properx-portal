@@ -178,6 +178,11 @@ class TwoFactorSetupController extends Controller
 
     private function home(User $user): string
     {
+        // Invited agency people check their profile and give the consents next.
+        if ($user->memberProfile?->mustFinishInvitation()) {
+            return route('join.invitation.complete');
+        }
+
         return config('portal.member_area.enabled') && $user->isMember() && ! $user->isStaff()
             ? route('member.dashboard')
             : Nova::url('/');

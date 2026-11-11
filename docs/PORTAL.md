@@ -26,7 +26,7 @@ Main features: member profiles with encrypted identifiers (blind indexes for loo
 license and tax documents (encrypted, streamed through short-lived signed routes after a
 policy check), a compliance library, membership certificates with public verification,
 license expiry reminders, agency membership (agencies, partner codes, pricing, public
-enrollment wizard), Stripe
+enrollment wizard, invitations of the agency's people with one-time links at `/join/invitation/*`), Stripe
 payment status, health probes and an audit log.
 
 ## Local setup
@@ -144,7 +144,8 @@ Production values are App Service settings and Key Vault references (root `READM
 | `STRIPE_KEY` | Stripe publishable key of the same account: the payment form on `/join/agency` |
 | `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise). After deployment, `php artisan app:stripe:agency-prices` checks the six prices and the "Credit card surcharge" product |
 | `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default. Livewire uses `/livewire/*` routes, which the ingress must pass through. The Stripe webhook needs the events `invoice.paid` and `invoice.payment_failed` (already sent for members) |
-| `PORTAL_TERMS_URL`, `PORTAL_PRIVACY_URL` | Terms of Service and Privacy Policy linked from the enrollment's consents; properx.org's pages by default |
+| `PORTAL_TERMS_URL`, `PORTAL_PRIVACY_URL` | Terms of Service and Privacy Policy linked from the enrollment's consents and from the last step of an agency invitation; properx.org's pages by default |
+| `AGENCY_STAFF_NOTIFICATION_EMAIL` | Optional address that also gets "New agency enrolled" by email (staff always see it in Nova) |
 | `INDIVIDUAL_MEMBERSHIP_URL` | Individual application on the marketing site ("Just me" on `/join/agency`) |
 | `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
 | `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |

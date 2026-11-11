@@ -16,7 +16,7 @@ enum InviteStatus: string
     {
         return match ($this) {
             self::Pending => 'Invitation will be sent',
-            self::Invited => 'Invited',
+            self::Invited => 'Invitation sent',
             self::AccountActive => 'Account active',
         };
     }

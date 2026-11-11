@@ -213,7 +213,9 @@ class AgencyLifecycleTest extends TestCase
             ->assertOk()
             ->assertSee('Your agency&#039;s membership payment is overdue.', false)
             ->assertDontSee('Pay now')
-            ->assertDontSee('https://invoice.stripe.test/i/renewal');
+            ->assertDontSee('https://invoice.stripe.test/i/renewal')
+            ->assertSee('Payment overdue')
+            ->assertDontSee('Renews ');
 
         $this->get(route('member.certificate'))->assertOk()->assertDontSee('not available');
     }
@@ -271,6 +273,8 @@ class AgencyLifecycleTest extends TestCase
         $this->get(route('member.dashboard'))
             ->assertOk()
             ->assertSee('membership has ended')
+            ->assertSee('Ended '.$agency->paid_through_at->format('j M Y'))
+            ->assertDontSee('Renews ')
             ->assertDontSee('Renew now');
         $this->get(route('certificates.open', $profile))->assertUnprocessable();
 

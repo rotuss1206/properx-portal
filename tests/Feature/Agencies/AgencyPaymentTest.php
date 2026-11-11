@@ -10,12 +10,14 @@ use App\Enums\PersonType;
 use App\Enums\Role;
 use App\Livewire\AgencyRegistration\Wizard;
 use App\Models\Agency;
+use App\Models\AgencyInvitation;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\AuditLog;
 use App\Models\PartnerCode;
 use App\Models\User;
 use App\Notifications\AgencyBankPaymentFailed;
-use App\Notifications\AgencyEnrollmentCompleted;
+use App\Notifications\AgencyInvitationEmail;
+use App\Notifications\AgencyWelcome;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -321,7 +323,7 @@ class AgencyPaymentTest extends TestCase
         $this->assertSame(['dana@lonestarbenefits.example', 'marcus@lonestarbenefits.example', 'priya@lonestarbenefits.example'], $people->pluck('user.email')->all());
         $this->assertSame([AgencyRole::Principal, AgencyRole::Member, AgencyRole::Member], $people->pluck('agency_role')->all());
         $this->assertSame([PersonType::LicensedProducer, PersonType::LicensedProducer, PersonType::AgencyEmployee], $people->pluck('person_type')->all());
-        $this->assertSame([InviteStatus::Pending, InviteStatus::Pending, InviteStatus::Pending], $people->pluck('invite_status')->all());
+        $this->assertSame([InviteStatus::Invited, InviteStatus::Invited, InviteStatus::Invited], $people->pluck('invite_status')->all());
         $this->assertSame([LicenseVerification::PendingReview, LicenseVerification::PendingReview, null], $people->pluck('license_verification')->all());
         $this->assertNull($people[2]->npn);
 
@@ -333,7 +335,7 @@ class AgencyPaymentTest extends TestCase
 
         $wizard->assertSet('enrolledAgencyId', $agency->id)
             ->assertSee('Your agency is enrolled')
-            ->assertSeeInOrder(['Dana Whitfield', 'Principal', 'Invitation will be sent', 'Marcus Reyes', 'Invitation will be sent', 'Priya Nair', 'Agency employee', 'Invitation will be sent'])
+            ->assertSeeInOrder(['Dana Whitfield', 'Principal', 'Invitation sent', 'Marcus Reyes', 'Invitation sent', 'Priya Nair', 'Agency employee', 'Invitation sent'])
             ->assertSeeInOrder(['Receipt', '$477', 'Credit card surcharge', '$13.83', 'Total paid', '$490.83'])
             ->assertSee('A receipt will be emailed to billing@lonestarbenefits.example.')
             ->assertDontSee('Your answers are saved after each step.');
@@ -341,6 +343,24 @@ class AgencyPaymentTest extends TestCase
         // Reloading the page shows the confirmation again, and nothing is created twice.
         Livewire::test(Wizard::class)->assertSee('Your agency is enrolled')->call('finishPayment', 'pi_agency');
         $this->assertSame(1, Agency::query()->count());
+    }
+
+    public function test_the_return_from_the_payment_and_the_webhook_send_the_invitations_once(): void
+    {
+        Notification::fake();
+        $this->intent('succeeded');
+
+        $wizard = $this->reviewScreen()->call('preparePayment', 'ctoken_credit')->call('startPayment');
+        $draftId = AgencyRegistrationDraft::query()->sole()->id;
+        $wizard->call('finishPayment', 'pi_agency');
+        Livewire::test(Wizard::class)->call('finishPayment', 'pi_agency');
+        $this->webhook('invoice.paid', $this->invoice($draftId))->assertOk();
+
+        $people = Agency::query()->sole()->members()->with('user')->orderBy('id')->get();
+        Notification::assertSentToTimes($people[0]->user, AgencyWelcome::class, 1);
+        Notification::assertSentToTimes($people[1]->user, AgencyInvitationEmail::class, 1);
+        Notification::assertSentToTimes($people[2]->user, AgencyInvitationEmail::class, 1);
+        $this->assertSame(3, AgencyInvitation::query()->count());
     }
 
     public function test_a_declined_card_or_canceled_3d_secure_leaves_the_person_on_screen_6(): void
@@ -406,7 +426,8 @@ class AgencyPaymentTest extends TestCase
 
         $this->assertSame(1, Agency::query()->count());
         $this->assertNull(AgencyRegistrationDraft::query()->find($draft->id));
-        Notification::assertSentOnDemand(AgencyEnrollmentCompleted::class, fn ($notification, $channels, AnonymousNotifiable $to) => $to->routes['mail'] === 'dana@lonestarbenefits.example');
+        // The welcome email (with the receipt) tells the principal; nothing else is sent to them.
+        Notification::assertSentTo(User::query()->where('email', 'dana@lonestarbenefits.example')->sole(), AgencyWelcome::class);
 
         // The same browser later sees the confirmation.
         Livewire::test(Wizard::class)->assertSee('Your agency is enrolled');

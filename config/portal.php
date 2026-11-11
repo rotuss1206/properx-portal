@@ -256,6 +256,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Agency invitations (Agency spec 7)
+    |--------------------------------------------------------------------------
+    |
+    | After an agency is enrolled everyone on it gets a one-time link (only its
+    | hash is stored): password, two-factor setup, then (except the principal)
+    | the profile check and these consents. Reminders go out on the days of
+    | App\Enums\ReminderType::invitation(), the second one copied to the principal.
+    |
+    */
+
+    'invitations' => [
+        'link_days' => 14,
+        // Bump the version when the wording or the documents change; it is stored with each acceptance.
+        'consent_version' => '2026-11-11',
+        'consents' => [
+            'terms' => ['label' => 'I agree to the ProPerX Alliance Terms of Service', 'url' => env('PORTAL_TERMS_URL') ?: 'https://properx.org/terms-of-service/'],
+            'privacy' => ['label' => 'I have read the ProPerX Alliance Privacy Policy', 'url' => env('PORTAL_PRIVACY_URL') ?: 'https://properx.org/privacy-policy/'],
+        ],
+        // "New agency enrolled" by email as well as in Nova, when set.
+        'staff_email' => env('AGENCY_STAFF_NOTIFICATION_EMAIL'),
+        // "Ask for a new invitation": the principal hears of it at most once a day per invitation.
+        'renewal_request_hours' => 24,
+        'renewal_requests_per_hour_per_ip' => 10,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Scheduled jobs
     |--------------------------------------------------------------------------
     |

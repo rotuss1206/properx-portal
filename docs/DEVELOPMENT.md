@@ -171,7 +171,10 @@ check after deployment. A price can also be pinned with its ID (`STRIPE_PRICE_AG
 
 ### Testing locally with the Stripe CLI
 
-1. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli) and run `stripe login` (test mode).
+1. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli). `scripts/start-dev.ps1` opens both listeners
+   (site and portal) with `--api-key` taken from the portal's `STRIPE_SECRET` in `.env`, so no `stripe login` is
+   needed; it stops with an explanation unless that key starts with `sk_test_` or `rk_test_`, and never prints it.
+   Running `stripe` by hand without the key needs `stripe login` (test mode).
 2. Forward events to the local site. `--skip-verify` is needed because the local HTTPS certificate is self-signed:
 
    ```bash
@@ -289,6 +292,9 @@ Demo data for the dashboard (DemoSeeder, member01-member05, filled in for existi
 activity, and two paid invoices per year with amounts. Notifications stay unread until opened or "Mark all read"; to
 see the bell count again, run `php artisan tinker --execute "DB::table('notifications')->update(['read_at' => null]);"`.
 Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
+Agency invitation reminders: `php artisan app:send-invitation-reminders` (scheduled 09:00-11:00; day 3 and day 7 after
+the invitation). The invitation emails are sent by the queue worker, so `queue:work` must run (restart it after code
+changes: `php artisan queue:restart`). Links land in Mailpit; the pages are `/join/invitation/{token}` and `/join/welcome`.
 
 - Switch: `MEMBER_AREA_ENABLED=true` in `.env`, then `php artisan config:clear`. Off (the default and the platform
   setting until it is finished), `/member` answers 404 and members use Nova as before. `phpunit.xml` pins it off; tests

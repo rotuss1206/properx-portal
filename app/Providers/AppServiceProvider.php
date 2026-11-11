@@ -62,6 +62,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(config('portal.registration.page_requests_per_minute'))->by($request->ip());
         });
 
+        // Invitation links (Agency spec 7): page loads and form posts per IP; "Ask for a new
+        // invitation" has its own, tighter limit.
+        RateLimiter::for('agency-invitation', function (Request $request) {
+            return Limit::perMinute(config('portal.registration.page_requests_per_minute'))->by('invitation|'.$request->ip());
+        });
+
+        RateLimiter::for('agency-invitation-request', function (Request $request) {
+            return Limit::perHour(config('portal.invitations.renewal_requests_per_hour_per_ip'))->by('invitation-request|'.$request->ip());
+        });
+
         RateLimiter::for('stripe-webhook', function (Request $request) {
             return Limit::perMinute(config('services.stripe.webhook_requests_per_minute'))->by('stripe|'.$request->ip());
         });

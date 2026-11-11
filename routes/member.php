@@ -9,6 +9,7 @@ use App\Http\Controllers\Member\PageController;
 use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\Member\SearchController;
 use App\Http\Middleware\EnsureMemberArea;
+use App\Http\Middleware\RequireAcceptedInvitation;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Member\MemberMenu;
 use Illuminate\Support\Facades\Route;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Route;
  * two-factor authentication as in Nova. Built: the dashboard (with document downloads), the
  * profile, license documents, the certificate and the library; the other pages lead elsewhere or are placeholders.
  */
-Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class])
+Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class, RequireAcceptedInvitation::class])
     ->prefix('member')
     ->name('member.')
     ->group(function () {

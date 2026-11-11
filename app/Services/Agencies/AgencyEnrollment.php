@@ -8,6 +8,7 @@ use App\Enums\InviteStatus;
 use App\Enums\LicenseVerification;
 use App\Enums\PersonType;
 use App\Enums\Role;
+use App\Jobs\SendAgencyInvitation;
 use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\AuditLog;
@@ -24,7 +25,9 @@ use LogicException;
  * from the snapshot taken when the payment started, whatever was edited since. Whoever comes
  * first, the browser returning from the payment or Stripe's webhook, creates it; the other finds
  * it by the subscription id (a lock, and a unique column). Everyone gets the Member role, a
- * password nobody knows and invite_status = pending (the invitations come next). The draft goes.
+ * password nobody knows and invite_status = invited. The draft goes. Once created, everyone's
+ * invitation is queued (the principal's is the welcome email with the receipt) and staff are told;
+ * only the call that created the agency does that, so nothing is sent twice.
  */
 class AgencyEnrollment
 {
@@ -46,7 +49,11 @@ class AgencyEnrollment
                 throw new LogicException('The enrollment has no payment snapshot.');
             }
 
-            return ['agency' => DB::transaction(fn () => $this->create($draft, $snapshot, $subscriptionId, $customerId, $paidThrough)), 'created' => true];
+            $agency = DB::transaction(fn () => $this->create($draft, $snapshot, $subscriptionId, $customerId, $paidThrough));
+
+            $this->invite($agency, self::receipt($snapshot));
+
+            return ['agency' => $agency, 'created' => true];
         });
     }
 
@@ -161,13 +168,48 @@ class AgencyEnrollment
             'agency_id' => $agency->getKey(),
             'agency_role' => $person['principal'] ? AgencyRole::Principal : AgencyRole::Member,
             'person_type' => $person['type'],
-            'invite_status' => InviteStatus::Pending,
+            // The invitation is queued as the agency is created (invite()).
+            'invite_status' => InviteStatus::Invited,
             'license_verification' => $isProducer ? LicenseVerification::PendingReview : null,
         ]);
         $profile->user()->associate($user);
         $profile->save(); // MemberProfileObserver audits agency_member_added.
 
         return $user;
+    }
+
+    /**
+     * @param  array<string, mixed>  $receipt
+     */
+    private function invite(Agency $agency, array $receipt): void
+    {
+        $agency->members()->pluck('id')->each(fn (int $profileId) => SendAgencyInvitation::dispatch(
+            $profileId,
+            $agency->principal?->memberProfile?->getKey() === $profileId ? $receipt : null,
+        ));
+
+        app(AgencyInvitations::class)->announceEnrollment($agency);
+    }
+
+    /**
+     * What the principal's welcome email shows: amounts and plan, nothing else.
+     *
+     * @param  array<string, mixed>  $snapshot
+     * @return array{subtotal: int, surcharge: int, total: int, tier: string, rate_type: string, headcount: int, partner_rate_applied: bool}
+     */
+    private static function receipt(array $snapshot): array
+    {
+        $quote = $snapshot['quote'];
+
+        return [
+            'subtotal' => (int) $quote['subtotal'],
+            'surcharge' => (int) $quote['surcharge'],
+            'total' => (int) $quote['total'],
+            'tier' => (string) $quote['tier'],
+            'rate_type' => (string) $quote['rate_type'],
+            'headcount' => (int) $quote['headcount'],
+            'partner_rate_applied' => (bool) ($quote['partner_rate_applied'] ?? false),
+        ];
     }
 
     /**

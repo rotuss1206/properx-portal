@@ -150,6 +150,14 @@ class AuditLog extends Resource
                 ($details['people_not_created'] ?? 0) > 0 ? $details['people_not_created'].' people not created (email or NPN already in the portal)' : null,
                 isset($details['consents_given_at']) ? 'consents v'.($details['consents_version'] ?? '?').' given at '.implode(', ', $details['consents_given_at']) : null,
             ])),
+            'agency_invitation_sent' => match ($details['kind'] ?? null) {
+                'resend' => 'New invitation sent by staff'.(($details['revoked'] ?? 0) > 0 ? '; earlier link cancelled' : ''),
+                'reminder' => 'Invitation reminder, day '.($details['day'] ?? '?'),
+                default => 'Invitation sent after the enrollment'.(($details['principal'] ?? false) ? ' (welcome and receipt)' : ''),
+            },
+            'agency_invitation_password_set' => 'Password set through the invitation link',
+            'agency_invitation_accepted' => 'Profile checked; consents v'.($details['consents_version'] ?? '?').': '.implode(', ', array_map(fn (string $key) => Str::headline($key), $details['consents'] ?? [])),
+            'agency_invitation_requested' => 'Asked for a new invitation from a '.($details['state'] ?? '—').' link',
             'agency_updated', 'profile_updated' => isset($details['fields'])
                 ? 'Changed fields: '.implode(', ', array_map(fn (string $field) => Str::headline($field), $details['fields']))
                 : null,

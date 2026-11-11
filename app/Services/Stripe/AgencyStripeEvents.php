@@ -11,7 +11,6 @@ use App\Models\AgencyRegistrationDraft;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AgencyBankPaymentFailed;
-use App\Notifications\AgencyEnrollmentCompleted;
 use App\Notifications\AgencyPaymentFailed;
 use App\Services\Agencies\AgencyCheckout;
 use App\Services\Agencies\AgencyEnrollment;
@@ -286,14 +285,9 @@ class AgencyStripeEvents
             return 'agency_unmatched';
         }
 
-        $wasProcessing = ($draft->data['payment']['status'] ?? null) === 'processing';
-        $principalEmail = (string) ($draft->data['payment']['snapshot']['principal']['email'] ?? '');
+        // Also a bank payment that cleared after the page was left on "processing": the principal's
+        // welcome email (AgencyEnrollment::complete) tells them.
         $result = $this->enrollment->complete($draft, $subscriptionId, $customerId, $paidThrough);
-
-        // A bank payment: the person left the page while it was processing.
-        if ($result['created'] && $wasProcessing && $principalEmail !== '') {
-            Notification::route('mail', $principalEmail)->notify(new AgencyEnrollmentCompleted);
-        }
 
         return $result['created'] ? 'agency_enrolled' : 'agency_paid';
     }
