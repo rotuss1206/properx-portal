@@ -8,6 +8,7 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Nova\Actions\ChangeAgencyPricing;
 use App\Nova\Filters\AuditResourceType;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Laravel\Nova\Fields\DateTime;
@@ -136,6 +137,13 @@ class AuditLog extends Resource
             ])) ?: null,
             'executive_director_assigned' => 'Via the console command'.(($details['account_created'] ?? false) ? '; account created' : ''),
             'executive_director_revoked' => 'Via the console command',
+            'agency_enrolled' => implode('; ', array_filter([
+                'Online enrollment: '.(AgencyTier::tryFrom((string) ($details['tier'] ?? ''))?->label() ?? '—').', '.($details['headcount'] ?? '—').' people',
+                isset($details['amount']) ? 'dues '.Money::format((int) $details['amount']).(($details['surcharge'] ?? 0) > 0 ? ' + surcharge '.Money::format((int) $details['surcharge']) : '') : null,
+                isset($details['payment_method']) ? 'paid by '.Str::headline((string) $details['payment_method']) : null,
+                ($details['people_not_created'] ?? 0) > 0 ? $details['people_not_created'].' people not created (email or NPN already in the portal)' : null,
+                isset($details['consents_given_at']) ? 'consents v'.($details['consents_version'] ?? '?').' given at '.implode(', ', $details['consents_given_at']) : null,
+            ])),
             'agency_updated', 'profile_updated' => isset($details['fields'])
                 ? 'Changed fields: '.implode(', ', array_map(fn (string $field) => Str::headline($field), $details['fields']))
                 : null,

@@ -19,6 +19,11 @@ final class MissingStripePriceException extends RuntimeException
         ));
     }
 
+    public static function surchargeProduct(): self
+    {
+        return new self('Stripe has no product for the credit card surcharge line (metadata properx_product=card_surcharge). Create it in the Stripe account (in a test account: php artisan app:stripe:agency-prices --create).');
+    }
+
     public static function unreachable(string $errorClass): self
     {
         return new self("Stripe could not be asked for the agency prices ({$errorClass}). Check STRIPE_SECRET and the connection, then try again.");

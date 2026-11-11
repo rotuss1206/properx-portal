@@ -10,12 +10,16 @@ use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\PartnerCode;
 use App\Notifications\AgencyEnrollmentContinueLink;
+use App\Services\Agencies\AgencyCheckout;
+use App\Services\Agencies\AgencyEnrollment;
 use App\Services\Agencies\AgencyPricingService;
 use App\Services\Agencies\AgencyQuote;
+use App\Services\Agencies\CheckoutException;
 use App\Support\Money;
 use App\Support\UsStates;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -92,6 +96,26 @@ class Wizard extends Component
 
     public string $paymentMessage = '';
 
+    /** Session: the subscription this browser started paying, and the receipt's amounts. */
+    public const PAYMENT_KEY = 'agency_registration.payment';
+
+    /**
+     * The payment reviewed on screen 6: the confirmation token, what it says about the payment
+     * method, and the server's amounts. Locked: only the server writes it.
+     *
+     * @var array<string, mixed>
+     */
+    #[Locked]
+    public array $checkout = [];
+
+    /** Set once the agency is enrolled: the page shows the confirmation. */
+    #[Locked]
+    public ?int $enrolledAgencyId = null;
+
+    /** @var array<string, mixed> */
+    #[Locked]
+    public array $receipt = [];
+
     /** "Save and continue later": the panel, the email it asks for while the principal has none, its outcome. */
     public bool $saveLaterOpen = false;
 
@@ -112,10 +136,27 @@ class Wizard extends Component
 
     public function mount(Request $request): void
     {
+        // Paid already, in this browser (or Stripe's webhook got there first).
+        if ($this->showEnrolled()) {
+            return;
+        }
+
         $draft = $this->draft();
 
         if ($draft !== null) {
             $this->restore($draft);
+        }
+
+        // Back from a 3D Secure or bank page that Stripe.js redirected to.
+        $intent = $request->query('payment_intent');
+
+        if (is_string($intent) && $intent !== '' && $this->step === 6) {
+            $this->finishPayment($intent);
+        }
+
+        // A bank payment that failed after the person had left: the page says so.
+        if (($draft?->data['payment']['status'] ?? null) === 'failed' && $this->paymentMessage === '') {
+            $this->paymentMessage = (string) ($draft->data['payment']['message'] ?? '');
         }
 
         // Partner QR links: /join/agency?partner=CODE.
@@ -562,19 +603,281 @@ class Wizard extends Component
     }
 
     /**
-     * Screen 6. The payment itself comes next (Stripe Payment Element); until then the consents
-     * are checked and the visitor is told that payment is not open yet.
+     * Screen 6, "Review payment": Stripe.js turned the Payment Element into a confirmation token;
+     * what it says about the payment method decides the surcharge (credit cards only), shown
+     * before anything is charged. The amounts are the server's own (Agency spec 4, 6).
      */
-    public function pay(): void
+    public function preparePayment(string $confirmationToken): void
+    {
+        if (! $this->paymentOpen()) {
+            return;
+        }
+
+        $this->paymentMessage = '';
+        $this->review->validate();
+
+        if ($this->quote === null) {
+            return;
+        }
+
+        try {
+            $method = app(AgencyCheckout::class)->paymentMethod($confirmationToken);
+        } catch (CheckoutException $e) {
+            $this->checkout = [];
+            $this->paymentFailedWith($e->getMessage());
+
+            return;
+        }
+
+        $quote = $this->priceFor($method['funding']);
+
+        $this->checkout = [
+            'token' => $confirmationToken,
+            'type' => $method['type'],
+            'funding' => $method['funding'],
+            'label' => $method['label'],
+            'subtotal' => $quote->subtotal,
+            'surcharge' => $quote->surcharge,
+            'total' => $quote->total,
+        ];
+
+        $this->focus('payment-total');
+    }
+
+    /**
+     * The payment details changed after "Review payment": review them again.
+     */
+    public function clearPaymentPreview(): void
+    {
+        $this->checkout = [];
+    }
+
+    /**
+     * "Pay $X and enroll my agency": everything is checked again on the server, the customer and
+     * the subscription are created (or found again: the same click twice creates nothing new),
+     * and the browser gets the payment's client secret to confirm it with the confirmation token
+     * (Stripe.js shows 3D Secure). Null when the payment cannot go ahead; the page says why.
+     *
+     * @return array{clientSecret: string, confirmationToken: string, returnUrl: string}|null
+     */
+    public function startPayment(): ?array
+    {
+        if (! $this->paymentOpen() || $this->checkout === []) {
+            return null;
+        }
+
+        $this->paymentMessage = '';
+        $this->review->validate();
+
+        foreach ([1 => $this->membership, 2 => $this->tier, 3 => $this->agency, 4 => $this->principal, 5 => $this->people] as $step => $form) {
+            $form->normalize();
+
+            if (! $form->passes()) {
+                $this->paymentFailedWith("Please check step {$step} ({$this::STEPS[$step]}) before paying: something there needs attention.");
+
+                return null;
+            }
+        }
+
+        // The people screen moves the tier with the headcount; a forged list cannot skip that.
+        $this->syncTier();
+        $quote = $this->priceFor($this->checkout['funding']);
+
+        if ($quote->total !== $this->checkout['total']) {
+            $this->checkout = ['subtotal' => $quote->subtotal, 'surcharge' => $quote->surcharge, 'total' => $quote->total] + $this->checkout;
+            $this->paymentFailedWith('The total is now '.Money::format($quote->total).'. Please check it and choose Pay again.');
+
+            return null;
+        }
+
+        $this->save();
+        $draft = $this->draft();
+        $snapshot = $this->checkoutSnapshot($quote);
+        $content = hash('sha256', (string) json_encode(Arr::except($snapshot, ['consents'])));
+
+        try {
+            $started = app(AgencyCheckout::class)->start($draft, $snapshot, $quote, $content, (array) ($draft->data['payment'] ?? []));
+        } catch (CheckoutException $e) {
+            $this->paymentFailedWith($e->getMessage());
+
+            return null;
+        }
+
+        $this->storePayment($draft, [
+            'status' => 'started',
+            'customer' => $started['customer'],
+            'subscription' => $started['subscription'],
+            'payment_intent' => $started['payment_intent'],
+            'content' => $content,
+            'snapshot' => $snapshot,
+            'message' => null,
+        ]);
+
+        session()->put(self::PAYMENT_KEY, [
+            'subscription' => $started['subscription'],
+            'receipt' => Arr::only($this->checkout, ['label', 'subtotal', 'surcharge', 'total']),
+        ]);
+
+        return [
+            'clientSecret' => $started['client_secret'],
+            'confirmationToken' => $this->checkout['token'],
+            'returnUrl' => route('join.agency'),
+        ];
+    }
+
+    /**
+     * After Stripe.js confirmed the payment (or a bank / 3D Secure page sent the person back):
+     * a card payment that succeeded enrolls the agency now; a bank payment still processing waits
+     * for the webhook and locks the enrollment; anything else leaves the person on screen 6.
+     */
+    public function finishPayment(string $paymentIntentId): void
+    {
+        if ($this->showEnrolled()) {
+            return;
+        }
+
+        $draft = $this->draft();
+        $payment = (array) ($draft?->data['payment'] ?? []);
+
+        if ($draft === null || ! is_string($payment['customer'] ?? null)) {
+            return;
+        }
+
+        $checkout = app(AgencyCheckout::class);
+
+        try {
+            $intent = $checkout->paymentIntent($paymentIntentId);
+
+            if ($intent->customer !== $payment['customer']) {
+                throw new CheckoutException(CheckoutException::GENERIC);
+            }
+
+            if ($intent->status === 'succeeded') {
+                $subscription = $checkout->subscription((string) $payment['subscription']);
+                app(AgencyEnrollment::class)->complete($draft, $subscription->id, $payment['customer'], AgencyCheckout::periodEnd($subscription));
+                $this->showEnrolled();
+
+                return;
+            }
+        } catch (CheckoutException $e) {
+            $this->paymentFailedWith($e->getMessage());
+
+            return;
+        }
+
+        if ($intent->status === 'processing') {
+            $this->storePayment($draft, ['status' => 'processing']);
+            $this->checkout = [];
+
+            return;
+        }
+
+        $this->paymentFailed(
+            $intent->status === 'requires_action' ? 'payment_intent_authentication_failure' : (string) ($intent->last_payment_error->code ?? ''),
+            (string) ($intent->last_payment_error->decline_code ?? ''),
+        );
+    }
+
+    /**
+     * Stripe.js reported that the payment did not go through (declined, 3D Secure canceled):
+     * nothing was charged, the person stays on screen 6 and chooses again.
+     */
+    public function paymentFailed(string $code = '', string $declineCode = ''): void
     {
         if ($this->step !== 6) {
             return;
         }
 
-        $this->review->validate();
+        // The confirmation token is spent: the details are reviewed again.
+        $this->checkout = [];
+        $this->paymentFailedWith(CheckoutException::forCode(Str::limit($code, 60, ''), Str::limit($declineCode, 60, '')));
+    }
 
-        $this->paymentMessage = 'Online payment is not open yet. Your enrollment and consents are saved; use "Save and continue later" to come back to it.';
+    private function paymentFailedWith(string $message): void
+    {
+        $this->paymentMessage = $message;
         $this->focus('payment-message');
+    }
+
+    private function paymentOpen(): bool
+    {
+        return $this->step === 6 && $this->enrolledAgencyId === null && ! $this->processing() && AgencyCheckout::isConfigured();
+    }
+
+    /**
+     * A bank payment of this enrollment is on its way: nothing can change until Stripe says.
+     */
+    public function processing(): bool
+    {
+        return ($this->draft()?->data['payment']['status'] ?? null) === 'processing';
+    }
+
+    private function priceFor(?string $cardFunding): AgencyQuote
+    {
+        return app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode, $cardFunding);
+    }
+
+    /**
+     * What is being paid for, as it is now; the agency is created from this, whatever is edited later.
+     *
+     * @return array<string, mixed>
+     */
+    private function checkoutSnapshot(AgencyQuote $quote): array
+    {
+        return [
+            'membership' => $this->membership->toDraft(),
+            'agency' => $this->agency->toDraft(),
+            'principal' => $this->principal->toDraft(),
+            'people' => ['rows' => $this->people->rows],
+            'consents' => ['version' => ReviewForm::CONSENT_VERSION, 'given_at' => $this->consentsGivenAt],
+            'quote' => [
+                'tier' => $quote->tier->value,
+                'rate_type' => $quote->rateType->value,
+                'rate' => $quote->rate,
+                'tier_rate' => $quote->tierRate,
+                'headcount' => $quote->headcount,
+                'subtotal' => $quote->subtotal,
+                'surcharge' => $quote->surcharge,
+                'total' => $quote->total,
+                'partner_rate_applied' => $quote->partnerRateApplied,
+                'partner_code_id' => $quote->partnerCodeValid ? $this->partnerCode?->getKey() : null,
+            ],
+            'payment_method' => ['type' => $this->checkout['type'], 'funding' => $this->checkout['funding']],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $changes
+     */
+    private function storePayment(AgencyRegistrationDraft $draft, array $changes): void
+    {
+        $draft->data = ['payment' => array_merge((array) ($draft->data['payment'] ?? []), $changes)] + $draft->data;
+        $draft->extend();
+        $draft->save();
+    }
+
+    /**
+     * The confirmation screen once this browser's payment has enrolled the agency, whoever got
+     * there first (this page or the webhook). The draft is gone by then; the session keeps the
+     * subscription id and the receipt.
+     */
+    private function showEnrolled(): bool
+    {
+        $payment = session(self::PAYMENT_KEY);
+        $agency = is_array($payment) && is_string($payment['subscription'] ?? null)
+            ? Agency::query()->where('stripe_subscription_id', $payment['subscription'])->first()
+            : null;
+
+        if ($agency === null) {
+            return false;
+        }
+
+        $this->enrolledAgencyId = $agency->getKey();
+        $this->receipt = (array) ($payment['receipt'] ?? []);
+        $this->checkout = [];
+        session()->forget(self::SESSION_KEY);
+
+        return true;
     }
 
     /**
@@ -679,6 +982,18 @@ class Wizard extends Component
 
     public function render(): View
     {
+        if ($this->enrolledAgencyId !== null) {
+            return view('livewire.agency-registration.enrolled', [
+                'enrolled' => Agency::query()->with(['members' => fn ($query) => $query->with('user')->orderByRaw("agency_role = 'principal' desc")->orderBy('id')])->find($this->enrolledAgencyId),
+            ]);
+        }
+
+        if ($this->processing()) {
+            return view('livewire.agency-registration.processing', [
+                'payment' => (array) ($this->draft()?->data['payment'] ?? []),
+            ]);
+        }
+
         return view('livewire.agency-registration.wizard', [
             'steps' => self::STEPS,
             'individualUrl' => config('portal.registration.individual_url'),
@@ -691,6 +1006,8 @@ class Wizard extends Component
             'consents' => ReviewForm::CONSENTS,
             'termsUrl' => config('portal.registration.terms_url'),
             'privacyUrl' => config('portal.registration.privacy_url'),
+            'paymentConfigured' => AgencyCheckout::isConfigured(),
+            'stripeKey' => config('services.stripe.key'),
         ]);
     }
 
@@ -747,11 +1064,19 @@ class Wizard extends Component
 
     private function save(): void
     {
+        // Enrolled: the draft is gone and must not come back.
+        if ($this->enrolledAgencyId !== null) {
+            return;
+        }
+
         $draft = $this->draft() ?? AgencyRegistrationDraft::start();
+        $payment = $draft->data['payment'] ?? null;
 
         $draft->data = [
             ...array_map(fn (StepForm $form) => $form->toDraft(), $this->forms()),
             'consents' => ['version' => ReviewForm::CONSENT_VERSION, 'given_at' => $this->consentsGivenAt],
+            // The payment's state is the server's: kept as it is.
+            ...($payment === null ? [] : ['payment' => $payment]),
         ];
         $draft->step = $this->step;
         $draft->furthest_step = $this->furthestStep;

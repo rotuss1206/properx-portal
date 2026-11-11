@@ -13,7 +13,7 @@ use Stripe\Util\CaseInsensitiveArray;
  */
 final class FakeStripe implements ClientInterface
 {
-    /** @var list<array{method: string, path: string, params: array<string, mixed>}> */
+    /** @var list<array{method: string, path: string, params: array<string, mixed>, idempotency_key: ?string}> */
     public array $requests = [];
 
     /** @var list<array{method: string, path: string, answer: \Closure|array<string, mixed>, status: int}> */
@@ -58,7 +58,15 @@ final class FakeStripe implements ClientInterface
         parse_str((string) parse_url($absUrl, PHP_URL_QUERY), $query);
         $params = array_merge($query, is_array($params) ? $params : []);
 
-        $this->requests[] = ['method' => $method, 'path' => $path, 'params' => $params];
+        $key = null;
+
+        foreach ((array) $headers as $header) {
+            if (is_string($header) && str_starts_with(strtolower($header), 'idempotency-key:')) {
+                $key = trim(substr($header, strlen('idempotency-key:')));
+            }
+        }
+
+        $this->requests[] = ['method' => $method, 'path' => $path, 'params' => $params, 'idempotency_key' => $key];
 
         foreach ($this->answers as $answer) {
             if ($answer['method'] === $method && fnmatch($answer['path'], $path)) {

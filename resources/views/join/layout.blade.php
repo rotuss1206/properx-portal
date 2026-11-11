@@ -192,6 +192,30 @@
         .save-later-status:focus { outline: none; }
         .link-unavailable-list { margin: 0 0 8px; padding-left: 20px; color: #374151; }
         a.btn { display: inline-block; text-decoration: none; }
+
+        /* Payment (screen 6) */
+        .payment-intro { margin: 0 0 12px; }
+        .payment-element { min-height: 120px; margin-bottom: 12px; }
+        .payment-client-error { margin: 0 0 12px; }
+        .payment-summary { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; margin: 4px 0 16px; padding: 14px 16px;
+                           border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; font-size: 14px; }
+        .payment-summary:focus { outline: none; }
+        .payment-summary dt { color: var(--muted); }
+        .payment-summary dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+        .payment-summary .payment-total { padding-top: 6px; border-top: 1px solid var(--line); color: #111827; font-size: 16px; }
+        .payment-summary dd.payment-total { color: var(--navy); font-size: 20px; }
+        .payment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+        .payment-busy { margin-top: 10px; }
+        @media (max-width: 640px) { .payment-actions .btn.pay { width: 100%; } }
+
+        /* Processing and enrolled */
+        .status-card h2 { margin-top: 10px; }
+        .status-badge { background: #fef3c7; color: #92400e; }
+        .status-badge-ok { background: var(--ok-bg); color: var(--ok); }
+        .status-card .section-title { display: block; margin: 22px 0 10px; }
+        .status-note { margin-top: 14px; }
+        .next-steps { margin: 0; padding-left: 20px; color: #374151; }
+        .next-steps li { margin-bottom: 6px; }
         .choices-compact .choice { padding: 12px 14px; }
         .choices-compact .choice span { font-size: 13px; }
         .person-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
@@ -216,6 +240,11 @@
 </div>
 @livewireScripts
 <script src="{{ \App\Support\PortalAsset::url('join-csv.js') }}" defer nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
+@if (\App\Services\Agencies\AgencyCheckout::isConfigured() && request()->routeIs('join.agency'))
+    {{-- Stripe.js from Stripe only (its terms; the CSP allows js.stripe.com on this page). --}}
+    <script src="https://js.stripe.com/v3/" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
+    <script src="{{ \App\Support\PortalAsset::url('join-payment.js') }}" defer nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
+@endif
 {{-- Focus requested by the wizard (Wizard::focus), once Livewire has updated the page. --}}
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.addEventListener('join-focus', function (event) {

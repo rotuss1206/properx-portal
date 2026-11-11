@@ -43,9 +43,18 @@ class AgencyPriceCatalogTest extends TestCase
     /**
      * @param  list<array<string, mixed>>  $prices
      */
-    private function stripeHas(array $prices): void
+    private function stripeHas(array $prices, bool $surchargeProduct = true): void
     {
         $this->stripe->on('GET', '/v1/prices', fn () => ['object' => 'list', 'data' => $prices, 'has_more' => false, 'url' => '/v1/prices']);
+        $this->stripe->on('GET', '/v1/products', ['object' => 'list', 'data' => $surchargeProduct ? [self::product('prod_surcharge', 'card_surcharge')] : [], 'has_more' => false, 'url' => '/v1/products']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function product(string $id, ?string $key): array
+    {
+        return ['id' => $id, 'object' => 'product', 'active' => true, 'metadata' => $key === null ? [] : ['properx_product' => $key]];
     }
 
     /**
@@ -125,7 +134,7 @@ class AgencyPriceCatalogTest extends TestCase
         $this->stripeHas(self::allPrices());
 
         $this->artisan('app:stripe:agency-prices')
-            ->expectsOutputToContain('All 6 agency prices are in Stripe.')
+            ->expectsOutputToContain('All 6 agency prices and the surcharge product are in Stripe.')
             ->assertSuccessful();
 
         $this->assertSame([], $this->stripe->sent('POST', '/v1/prices'));
@@ -147,8 +156,9 @@ class AgencyPriceCatalogTest extends TestCase
                 ['agency_standard_10to49', '$159.00 a year', 'price_agency_standard_10to49', 'OK'],
                 ['agency_founding_50plus', '$129.00 a year', 'price_agency_founding_50plus', 'OK'],
                 ['agency_standard_50plus', '$139.00 a year', 'price_agency_standard_50plus', 'OK'],
+                ['Credit card surcharge', '2.9% of the dues', 'prod_surcharge', 'OK'],
             ])
-            ->expectsOutputToContain('3 of 6 agency prices need attention.')
+            ->expectsOutputToContain('3 of 7 agency items need attention.')
             ->assertFailed();
     }
 
@@ -162,12 +172,20 @@ class AgencyPriceCatalogTest extends TestCase
     public function test_create_makes_the_product_and_the_missing_prices_once(): void
     {
         $created = [];
+        $products = [self::product('prod_other', null)];
         $this->stripe
             ->on('GET', '/v1/prices', function () use (&$created) {
                 return ['object' => 'list', 'data' => $created, 'has_more' => false, 'url' => '/v1/prices'];
             })
-            ->on('GET', '/v1/products', ['object' => 'list', 'data' => [['id' => 'prod_other', 'object' => 'product', 'metadata' => []]], 'has_more' => false, 'url' => '/v1/products'])
-            ->on('POST', '/v1/products', fn (array $params) => ['id' => 'prod_agency', 'object' => 'product', 'name' => $params['name'], 'metadata' => $params['metadata']])
+            ->on('GET', '/v1/products', function () use (&$products) {
+                return ['object' => 'list', 'data' => $products, 'has_more' => false, 'url' => '/v1/products'];
+            })
+            ->on('POST', '/v1/products', function (array $params) use (&$products) {
+                $product = ['id' => $params['metadata']['properx_product'] === 'card_surcharge' ? 'prod_surcharge' : 'prod_agency', 'object' => 'product', 'name' => $params['name'], 'metadata' => $params['metadata']];
+                $products[] = $product;
+
+                return $product;
+            })
             ->on('POST', '/v1/prices', function (array $params) use (&$created) {
                 $price = self::price($params['lookup_key'], (int) $params['unit_amount'], $params['recurring']['interval'], $params['currency']);
                 $created[] = $price;
@@ -176,14 +194,16 @@ class AgencyPriceCatalogTest extends TestCase
             });
 
         $this->artisan('app:stripe:agency-prices', ['--create' => true])
+            ->expectsOutputToContain('Created the surcharge product prod_surcharge.')
             ->expectsOutputToContain('Created the product prod_agency.')
             ->expectsOutputToContain('Created agency_founding_2to9: price_agency_founding_2to9')
-            ->expectsOutputToContain('All 6 agency prices are in Stripe.')
+            ->expectsOutputToContain('All 6 agency prices and the surcharge product are in Stripe.')
             ->assertSuccessful();
 
         $product = $this->stripe->sent('POST', '/v1/products');
-        $this->assertCount(1, $product);
-        $this->assertSame(['name' => 'ProPerX Agency Membership', 'metadata' => ['properx_product' => 'agency_membership']], $product[0]['params']);
+        $this->assertCount(2, $product);
+        $this->assertSame(['name' => 'Credit card surcharge', 'metadata' => ['properx_product' => 'card_surcharge']], $product[0]['params']);
+        $this->assertSame(['name' => 'ProPerX Agency Membership', 'metadata' => ['properx_product' => 'agency_membership']], $product[1]['params']);
 
         $prices = $this->stripe->sent('POST', '/v1/prices');
         $this->assertCount(6, $prices);
@@ -199,7 +219,7 @@ class AgencyPriceCatalogTest extends TestCase
             ->assertSuccessful();
 
         $this->assertCount(6, $this->stripe->sent('POST', '/v1/prices'));
-        $this->assertCount(1, $this->stripe->sent('POST', '/v1/products'));
+        $this->assertCount(2, $this->stripe->sent('POST', '/v1/products'));
     }
 
     public function test_create_adds_only_what_is_missing_to_the_existing_product(): void
@@ -213,7 +233,7 @@ class AgencyPriceCatalogTest extends TestCase
             ->expectsOutputToContain('Created agency_standard_50plus')
             ->run();
 
-        $this->assertSame([], $this->stripe->sent('GET', '/v1/products'));
+        $this->assertSame([], $this->stripe->sent('POST', '/v1/products'));
         $this->assertSame('prod_agency', $this->stripe->sent('POST', '/v1/prices')[0]['params']['product']);
         $this->assertCount(1, $this->stripe->sent('POST', '/v1/prices'));
     }

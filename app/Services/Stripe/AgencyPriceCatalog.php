@@ -19,6 +19,11 @@ class AgencyPriceCatalog
 {
     private const CACHE_PREFIX = 'stripe:agency-prices:';
 
+    /** Metadata `properx_product` of the two products. */
+    public const AGENCY_PRODUCT = 'agency_membership';
+
+    public const SURCHARGE_PRODUCT = 'card_surcharge';
+
     public static function isConfigured(): bool
     {
         return filled(config('services.stripe.secret'));
@@ -168,7 +173,69 @@ class AgencyPriceCatalog
             }
         }
 
+        if (! isset($this->products(fresh: true)[self::SURCHARGE_PRODUCT])) {
+            $problems[self::SURCHARGE_PRODUCT] = 'No product for the credit card surcharge line (metadata properx_product=card_surcharge).';
+        }
+
         return $problems;
+    }
+
+    /**
+     * The products the portal uses, by their metadata `properx_product`, cached like the prices.
+     *
+     * @return array<string, string> product id by key
+     *
+     * @throws MissingStripePriceException when Stripe cannot be asked
+     */
+    public function products(bool $fresh = false): array
+    {
+        $cacheKey = self::CACHE_PREFIX.'products:'.substr(hash('sha256', (string) config('services.stripe.secret')), 0, 16);
+
+        if ($fresh) {
+            Cache::forget($cacheKey);
+        }
+
+        return Cache::remember($cacheKey, (int) config('agency.stripe_price_cache_seconds'), function () {
+            $products = [];
+
+            try {
+                foreach ($this->client()->products->all(['active' => true, 'limit' => 100])->autoPagingIterator() as $product) {
+                    $key = $product->metadata['properx_product'] ?? null;
+
+                    if (is_string($key) && ! isset($products[$key])) {
+                        $products[$key] = (string) $product->id;
+                    }
+                }
+            } catch (ApiErrorException $e) {
+                throw MissingStripePriceException::unreachable($e::class);
+            }
+
+            return $products;
+        });
+    }
+
+    /**
+     * The product of the first invoice's "Credit card surcharge" line (Agency spec 6).
+     *
+     * @throws MissingStripePriceException
+     */
+    public function surchargeProductId(): string
+    {
+        return $this->products()[self::SURCHARGE_PRODUCT]
+            ?? $this->products(fresh: true)[self::SURCHARGE_PRODUCT]
+            ?? throw MissingStripePriceException::surchargeProduct();
+    }
+
+    /**
+     * The agency membership product: the one the prices belong to.
+     *
+     * @throws MissingStripePriceException
+     */
+    public function agencyProductId(): string
+    {
+        $fromPrices = collect($this->byLookupKey())->pluck('product')->filter()->first();
+
+        return $fromPrices ?? $this->products()[self::AGENCY_PRODUCT] ?? throw MissingStripePriceException::forLookupKey(self::expected()[0]['lookupKey']);
     }
 
     public function client(): StripeClient

@@ -58,20 +58,28 @@ class StripeAgencyPrices extends Command
             return self::FAILURE;
         }
 
-        $this->table(['Lookup key', 'Rate', 'Price', 'Result'], array_map(fn (array $expected) => [
-            $expected['lookupKey'],
-            '$'.number_format($expected['amount'] / 100, 2).' a year',
-            $expected['priceId'] ?? ($found[$expected['lookupKey']]['id'] ?? '—'),
-            $problems[$expected['lookupKey']] ?? 'OK',
-        ], AgencyPriceCatalog::expected()));
+        $this->table(['Lookup key', 'Rate', 'Price', 'Result'], [
+            ...array_map(fn (array $expected) => [
+                $expected['lookupKey'],
+                '$'.number_format($expected['amount'] / 100, 2).' a year',
+                $expected['priceId'] ?? ($found[$expected['lookupKey']]['id'] ?? '—'),
+                $problems[$expected['lookupKey']] ?? 'OK',
+            ], AgencyPriceCatalog::expected()),
+            [
+                'Credit card surcharge',
+                ((int) config('agency.credit_card_surcharge_basis_points') / 100).'% of the dues',
+                $catalog->products()[AgencyPriceCatalog::SURCHARGE_PRODUCT] ?? '—',
+                $problems[AgencyPriceCatalog::SURCHARGE_PRODUCT] ?? 'OK',
+            ],
+        ]);
 
         if ($problems !== []) {
-            $this->error(count($problems).' of 6 agency prices need attention.');
+            $this->error(count($problems).' of 7 agency items need attention.');
 
             return self::FAILURE;
         }
 
-        $this->info('All 6 agency prices are in Stripe.');
+        $this->info('All 6 agency prices and the surcharge product are in Stripe.');
 
         return self::SUCCESS;
     }
@@ -86,6 +94,13 @@ class StripeAgencyPrices extends Command
         $stripe = $catalog->client();
         $found = $catalog->byLookupKey(fresh: true);
         $missing = array_filter(AgencyPriceCatalog::expected(), fn (array $expected) => $expected['priceId'] === null && ! isset($found[$expected['lookupKey']]));
+
+        // The first invoice's "Credit card surcharge" line needs a product of its own.
+        if (! isset($catalog->products(fresh: true)[AgencyPriceCatalog::SURCHARGE_PRODUCT])) {
+            $product = $stripe->products->create(['name' => 'Credit card surcharge', 'metadata' => ['properx_product' => AgencyPriceCatalog::SURCHARGE_PRODUCT]]);
+            $this->line("Created the surcharge product {$product->id}.");
+            $catalog->products(fresh: true);
+        }
 
         if ($missing === []) {
             $this->line('Nothing to create: every agency price already exists.');

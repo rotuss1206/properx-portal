@@ -14,10 +14,12 @@ return [
     |
     */
 
-    // Membership payment status webhooks (Spec 7). The portal takes no payments. The secret key
-    // (a restricted read-only key is enough) is used only to read a new member's subscription
-    // after a paid application (App\Jobs\SyncStripeSubscription).
+    // Membership payment status webhooks (Spec 7) and the agency enrollment's payment (Agency spec 6).
+    // The secret key reads a new individual member's subscription after a paid application
+    // (App\Jobs\SyncStripeSubscription) and creates the agency's customer and subscription; the
+    // publishable key loads Stripe's Payment Element on /join/agency.
     'stripe' => [
+        'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'webhook_tolerance' => 300,

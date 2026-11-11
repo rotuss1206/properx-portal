@@ -37,9 +37,13 @@ PORTAL_SUPPORT_URL=<https-or-mailto>
 PORTAL_BILLING_PATH=
 
 # --- Stripe --------------------------------------------------------------------------
-# Recommended: a RESTRICTED key with read access to Subscriptions only. After each application a job
-# reads the subscription, so the paid period is right even if a webhook is missed. Skipped while empty.
+# Recommended: a RESTRICTED key. After each application a job reads the subscription, so the paid period
+# is right even if a webhook is missed. Once agency enrollment is on, the same key also creates the
+# agency's customer and subscription: Customers and Subscriptions write; Prices, Products, Invoices,
+# PaymentIntents and ConfirmationTokens read. Skipped while empty.
 STRIPE_SECRET=<rk_live-restricted-key>
+# Publishable key of the same account, for the payment form of the agency enrollment.
+STRIPE_KEY=<pk_live-key>
 # "Renew now" in the member's sidebar: Stripe Customer Portal address.
 PAYMENT_PORTAL_URL=<https-address>
 # Days a past-due member keeps full access. Default 14.

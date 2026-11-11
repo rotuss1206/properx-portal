@@ -612,7 +612,9 @@ class AgencyRegistrationWizardTest extends TestCase
             ])
             ->assertDontSee('Partner code')
             ->assertDontSeeHtml('type="submit"')
-            ->assertSee('Payment coming next')
+            // Without Stripe keys the page says payment is not set up rather than breaking.
+            ->assertSee('Online payment is not set up yet.')
+            ->assertDontSeeHtml('data-join-payment')
             // "Edit" goes back to the screen.
             ->call('goTo', 3)
             ->assertSet('step', 3);
@@ -640,6 +642,7 @@ class AgencyRegistrationWizardTest extends TestCase
     public function test_the_four_consents_are_required_and_their_times_are_kept(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-11-02 10:30:00', 'America/New_York'));
+        config(['services.stripe.key' => 'pk_test_fake', 'services.stripe.secret' => 'sk_test_fake']);
 
         $wizard = $this->wizardAt(6)
             ->assertSeeInOrder([
@@ -651,10 +654,13 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertSeeHtml('<a href="https://properx.org/terms-of-service/" target="_blank" rel="noopener">Terms of Service')
             ->assertSeeHtml('<a href="https://properx.org/privacy-policy/" target="_blank" rel="noopener">Privacy Policy')
             ->assertSeeHtml('wire:key="pay-blocked"')
-            ->assertSee('Tick all four boxes above to continue.')
-            ->call('pay')
+            ->assertSee('Tick all four boxes above to choose how to pay.')
+            ->assertDontSeeHtml('data-join-payment')
+            // A forged call is checked too, before Stripe is asked anything.
+            ->call('preparePayment', 'ctoken_forged')
             ->assertHasErrors(['review.terms' => 'accepted', 'review.dues_separate' => 'accepted', 'review.annual_no_refund' => 'accepted', 'review.roster_confirmed' => 'accepted'])
-            ->assertSet('paymentMessage', '');
+            ->assertSet('checkout', []);
+        $this->assertSame([], $this->stripe->requests);
 
         $wizard->set('review.terms', true)
             ->assertSet('consentsGivenAt', ['terms' => now()->toIso8601String()]);
@@ -666,12 +672,10 @@ class AgencyRegistrationWizardTest extends TestCase
             $wizard->set("review.{$key}", true);
         }
 
-        $wizard->assertSeeHtml('wire:key="pay-ready"')
-            ->assertDontSee('Tick all four boxes above to continue.')
-            ->call('pay')
-            ->assertHasNoErrors()
-            ->assertSee('Online payment is not open yet.')
-            ->assertDispatched('join-focus', id: 'payment-message');
+        // The Payment Element appears, with the dues for Stripe.js to show.
+        $wizard->assertDontSee('Tick all four boxes above to choose how to pay.')
+            ->assertSeeHtml('data-join-payment data-key="pk_test_fake" data-amount="31800" data-currency="usd"')
+            ->assertSeeHtml('data-join-pay-review');
 
         $this->assertCount(4, AgencyRegistrationDraft::query()->sole()->data['consents']['given_at']);
     }

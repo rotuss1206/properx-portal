@@ -20,7 +20,7 @@ the root `README.md`, owned by KEENEY. This file describes the application.
 | Mail | Azure Communication Services (`symfony/azure-mailer`); no PHI in bodies; ProPerX Alliance templates (`resources/views/vendor/mail`, `config portal.brand`) |
 | PDF | barryvdh/laravel-dompdf, hardened (`config/dompdf.php`) |
 | Public forms | Livewire 4 in CSP-safe mode (`config/livewire.php`), scripts from Livewire's own route with the CSP nonce; agency enrollment at `/join/agency` |
-| Payments | Stripe webhooks only (`stripe/stripe-php`); the portal takes no payments |
+| Payments | Stripe (`stripe/stripe-php`): webhooks for membership status; the agency enrollment's yearly payment with Stripe's Payment Element (card or US bank account). Individual members still pay on properx.org |
 
 Main features: member profiles with encrypted identifiers (blind indexes for lookups),
 license and tax documents (encrypted, streamed through short-lived signed routes after a
@@ -102,6 +102,22 @@ php artisan app:assign-executive-director jane@example.com --revoke            #
   something is audited (`executive_director_assigned` / `executive_director_revoked`, plus `role_changed`).
   No password is printed.
 
+## Content Security Policy
+
+`App\Http\Middleware\SecurityHeaders` sends a strict policy (scripts by nonce, no `unsafe-eval`, no third
+parties). One page adds Stripe, as Stripe documents for Stripe.js and the Payment Element: the agency
+enrollment, `/join/agency` (route `join.agency`) only:
+
+| Directive | Added on `/join/agency` |
+|---|---|
+| `script-src` | `https://js.stripe.com https://*.js.stripe.com` |
+| `frame-src` | `'self' https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://m.stripe.network` (card fields, 3D Secure, bank connection) |
+| `connect-src` | `https://api.stripe.com https://m.stripe.network` |
+
+Nothing else changes: no `unsafe-*` sources, and every other page keeps the strict policy.
+`Permissions-Policy` keeps `payment=()`, so wallets (Apple Pay, Google Pay) stay off; the browser logs a
+harmless notice about it on that page.
+
 ## Tests
 
 ```bash
@@ -124,8 +140,11 @@ Production values are App Service settings and Key Vault references (root `READM
 | `DOCUMENTS_ENCRYPTION_KEY` | App-level encryption of license and tax documents (falls back to `APP_KEY`) |
 | `API_SERVICE_KEY` | API key for external callers of `/api/service/*` (later `/api/intake/*`); `php artisan app:api-key:rotate`, quarterly. Not needed by the Stripe webhook |
 | `STRIPE_WEBHOOK_SECRET`, `PAYMENT_PORTAL_URL`, `PAYMENT_GRACE_DAYS` | Stripe membership payment status |
-| `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise) |
-| `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default while its last screens are being built. Livewire uses `/livewire/*` routes, which the ingress must pass through |
+| `STRIPE_SECRET` | Stripe secret (or restricted) key. Reads a new member's subscription; with agency enrollment on, also creates the agency's customer and subscription (Customers and Subscriptions write; Prices, Products, Invoices, PaymentIntents and ConfirmationTokens read) |
+| `STRIPE_KEY` | Stripe publishable key of the same account: the payment form on `/join/agency` |
+| `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise). After deployment, `php artisan app:stripe:agency-prices` checks the six prices and the "Credit card surcharge" product |
+| `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default. Livewire uses `/livewire/*` routes, which the ingress must pass through. The Stripe webhook needs the events `invoice.paid` and `invoice.payment_failed` (already sent for members) |
+| `PORTAL_TERMS_URL`, `PORTAL_PRIVACY_URL` | Terms of Service and Privacy Policy linked from the enrollment's consents; properx.org's pages by default |
 | `INDIVIDUAL_MEMBERSHIP_URL` | Individual application on the marketing site ("Just me" on `/join/agency`) |
 | `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
 | `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |

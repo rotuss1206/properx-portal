@@ -30,13 +30,16 @@ class StripeWebhookHandler
         'invoice.payment_failed',
     ];
 
+    public function __construct(private AgencyStripeEvents $agencies) {}
+
     public static function handles(Event $event): bool
     {
         return in_array($event->type, self::HANDLED_EVENTS, true);
     }
 
     /**
-     * @return string Outcome: duplicate, ignored, unmatched, stale, unchanged or updated.
+     * @return string Outcome: duplicate, ignored, unmatched, stale, unchanged or updated; for agencies
+     *                (AgencyStripeEvents) agency_enrolled, agency_paid, agency_payment_failed, agency_unmatched or agency_ignored.
      */
     public function handle(Event $event, User $serviceAccount): string
     {
@@ -66,6 +69,13 @@ class StripeWebhookHandler
      */
     private function apply(Event $event, User $serviceAccount): array
     {
+        // Agencies first: their events never reach an individual member (Agency spec 6).
+        $agencyOutcome = $this->agencies->handle($event);
+
+        if ($agencyOutcome !== null) {
+            return [$agencyOutcome, null];
+        }
+
         $object = $event->data->object;
         $customerId = is_string($object->customer ?? null) ? $object->customer : null;
         $email = $object->customer_email ?? null;

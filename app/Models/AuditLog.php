@@ -50,6 +50,7 @@ class AuditLog extends Model
         'executive_director_assigned',
         'executive_director_revoked',
         'agency_created',
+        'agency_enrolled',
         'agency_updated',
         'agency_deleted',
         'agency_principal_changed',

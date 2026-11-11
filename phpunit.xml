@@ -44,6 +44,7 @@
         <env name="INTAKE_ENABLED" value="false"/>
         <env name="WP_INTAKE_SECRET" value=""/>
         <env name="STRIPE_SECRET" value=""/>
+        <env name="STRIPE_KEY" value=""/>
         <env name="INTAKE_SEND_INVITE" value="false"/>
         <env name="AZURITE_CONNECTION_STRING" value=""/>
         <env name="BLIND_INDEX_KEY" value="base64:dGVzdC1ibGluZC1pbmRleC1rZXktZm9yLXBocHVuaXQ="/>
