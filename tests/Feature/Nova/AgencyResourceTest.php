@@ -78,7 +78,7 @@ class AgencyResourceTest extends TestCase
 
         $filters = collect($this->getJson('/nova-api/agencies/filters')->assertOk()->json());
         $this->assertTrue($filters->contains('name', 'Tier'));
-        $this->assertTrue($filters->contains('name', 'Status'));
+        $this->assertTrue($filters->contains('name', 'Payment Status'));
 
         $tierFilter = $filters->firstWhere('name', 'Tier')['class'];
         $encoded = base64_encode(json_encode([[$tierFilter => AgencyTier::AgencyPlus->value]]));

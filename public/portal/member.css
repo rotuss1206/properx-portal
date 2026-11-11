@@ -955,7 +955,8 @@ body.ppx-member {
 
     .ppx-docs__row { padding-right: 34px !important; }
 
-    .ppx-doc-table .ppx-doc-table__action { position: absolute; top: 50%; right: 12px; width: auto; transform: translateY(-50%); }
+    /* Only in the documents and library lists, whose rows are positioned (.ppx-docs__row). */
+    .ppx-docs__row .ppx-doc-table__action { position: absolute; top: 50%; right: 12px; width: auto; transform: translateY(-50%); }
 
     .ppx-upload__main,
     .ppx-upload__side { flex-basis: 100%; }

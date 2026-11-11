@@ -2,6 +2,7 @@
 
 namespace App\Nova;
 
+use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
 use App\Enums\RateType;
 use App\Enums\Role;
@@ -137,6 +138,11 @@ class AuditLog extends Resource
             ])) ?: null,
             'executive_director_assigned' => 'Via the console command'.(($details['account_created'] ?? false) ? '; account created' : ''),
             'executive_director_revoked' => 'Via the console command',
+            'agency_payment_status_changed' => self::fromTo('Payment status', AgencyStatus::tryFrom((string) ($details['from'] ?? ''))?->label(), AgencyStatus::tryFrom((string) ($details['to'] ?? ''))?->label(), null),
+            'agency_payment_failed' => 'Stripe reported a failed payment'.(isset($details['invoice']) ? ' (invoice '.$details['invoice'].')' : ''),
+            'agency_price_changed_in_stripe' => 'Price changed in Stripe: '
+                .implode(' ', array_filter([AgencyTier::tryFrom((string) ($details['from'][0] ?? ''))?->label(), RateType::tryFrom((string) ($details['from'][1] ?? ''))?->label()]))
+                .' → '.implode(' ', array_filter([AgencyTier::tryFrom((string) ($details['to'][0] ?? ''))?->label(), RateType::tryFrom((string) ($details['to'][1] ?? ''))?->label()])),
             'agency_enrolled' => implode('; ', array_filter([
                 'Online enrollment: '.(AgencyTier::tryFrom((string) ($details['tier'] ?? ''))?->label() ?? '—').', '.($details['headcount'] ?? '—').' people',
                 isset($details['amount']) ? 'dues '.Money::format((int) $details['amount']).(($details['surcharge'] ?? 0) > 0 ? ' + surcharge '.Money::format((int) $details['surcharge']) : '') : null,

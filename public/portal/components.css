@@ -437,6 +437,13 @@ select.ppx-field__input { padding-right: 40px; background: var(--ppx-surface) ur
 
 .ppx-notice--warning strong { display: block; }
 
+.ppx-notice--danger { background: var(--ppx-badge-danger-bg); color: var(--ppx-badge-danger-fg); }
+
+/* Payment banner above every member-area page: text, then the pay button (wraps on phones). */
+.ppx-membership-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+
+.ppx-membership-banner > span { flex: 1 1 260px; }
+
 @media (max-width: 600px) {
     /* The title keeps its own line above filter chips. */
     .ppx-card__header { flex-wrap: wrap; }

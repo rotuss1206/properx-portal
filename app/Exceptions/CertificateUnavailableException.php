@@ -22,7 +22,9 @@ class CertificateUnavailableException extends RuntimeException
 
     public static function membershipInactive(bool $canRenew = true): self
     {
-        $exception = new self('A certificate cannot be issued while the membership is inactive. Please settle the outstanding membership dues.');
+        $exception = new self($canRenew
+            ? 'A certificate cannot be issued while the membership is inactive. Please settle the outstanding membership dues.'
+            : "A certificate cannot be issued while the membership is inactive. Your agency principal can renew the agency's membership.");
         $exception->canRenew = $canRenew;
 
         return $exception;

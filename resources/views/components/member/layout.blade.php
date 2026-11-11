@@ -37,6 +37,7 @@
         <x-member.header :title="$title" :parent="$parent" />
 
         <main class="ppx-member__content" id="ppx-content" tabindex="-1">
+            <x-member.membership-banner />
             {{ $slot }}
         </main>
     </div>

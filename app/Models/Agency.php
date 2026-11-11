@@ -140,6 +140,12 @@ class Agency extends Model
             'mailing_same_as_legal' => 'boolean',
             'headcount' => 'integer',
             'paid_through_at' => 'datetime',
+            'payment_event_at' => 'datetime',
+            'paid_event_at' => 'datetime',
+            'billed_headcount' => 'integer',
+            'cancel_at_period_end' => 'boolean',
+            // Stripe's hosted page of the overdue invoice: whoever has it can see and pay the invoice.
+            'payment_url' => 'encrypted',
             // Encrypted at rest; agency NPN and FEIN are looked up through their blind indexes.
             'agency_npn' => 'encrypted',
             'fein' => 'encrypted',

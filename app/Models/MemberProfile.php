@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AgencyRole;
+use App\Enums\AgencyStatus;
 use App\Enums\InviteStatus;
 use App\Enums\LicenseStatus;
 use App\Enums\LicenseVerification;
@@ -207,6 +208,12 @@ class MemberProfile extends Model
      */
     public function hasRestrictedMembership(): bool
     {
+        // Agency people follow their agency (Agency spec 6): inactive closes everything that a
+        // restricted membership closes; past due keeps access. Staff can also set one person inactive.
+        if ($this->agency_id !== null) {
+            return $this->agency?->status === AgencyStatus::Inactive || $this->status === MemberStatus::Inactive;
+        }
+
         return match ($this->payment_status) {
             PaymentStatus::Canceled => true,
             PaymentStatus::PastDue => $this->paymentGraceEndsAt()?->isPast() ?? false,
@@ -216,6 +223,10 @@ class MemberProfile extends Model
 
     public function isInPaymentGracePeriod(): bool
     {
+        if ($this->agency_id !== null) {
+            return $this->agency?->status === AgencyStatus::PastDue && ! $this->hasRestrictedMembership();
+        }
+
         return $this->payment_status === PaymentStatus::PastDue && ! $this->hasRestrictedMembership();
     }
 

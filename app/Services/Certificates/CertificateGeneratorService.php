@@ -77,7 +77,7 @@ class CertificateGeneratorService
         }
 
         // Canceled, or past due beyond the grace period (Spec 7).
-        $canRenew = $profile->agency_id === null || $profile->isAgencyPrincipal();
+        $canRenew = $profile->agency_id === null || $profile->agency?->principal_user_id === $profile->user_id;
 
         if ($profile->hasRestrictedMembership()) {
             throw CertificateUnavailableException::membershipInactive($canRenew);

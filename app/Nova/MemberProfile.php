@@ -92,7 +92,7 @@ class MemberProfile extends Resource
 
         // Unless a column is sorted: the principal first ("principal" sorts after "member"),
         // then by name. Nova applies its default "id desc" before this, hence reorder().
-        return $query->with('user')->when(blank($request->get('orderBy')), fn (Builder $query) => $query
+        return $query->with(['user', 'agency'])->when(blank($request->get('orderBy')), fn (Builder $query) => $query
             ->reorder()
             ->orderByDesc('agency_role')
             ->orderBy('last_name')
@@ -170,6 +170,8 @@ class MemberProfile extends Resource
             Text::make('Resident State', fn () => $licensed ? (UsStates::ALL[$profile->license_state] ?? null) : null),
             Text::make('Invite Status', fn () => $profile->invite_status?->label()),
             Text::make('Status', fn () => $profile->status?->label()),
+            // Agency people's access follows the agency's paid period (Agency spec 6).
+            Text::make('Access Until', fn () => $profile->agency?->paid_through_at?->toFormattedDateString() ?? '—'),
         ];
     }
 

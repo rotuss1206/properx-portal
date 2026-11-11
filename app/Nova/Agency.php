@@ -22,6 +22,8 @@ use Illuminate\Validation\Rule;
 use Laravel\Nova\Fields\Badge;
 use Laravel\Nova\Fields\BelongsTo;
 use Laravel\Nova\Fields\Boolean;
+use Laravel\Nova\Fields\Date;
+use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\Field;
 use Laravel\Nova\Fields\FormData;
 use Laravel\Nova\Fields\HasMany;
@@ -136,7 +138,8 @@ class Agency extends Resource
                 ->exceptOnForms()
                 ->sortable(),
 
-            Badge::make('Status')
+            // Moved by Stripe's events (active, past due, inactive); staff can also set it on the form.
+            Badge::make('Payment Status', 'status')
                 ->map([
                     AgencyStatus::Active->value => 'success',
                     AgencyStatus::Pending->value => 'info',
@@ -147,6 +150,10 @@ class Agency extends Resource
                 ->withIcons()
                 ->sortable()
                 ->filterable(),
+
+            Date::make('Paid Through', 'paid_through_at')
+                ->onlyOnIndex()
+                ->sortable(),
 
             Select::make('Status')
                 ->options(self::enumOptions(AgencyStatus::cases()))
@@ -265,6 +272,20 @@ class Agency extends Resource
                 $this->resource->partner_code_id !== null => 'Code not valid',
                 default => '—',
             })->onlyOnDetail(),
+
+            Date::make('Paid Through', 'paid_through_at')
+                ->help('End of the period paid for, from the Stripe subscription.')
+                ->onlyOnDetail(),
+
+            Number::make('Billed People', 'billed_headcount')
+                ->help('Quantity on the Stripe subscription.')
+                ->onlyOnDetail(),
+
+            Boolean::make('Cancels at Period End', 'cancel_at_period_end')->onlyOnDetail(),
+
+            DateTime::make('Last Payment Event', 'payment_event_at')
+                ->help('Time of the newest Stripe event applied; older events arriving later are ignored.')
+                ->onlyOnDetail(),
 
             Text::make('Stripe Customer ID', 'stripe_customer_id')->onlyOnDetail(),
 
