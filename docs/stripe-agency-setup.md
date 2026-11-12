@@ -85,22 +85,36 @@ with test-mode keys only and is not used in live mode.
 
 ## 6. Webhook
 
-**Developers** → **Webhooks** → **+ Add endpoint** (in newer dashboards: **Workbench** → **Webhooks** →
-**Create an event destination**, type **Webhook endpoint**, your account).
+The portal has **one** webhook endpoint for individual members and agencies, and one signing secret
+(`STRIPE_WEBHOOK_SECRET`). A second endpoint to the same URL would have a different secret, and the portal
+would reject its events.
+
+**Developers** → **Webhooks** (in newer dashboards: **Workbench** → **Webhooks**).
+
+**If an endpoint to `https://<portal host>/api/webhooks/stripe` is already listed** (it was set up for
+individual members): do **not** create another one. Open it → **⋯** / **Edit destination** → **Select events**,
+make sure every event in the list below is ticked, and save. The signing secret stays the same, so
+`STRIPE_WEBHOOK_SECRET` does not change.
+
+**If there is none yet:** **+ Add endpoint** (newer dashboards: **Create an event destination**, type
+**Webhook endpoint**, your account):
 
 - **Endpoint URL:** `https://<portal host>/api/webhooks/stripe`
 - **API version:** `2026-09-30.endive` (the version of the portal's Stripe library; the portal reads fields
   that older versions place elsewhere).
-- **Events:**
-  - `invoice.paid`
-  - `invoice.payment_failed`
-  - `customer.subscription.created`
-  - `customer.subscription.updated`
-  - `customer.subscription.deleted`
+- **Events:** the list below.
 - After saving, reveal the **Signing secret** (`whsec_…`) → `STRIPE_WEBHOOK_SECRET`.
 
-If an endpoint for individual members already points to this URL, add the missing events to it instead of
-creating a second one.
+**Events the portal needs** (the complete list, the same for individual members and agencies; other events
+are answered with 200 and ignored):
+
+| Event | Individual members | Agencies |
+|---|---|---|
+| `invoice.paid` | payment status active, paid-through date | enrollment completed (also after a bank payment clears), renewal moves the paid-through date |
+| `invoice.payment_failed` | past due | past due with a "Pay now" link; a failed bank payment reopens the enrollment |
+| `customer.subscription.created` | status and paid-through date | billed people, tier, rate type, status |
+| `customer.subscription.updated` | status and paid-through date | billed people, tier, rate type, cancel at period end, status |
+| `customer.subscription.deleted` | canceled | inactive |
 
 ## 7. Portal settings
 
@@ -114,15 +128,30 @@ creating a second one.
 
 ## 8. Check
 
-On the portal (after deployment, and after any change in Stripe):
+1. **Prices and products.** On the portal (after deployment, and after any change in Stripe):
 
-```bash
-php artisan app:stripe:agency-prices
-```
+   ```bash
+   php artisan app:stripe:agency-prices
+   ```
 
-Every row must say **OK** and the last line must read
-`All 6 agency prices and the surcharge product are in Stripe.` (exit code 0). Otherwise the row says what is
-wrong: no active price with the lookup key, a wrong amount, currency or billing period, or no surcharge product.
+   Every row must say **OK** and the last line must read
+   `All 6 agency prices and the surcharge product are in Stripe.` (exit code 0). Otherwise the row says what
+   is wrong: no active price with the lookup key, a wrong amount, currency or billing period, or no surcharge
+   product.
 
-Then send a test event from the webhook's page in the Dashboard (**Send test event** → `invoice.paid`): the
-endpoint must answer **200**.
+2. **A trial enrollment in test mode** (test keys in the portal, the Dashboard in test mode):
+   1. Open `https://<portal host>/join/agency`, fill in an agency with 2 people (use addresses you can read)
+      and reach **Review & payment**.
+   2. Pay with the test card `4242 4242 4242 4242`, any future expiry date, any CVC and ZIP. The "Credit card
+      surcharge" line appears for this card, because it is a credit card.
+   3. The confirmation page must show the agency enrolled and the people as "Invitation sent".
+   4. In the Dashboard: **Customers** shows the agency, with a yearly subscription at the tier's price and a
+      paid first invoice that includes the surcharge line. **Developers** → **Webhooks** → the endpoint →
+      **Event deliveries**: `invoice.paid` and `customer.subscription.*` answered **200**.
+   5. Optional: repeat with **US bank account** → **Test Institution** to check ACH; the enrollment completes
+      when the `invoice.paid` event arrives.
+
+   A permission missing from the restricted key shows up here as a Stripe error naming the permission.
+
+3. **Optional:** if the webhook's page offers **Send test event**, send `invoice.paid`: the endpoint must
+   answer **200** (a test event matches no member or agency, so nothing changes in the portal).
