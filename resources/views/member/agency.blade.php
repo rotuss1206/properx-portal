@@ -69,16 +69,17 @@
 
         <x-ppx.card title="People" heading="h2" id="people">
             <div class="ppx-agency__people-tools">
-                <x-ppx.chips :options="collect(\App\Member\AgencyPage::FILTERS)->map(fn ($label, $key) => $label.' ('.$counts[$key].')')->all()" :current="$filter" :action="false" :href="fn ($key) => route('member.agency', $key === 'all' ? [] : ['filter' => $key]).'#people'" label="People by status" />
-                <label class="ppx-docs__search" data-ppx-doc-search hidden>
+                <x-ppx.chips class="ppx-docs__chips ppx-agency__chips" data-ppx-chips-swap="people-chips" :options="collect(\App\Member\AgencyPage::FILTERS)->map(fn ($label, $key) => $label.' ('.$counts[$key].')')->all()" :current="$filter" :action="false" :href="fn ($key) => route('member.agency', $key === 'all' ? [] : ['filter' => $key]).'#people'" label="People by status" />
+                <label class="ppx-docs__search ppx-agency__search" data-ppx-doc-search hidden>
                     <x-member.icon name="search" class="ppx-docs__search-icon" />
                     <span class="ppx-visually-hidden">Search people</span>
                     <input class="ppx-docs__search-input" type="search" placeholder="Search people" autocomplete="off">
                 </label>
             </div>
 
+            <div class="ppx-agency__list" data-ppx-chips-area data-ppx-chips-swap="people">
             @if ($people->isEmpty())
-                <x-ppx.empty-state icon="profile" title="Nobody with this status" />
+                <x-ppx.empty-state icon="profile" title="No people in this group" />
             @else
                 <div class="ppx-doc-table__wrap">
                     <table class="ppx-doc-table ppx-agency__table">
@@ -132,6 +133,7 @@
                 </div>
                 <p class="ppx-docs__none" data-ppx-doc-none hidden>Nobody matches your search.</p>
             @endif
+            </div>
         </x-ppx.card>
 
         <x-ppx.card title="Agency details" heading="h2" id="details">

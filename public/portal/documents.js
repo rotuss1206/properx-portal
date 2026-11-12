@@ -4,25 +4,34 @@
  * stays hidden. DOM APIs only (CSP).
  */
 (function () {
-    document.addEventListener('DOMContentLoaded', function () {
-        // An image preview that cannot be loaded (storage down, say) gives way to a plain message.
+    // An image preview that cannot be loaded (storage down, say) gives way to a plain message.
+    // Again after a filter chip (chips.js) brings a new details panel.
+    function watchPreview() {
         var preview = document.querySelector('[data-ppx-doc-preview]')
         var previewFailed = document.querySelector('[data-ppx-doc-preview-failed]')
+
+        if (!preview || !previewFailed) {
+            return
+        }
+
+        var image = preview.querySelector('img')
 
         function showPreviewFailed() {
             preview.hidden = true
             previewFailed.hidden = false
         }
 
-        if (preview && previewFailed) {
-            var image = preview.querySelector('img')
+        image.addEventListener('error', showPreviewFailed)
 
-            image.addEventListener('error', showPreviewFailed)
-
-            if (image.complete && image.naturalWidth === 0 && image.getAttribute('loading') !== 'lazy') {
-                showPreviewFailed()
-            }
+        if (image.complete && image.naturalWidth === 0 && image.getAttribute('loading') !== 'lazy') {
+            showPreviewFailed()
         }
+    }
+
+    document.addEventListener('ppx:chips-updated', watchPreview)
+
+    document.addEventListener('DOMContentLoaded', function () {
+        watchPreview()
 
         var box = document.querySelector('[data-ppx-doc-search]')
 
@@ -31,13 +40,14 @@
         }
 
         var input = box.querySelector('input')
-        var rows = document.querySelectorAll('[data-ppx-doc-row]')
-        var none = document.querySelector('[data-ppx-doc-none]')
 
         box.hidden = false
 
-        input.addEventListener('input', function () {
+        // The rows are looked up each time: a filter chip (chips.js) brings new ones.
+        function filter() {
             var query = input.value.trim().toLowerCase()
+            var rows = document.querySelectorAll('[data-ppx-doc-row]')
+            var none = document.querySelector('[data-ppx-doc-none]')
             var shown = 0
 
             rows.forEach(function (row) {
@@ -47,7 +57,12 @@
                 shown += match ? 1 : 0
             })
 
-            none.hidden = shown > 0
-        })
+            if (none) {
+                none.hidden = shown > 0 || rows.length === 0
+            }
+        }
+
+        input.addEventListener('input', filter)
+        document.addEventListener('ppx:chips-updated', filter)
     })
 })()

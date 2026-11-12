@@ -23,6 +23,7 @@
     <script src="{{ \App\Support\PortalAsset::url('member.js') }}" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
     <script src="{{ \App\Support\PortalAsset::url('notify.js') }}" data-context="{{ $notifyOpen ? 'member-dashboard' : 'member' }}" data-default="{{ $notifyOpen ? 'open' : 'closed' }}" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
     <script src="{{ \App\Support\PortalAsset::url('search.js') }}" defer nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
+    <script src="{{ \App\Support\PortalAsset::url('chips.js') }}" defer nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}"></script>
     @livewireStyles
 </head>
 <body class="ppx-member">

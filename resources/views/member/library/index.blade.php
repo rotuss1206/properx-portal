@@ -7,7 +7,7 @@
     <div class="ppx-docs">
         <div class="ppx-docs__intro">
             <p class="ppx-docs__lead">Compliance briefings, training and forms for your practice.</p>
-            <form class="ppx-docs__tools" method="POST" action="{{ route('member.library.search') }}" role="search">
+            <form class="ppx-docs__tools" method="POST" action="{{ route('member.library.search') }}" role="search" data-ppx-chips-swap="search">
                 @csrf
                 @if ($category !== 'all')
                     <input type="hidden" name="category" value="{{ $category }}">
@@ -21,8 +21,9 @@
             </form>
         </div>
 
-        <x-ppx.chips class="ppx-docs__chips" :options="$categories" :current="$category" :action="false" :href="fn ($key) => route('member.library', $key === 'all' ? [] : ['category' => $key])" label="Category" />
+        <x-ppx.chips class="ppx-docs__chips" data-ppx-chips-swap="chips" :options="$categories" :current="$category" :action="false" :href="fn ($key) => route('member.library', $key === 'all' ? [] : ['category' => $key])" label="Category" />
 
+        <div class="ppx-library__results" data-ppx-chips-swap="results">
         @if ($search !== '')
             <form class="ppx-library__searching" method="POST" action="{{ route('member.library.search') }}">
                 @csrf
@@ -35,7 +36,7 @@
             </form>
         @endif
 
-        <div class="ppx-card">
+        <div class="ppx-card" data-ppx-chips-area>
             @if ($documents->isEmpty())
                 @if ($filtered)
                     <x-ppx.empty-state icon="search" title="No matching documents" text="Try another word or category." />
@@ -90,5 +91,6 @@
                 @endif
             </nav>
         @endif
+        </div>
     </div>
 </x-member.layout>

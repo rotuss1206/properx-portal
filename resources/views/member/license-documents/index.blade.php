@@ -32,10 +32,10 @@
                 </x-ppx.empty-state>
             </div>
         @else
-            <x-ppx.chips class="ppx-docs__chips" :options="\App\Member\LicenseDocumentList::FILTERS" :current="$filter" :action="false" :href="fn ($key) => route('member.license-documents', $key === 'all' ? [] : ['status' => $key])" label="Document status" />
+            <x-ppx.chips class="ppx-docs__chips" data-ppx-chips-swap="chips" :options="\App\Member\LicenseDocumentList::FILTERS" :current="$filter" :action="false" :href="fn ($key) => route('member.license-documents', $key === 'all' ? [] : ['status' => $key])" label="Document status" />
 
-            <div class="ppx-docs__columns">
-                <div class="ppx-card ppx-docs__list">
+            <div class="ppx-docs__columns" data-ppx-chips-swap="documents">
+                <div class="ppx-card ppx-docs__list" data-ppx-chips-area>
                     @if ($rows->isEmpty())
                         <x-ppx.empty-state icon="license" title="No documents with this status" />
                     @else

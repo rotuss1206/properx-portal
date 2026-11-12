@@ -249,6 +249,27 @@
 
 .ppx-chips__chip.is-active { background: var(--ppx-navy-500); color: #fff !important; font-weight: 600; }
 
+/* The label once more, bold and invisible, under the visible one: the chip is as wide when
+   selected (bold) as when not, so switching never shifts its neighbours. */
+.ppx-chips__text { display: inline-flex; flex-direction: column; align-items: center; }
+
+.ppx-chips__text::after {
+    content: attr(data-label);
+    content: attr(data-label) / '';
+    height: 0;
+    overflow: hidden;
+    font-weight: 600;
+    visibility: hidden;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* The list a group of chips filters (public/portal/chips.js keeps it at least as tall as with
+   everything shown); a group with nothing in it shows its empty state in the middle. */
+[data-ppx-chips-area] { display: flex; flex-direction: column; }
+
+[data-ppx-chips-area] > .ppx-empty { margin: auto 0; }
+
 .ppx-chips__chip:focus-visible { outline: 2px solid var(--ppx-blue-focus); outline-offset: 1px; }
 
 /* Document table */

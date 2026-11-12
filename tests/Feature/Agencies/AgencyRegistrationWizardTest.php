@@ -994,7 +994,9 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertHasNoErrors()
             ->assertSet('peopleStatus', 'Added Marcus Reyes. 2 people.')
             ->assertDispatched('join-focus', id: 'people-entry-first_name')
-            ->assertSet('people.entry.type', 'licensed_producer')
+            // The next person's type is not carried over: it is chosen for each person.
+            ->assertSet('people.entry.type', '')
+            ->assertDontSee('Individual NPN')
             ->assertSet('people.entry.email', '');
 
         // An employee's NPN and state are dropped, whatever was typed.

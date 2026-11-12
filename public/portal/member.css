@@ -1028,7 +1028,19 @@ body.ppx-member {
 
 .ppx-agency__add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--ppx-muted); font-size: 12.5px; }
 
-.ppx-agency__people-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 0; }
+/* Chips and search in one row, centred on each other and of one height (Documents Management.jpg);
+   on narrow screens the search takes its own full-width row under the chips. */
+.ppx-agency__people-tools { display: flex; align-items: center; gap: 12px 16px; padding: 16px 22px 14px; }
+
+.ppx-agency__chips { flex: 1 1 auto; min-width: 0; }
+
+.ppx-agency__chips .ppx-chips__chip { height: 36px; }
+
+.ppx-agency__search { flex: 0 0 240px; width: 240px; }
+
+.ppx-agency__search .ppx-docs__search-input { height: 36px; }
+
+.ppx-library__results { display: grid; gap: 18px; min-width: 0; }
 
 .ppx-agency__person { display: block; color: var(--ppx-ink); font-weight: 600; }
 
@@ -1064,6 +1076,10 @@ body.ppx-member {
     .ppx-agency { padding-top: 0; }
 
     .ppx-billing__top { grid-template-columns: minmax(0, 1fr); }
+
+    .ppx-agency__people-tools { flex-wrap: wrap; }
+
+    .ppx-agency__search { flex: 1 1 100%; width: 100%; }
 }
 
 @media (max-width: 600px) {
@@ -1082,7 +1098,7 @@ body.ppx-member {
 
     .ppx-billing-renewal { align-items: flex-start; padding: 14px 16px; }
 
-    .ppx-agency__people-tools { padding: 12px 16px 0; }
+    .ppx-agency__people-tools { padding: 12px 16px; }
 
     .ppx-agency__table td[data-label="Name"] { grid-column: 1 / -1; }
 

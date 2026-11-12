@@ -135,6 +135,21 @@ class AgencyAreaTest extends TestCase
         $this->get(route('member.agency', ['filter' => 'needs_attention']))->assertSee('Marcus Reyes')->assertDontSee('Principal (you)');
     }
 
+    public function test_switching_people_tabs_keeps_the_layout(): void
+    {
+        $this->producer->forceFill(['invite_status' => InviteStatus::AccountActive])->save();
+
+        $response = $this->actingAs($this->principal)->get(route('member.agency', ['filter' => 'not_accepted']))->assertOk();
+
+        // An empty group says so inside the same list area; chips.js swaps the chips and the list.
+        $response->assertSeeInOrder(['data-ppx-chips-area', 'No people in this group'], false);
+        $response->assertSee('data-ppx-chips-swap="people-chips"', false)
+            ->assertSee('data-ppx-chips-swap="people"', false)
+            // Each chip carries its label for the bold, invisible copy that fixes its width.
+            ->assertSee('portal/chips.js?v=', false);
+        $this->assertMatchesRegularExpression('#<span class="ppx-chips__text" data-label="(Not set up \(\d+\))">\1</span>#', $response->getContent());
+    }
+
     // Resend invitation
 
     public function test_the_principal_resends_an_invitation_at_most_once_an_hour(): void

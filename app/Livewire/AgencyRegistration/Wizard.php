@@ -287,8 +287,9 @@ class Wizard extends Component
             $focus = $people->problems === [] ? 'people-entry-first_name' : 'problem-0-fix';
         }
 
-        // The next person is often of the same kind.
-        $people->entry = ['type' => $people->entry['type']] + PeopleForm::ROW;
+        // The next person's type is chosen afresh: carried over, a producer's NPN and state fields
+        // stayed on screen and an employee was entered as a producer.
+        $people->entry = PeopleForm::ROW;
         $people->editing = -1;
         $people->fixing = -1;
         $this->resetErrorBag('people.rows*');

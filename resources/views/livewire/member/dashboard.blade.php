@@ -91,7 +91,10 @@
             <x-slot:action>
                 <x-ppx.chips :options="\App\Member\DocumentList::FILTERS" :current="$filter" :href="fn ($key) => '?tab=documents&filter='.$key" label="Document type" />
             </x-slot:action>
-            <x-ppx.doc-table :rows="$documents" caption="All documents" empty-title="No documents here yet" empty-text="Your license documents, tax documents and certificate appear here." />
+            {{-- wire:ignore.self: the height chips.js keeps survives Livewire's re-render. --}}
+            <div class="ppx-dash__documents" data-ppx-chips-area wire:ignore.self>
+                <x-ppx.doc-table :rows="$documents" caption="All documents" empty-title="No documents here yet" empty-text="Your license documents, tax documents and certificate appear here." />
+            </div>
         </x-ppx.card>
 
         @if (\App\Member\MemberMenu::visible(auth()->user(), 'license-documents'))
