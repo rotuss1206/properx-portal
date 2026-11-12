@@ -87,8 +87,9 @@ class UserPolicy
             return false;
         }
 
+        // A member account goes with its profile: agency people and paid members are deactivated instead.
         return $target->isMember()
-            ? $user->checkPermissionTo('members.delete')
+            ? $user->checkPermissionTo('members.delete') && $target->memberProfile?->deletionBlocker() === null
             : $user->checkPermissionTo('staff.manage');
     }
 

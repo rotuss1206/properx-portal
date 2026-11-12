@@ -69,6 +69,7 @@ class AuditLog extends Model
         'billing_portal_opened',
         'agency_member_deactivated',
         'agency_member_reactivated',
+        'agency_membership_canceled',
         'partner_code_created',
         'partner_code_updated',
         'partner_code_deleted',

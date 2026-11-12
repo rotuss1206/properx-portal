@@ -87,6 +87,8 @@ class ReferenceData
         'agencies.delete',
         // Change tier / Change rate type actions; normally both follow from headcount and payment date.
         'agencies.pricing.override',
+        // "Cancel agency membership": ends the agency's Stripe subscription (agencies are never deleted).
+        'agencies.cancel',
     ];
 
     public const SERVICE_ACCOUNT_EMAIL = 'api-service@properx.test';

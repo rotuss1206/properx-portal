@@ -6,6 +6,7 @@ use App\Enums\AgencyRole;
 use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
 use App\Enums\AgencyType;
+use App\Enums\MemberStatus;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Exceptions\IneligiblePrincipalException;
@@ -185,6 +186,45 @@ class Agency extends Model
     public function mailingAddress(): ?string
     {
         return $this->mailing_same_as_legal ? $this->legal_address : $this->mailing_address;
+    }
+
+    /**
+     * The agency's status, and its people's (Agency spec 7, D2): inactive makes everyone inactive;
+     * leaving inactive makes them active again. Saved quietly, audited as
+     * agency_payment_status_changed with from / to. False when nothing changed.
+     */
+    public function changeStatus(AgencyStatus $to): bool
+    {
+        $from = $this->status;
+
+        if ($from === $to) {
+            return false;
+        }
+
+        $this->forceFill(['status' => $to])->saveQuietly();
+        AuditLog::record('agency_payment_status_changed', $this, details: ['from' => $from?->value, 'to' => $to->value]);
+
+        if ($to === AgencyStatus::Inactive) {
+            $this->members()->update(['status' => MemberStatus::Inactive->value]);
+        } elseif ($from === AgencyStatus::Inactive) {
+            $this->members()->update(['status' => MemberStatus::Active->value]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Why this agency may not be deleted, or null when it may: only an empty record, with no
+     * people and nothing paid or billed in Stripe. Anything else is canceled, never deleted
+     * ("Cancel agency membership"), so people, payments and the audit trail stay.
+     */
+    public function deletionBlocker(): ?string
+    {
+        return match (true) {
+            $this->members()->exists() => 'The agency has people. Cancel its membership instead; nothing is deleted.',
+            filled($this->stripe_subscription_id) || filled($this->stripe_customer_id) || $this->paid_through_at !== null => 'The agency has a payment in Stripe. Cancel its membership instead; nothing is deleted.',
+            default => null,
+        };
     }
 
     /**

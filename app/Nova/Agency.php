@@ -7,6 +7,7 @@ use App\Enums\AgencyTier;
 use App\Enums\AgencyType;
 use App\Enums\RateType;
 use App\Enums\Role;
+use App\Nova\Actions\CancelAgencyMembership;
 use App\Nova\Actions\ChangeAgencyRateType;
 use App\Nova\Actions\ChangeAgencyTier;
 use App\Rules\EligiblePrincipal;
@@ -302,6 +303,12 @@ class Agency extends Resource
         return [
             ChangeAgencyTier::make()->canSee($canOverride)->canRun($canOverride),
             ChangeAgencyRateType::make()->canSee($canOverride)->canRun($canOverride),
+
+            // Agencies with people or a payment are canceled, never deleted (AgencyPolicy::delete).
+            CancelAgencyMembership::make()
+                ->sole()
+                ->canSee(fn (Request $request) => (bool) Nova::user($request)?->checkPermissionTo('agencies.cancel'))
+                ->canRun(fn (NovaRequest $request, \App\Models\Agency $agency) => Gate::forUser(Nova::user($request))->check('cancelMembership', $agency)),
         ];
     }
 

@@ -123,8 +123,30 @@ class LicenseVerificationQueueTest extends TestCase
         $fields = collect($row['fields'])->keyBy('attribute');
         $this->assertSame('1234567', $fields['npn']['value']);
         $this->assertSame('TX', $fields['license_state']['value']);
-        $this->assertSame('Lone Star Benefits LLC', $fields['agency']['value']);
+        $this->assertStringContainsString('>Lone Star Benefits LLC</a>', collect($row['fields'])->firstWhere('name', 'Agency')['value']);
         $this->assertNotNull($fields['license_verification_changed_at']['value']);
+    }
+
+    public function test_principals_are_marked_individuals_named_and_the_type_and_agency_filters_work(): void
+    {
+        $coordinator = $this->staff(Role::MembershipCoordinator);
+        $rows = collect($this->actingAs($coordinator)->getJson('/nova-api/license-verification?perPage=100&filters='.$this->filter(LicenseVerification::PendingReview))->json('resources'))
+            ->mapWithKeys(fn (array $row) => [$row['id']['value'] => collect($row['fields'])->keyBy('name')]);
+
+        $this->assertStringContainsString('Dana Whitfield <span', $rows[$this->principal->memberProfile->id]['Name']['value']);
+        $this->assertStringContainsString('>Principal</span>', $rows[$this->principal->memberProfile->id]['Name']['value']);
+        $this->assertStringNotContainsString('Principal', $rows[$this->producer->id]['Name']['value']);
+        $this->assertSame('Individual', $rows[$this->individual->id]['Agency']['value']);
+
+        $ids = fn (array $filters) => collect($this->actingAs($coordinator)
+            ->getJson('/nova-api/license-verification?perPage=100&filters='.base64_encode((string) json_encode($filters)))
+            ->json('resources'))->pluck('id.value')->sort()->values()->all();
+
+        $this->assertSame([$this->principal->memberProfile->id], $ids([['license-verification-type' => 'principal']]));
+        $this->assertSame([$this->producer->id], $ids([['license-verification-type' => 'agency_person']]));
+        $this->assertSame([$this->individual->id], $ids([['license-verification-type' => 'individual']]));
+        $this->assertSame([$this->individual->id], $ids([['license-verification-agency' => 'individual']]));
+        $this->assertEqualsCanonicalizing([$this->principal->memberProfile->id, $this->producer->id], $ids([['license-verification-agency' => (string) $this->agency->id]]));
     }
 
     public function test_only_the_membership_coordinator_and_executive_director_work_the_queue(): void

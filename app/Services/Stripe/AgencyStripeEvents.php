@@ -4,7 +4,6 @@ namespace App\Services\Stripe;
 
 use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
-use App\Enums\MemberStatus;
 use App\Enums\RateType;
 use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
@@ -198,22 +197,7 @@ class AgencyStripeEvents
      */
     private function setStatus(Agency $agency, AgencyStatus $to): bool
     {
-        $from = $agency->status;
-
-        if ($from === $to) {
-            return false;
-        }
-
-        $agency->forceFill(['status' => $to])->saveQuietly();
-        AuditLog::record('agency_payment_status_changed', $agency, details: ['from' => $from?->value, 'to' => $to->value]);
-
-        if ($to === AgencyStatus::Inactive) {
-            $agency->members()->update(['status' => MemberStatus::Inactive->value]);
-        } elseif ($from === AgencyStatus::Inactive) {
-            $agency->members()->update(['status' => MemberStatus::Active->value]);
-        }
-
-        return true;
+        return $agency->changeStatus($to);
     }
 
     private function extend(Agency $agency, ?CarbonInterface $paidThrough): void
@@ -287,7 +271,7 @@ class AgencyStripeEvents
 
         // Also a bank payment that cleared after the page was left on "processing": the principal's
         // welcome email (AgencyEnrollment::complete) tells them.
-        $result = $this->enrollment->complete($draft, $subscriptionId, $customerId, $paidThrough);
+        $result = $this->enrollment->complete($draft, $subscriptionId, $customerId, $paidThrough, Carbon::createFromTimestamp((int) $event->created));
 
         return $result['created'] ? 'agency_enrolled' : 'agency_paid';
     }

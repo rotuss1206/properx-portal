@@ -8,6 +8,7 @@ use App\Enums\LicenseVerification;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Models\User;
+use App\Nova\Actions\CancelAgencyMembership;
 use App\Nova\Actions\ChangeAgencyPricing;
 use App\Nova\Actions\DeactivateAgencyPerson;
 use App\Nova\Filters\AuditResourceType;
@@ -166,6 +167,8 @@ class AuditLog extends Resource
             'billing_portal_opened' => 'Opened Stripe’s payment page for the '.(($details['kind'] ?? '') === 'agency' ? 'agency' : 'member').'’s billing',
             'agency_member_deactivated' => 'Person set inactive on the agency'.(isset($details['reason']) ? ': '.(DeactivateAgencyPerson::REASONS[$details['reason']] ?? $details['reason']) : ''),
             'agency_member_reactivated' => 'Person set active again on the agency',
+            'agency_membership_canceled' => 'Membership canceled '.(($details['timing'] ?? '') === 'now' ? 'now' : 'at the end of the paid period')
+                .(isset($details['reason']) ? ': '.(CancelAgencyMembership::REASONS[$details['reason']] ?? $details['reason']) : ''),
             'agency_updated', 'profile_updated' => isset($details['fields'])
                 ? 'Changed fields: '.implode(', ', array_map(fn (string $field) => Str::headline($field), $details['fields']))
                 : null,

@@ -33,9 +33,21 @@ class AgencyPolicy
             || ($agency->isLedBy($user) && $user->checkPermissionTo('own-agency.manage'));
     }
 
+    /**
+     * Executive Director only, and only an empty record (no people, nothing paid); everyone else,
+     * the Executive Director included, cancels the membership instead.
+     */
     public function delete(User $user, Agency $agency): bool
     {
-        return $user->checkPermissionTo('agencies.delete');
+        return $user->checkPermissionTo('agencies.delete') && $agency->deletionBlocker() === null;
+    }
+
+    /**
+     * "Cancel agency membership": Executive Director only.
+     */
+    public function cancelMembership(User $user, Agency $agency): bool
+    {
+        return $user->checkPermissionTo('agencies.cancel') && filled($agency->stripe_subscription_id);
     }
 
     public function restore(User $user, Agency $agency): bool

@@ -330,6 +330,10 @@ class AgencyPaymentTest extends TestCase
         $this->assertSame('400 Congress Ave, Suite 210, Austin, TX 78701', $agency->legal_address);
         $this->assertSame($this->periodEnd, $agency->paid_through_at->getTimestamp());
         $this->assertSame(3, $agency->headcount);
+        // The Billing panel is filled from the first payment, not only by later webhooks.
+        $this->assertSame(3, $agency->billed_headcount);
+        $this->assertSame(now()->getTimestamp(), $agency->payment_event_at?->getTimestamp());
+        $this->assertSame(now()->getTimestamp(), $agency->paid_event_at?->getTimestamp());
 
         $principal = User::query()->where('email', 'dana@lonestarbenefits.example')->sole();
         $this->assertSame($principal->id, $agency->principal_user_id);
@@ -359,6 +363,78 @@ class AgencyPaymentTest extends TestCase
         // Reloading the page shows the confirmation again, and nothing is created twice.
         Livewire::test(Wizard::class)->assertSee('Your agency is enrolled')->call('finishPayment', 'pi_agency');
         $this->assertSame(1, Agency::query()->count());
+    }
+
+    /**
+     * "Agency employee" chosen on screen 5, by hand after a producer (the form used to keep the
+     * producer type) and from a CSV with an NPN typed by mistake, is saved and shown as an
+     * employee everywhere: the review, the confirmation, the principal's agency page and Nova.
+     */
+    public function test_employees_added_by_hand_or_csv_are_saved_and_shown_as_employees(): void
+    {
+        Notification::fake();
+        $this->intent('succeeded');
+        config(['portal.member_area.enabled' => true]);
+
+        $wizard = Livewire::test(Wizard::class)
+            ->set('membership.type', 'agency')->call('next')
+            ->set('tier.tier', 'agency_2to9')->call('next');
+
+        foreach (self::AGENCY as $key => $value) {
+            $wizard->set("agency.{$key}", $value);
+        }
+
+        $wizard->call('next');
+
+        foreach (self::PRINCIPAL as $key => $value) {
+            $wizard->set("principal.{$key}", $value);
+        }
+
+        $wizard->call('next')->assertSet('step', 5);
+
+        foreach (self::PEOPLE[0] as $key => $value) {
+            $wizard->set("people.entry.{$key}", $value);
+        }
+
+        $wizard->call('savePerson')->assertHasNoErrors()
+            ->assertSet('people.entry.type', '')
+            ->set('people.entry.type', 'agency_employee')
+            ->set('people.entry.first_name', 'Priya')->set('people.entry.last_name', 'Nair')->set('people.entry.email', 'priya@lonestarbenefits.example')
+            ->call('savePerson')->assertHasNoErrors()
+            ->call('importPeople', 'people.csv', "type,first_name,last_name,email,npn,state\r\nEmployee,Sam,Cole,sam@lonestarbenefits.example,12345678,TX\r\n")
+            ->assertSet('people.problems', [])
+            ->call('next')->assertSet('step', 6)
+            ->assertSeeInOrder(['Priya Nair', 'Agency employee', 'Sam Cole', 'Agency employee']);
+
+        foreach (['terms', 'dues_separate', 'annual_no_refund', 'roster_confirmed'] as $key) {
+            $wizard->set("review.{$key}", true);
+        }
+
+        $wizard->call('preparePayment', 'ctoken_debit')->call('startPayment')->call('finishPayment', 'pi_agency')
+            ->assertSee('Your agency is enrolled')
+            ->assertSeeInOrder(['Priya Nair', 'Agency employee', 'Sam Cole', 'Agency employee']);
+
+        $agency = Agency::query()->sole();
+        $types = $agency->members()->get()->mapWithKeys(fn ($profile) => [$profile->first_name => [$profile->person_type, $profile->npn, $profile->license_state, $profile->license_verification]])->all();
+        $this->assertSame([PersonType::LicensedProducer, '20304050', 'TX', LicenseVerification::PendingReview], $types['Marcus']);
+        $this->assertSame([PersonType::AgencyEmployee, null, null, null], $types['Priya']);
+        $this->assertSame([PersonType::AgencyEmployee, null, null, null], $types['Sam']);
+
+        // The principal's agency page.
+        $principal = User::query()->where('email', 'dana@lonestarbenefits.example')->sole();
+        $principal->forceFill(['two_factor_secret' => encrypt('SECRET'), 'two_factor_recovery_codes' => encrypt('[]'), 'two_factor_confirmed_at' => now()])->save();
+        $principal->memberProfile->forceFill(['invite_status' => InviteStatus::AccountActive])->save();
+        $this->actingAs($principal->fresh())->get(route('member.agency'))->assertOk()
+            ->assertSeeInOrder(['Sam Cole', 'Employee', 'Not applicable', 'Priya Nair', 'Employee', 'Not applicable', 'Marcus Reyes', 'Producer', 'Pending review']);
+
+        // Nova's roster.
+        $rows = $this->actingAs($this->staff(Role::MembershipCoordinator))
+            ->getJson("/nova-api/member-profiles?viaResource=agencies&viaResourceId={$agency->id}&viaRelationship=members&relationshipType=hasMany")
+            ->json('resources');
+        $nova = collect($rows)->mapWithKeys(fn ($row) => [collect($row['fields'])->firstWhere('name', 'Name')['value'] => collect($row['fields'])->firstWhere('name', 'Person Type')['value']])->all();
+        $this->assertSame('Agency employee', $nova['Priya Nair']);
+        $this->assertSame('Agency employee', $nova['Sam Cole']);
+        $this->assertSame('Licensed producer', $nova['Marcus Reyes']);
     }
 
     public function test_the_return_from_the_payment_and_the_webhook_send_the_invitations_once(): void
@@ -438,9 +514,14 @@ class AgencyPaymentTest extends TestCase
         $this->assertNull($wizard->call('startPayment')->effects['returns'][0]);
         Livewire::test(Wizard::class)->assertSee('Your bank payment is processing');
 
+        $this->travel(3)->days();
         $this->webhook('invoice.paid', $this->invoice($draft->id))->assertOk()->assertJson(['outcome' => 'agency_enrolled']);
 
         $this->assertSame(1, Agency::query()->count());
+        // Billing panel from the start: the billed people and the payment's event time.
+        $agency = Agency::query()->sole();
+        $this->assertSame(3, $agency->billed_headcount);
+        $this->assertSame(now()->getTimestamp(), $agency->payment_event_at?->getTimestamp());
         $this->assertNull(AgencyRegistrationDraft::query()->find($draft->id));
         // The welcome email (with the receipt) tells the principal; nothing else is sent to them.
         Notification::assertSentTo(User::query()->where('email', 'dana@lonestarbenefits.example')->sole(), AgencyWelcome::class);

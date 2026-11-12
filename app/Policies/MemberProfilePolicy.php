@@ -30,9 +30,12 @@ class MemberProfilePolicy
             || ($this->owns($user, $profile) && $user->checkPermissionTo('own-profile.manage'));
     }
 
+    /**
+     * Agency people and members with a paid subscription are deactivated, never deleted.
+     */
     public function delete(User $user, MemberProfile $profile): bool
     {
-        return $user->checkPermissionTo('members.delete');
+        return $user->checkPermissionTo('members.delete') && $profile->deletionBlocker() === null;
     }
 
     public function restore(User $user, MemberProfile $profile): bool

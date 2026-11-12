@@ -34,9 +34,9 @@ class AgencyEnrollment
     /**
      * @return array{agency: Agency, created: bool}
      */
-    public function complete(AgencyRegistrationDraft $draft, string $subscriptionId, string $customerId, ?CarbonInterface $paidThrough): array
+    public function complete(AgencyRegistrationDraft $draft, string $subscriptionId, string $customerId, ?CarbonInterface $paidThrough, ?CarbonInterface $paidAt = null): array
     {
-        return Cache::lock('agency-enrollment:'.$subscriptionId, 30)->block(15, function () use ($draft, $subscriptionId, $customerId, $paidThrough) {
+        return Cache::lock('agency-enrollment:'.$subscriptionId, 30)->block(15, function () use ($draft, $subscriptionId, $customerId, $paidThrough, $paidAt) {
             $existing = Agency::query()->where('stripe_subscription_id', $subscriptionId)->first();
 
             if ($existing !== null) {
@@ -49,7 +49,7 @@ class AgencyEnrollment
                 throw new LogicException('The enrollment has no payment snapshot.');
             }
 
-            $agency = DB::transaction(fn () => $this->create($draft, $snapshot, $subscriptionId, $customerId, $paidThrough));
+            $agency = DB::transaction(fn () => $this->create($draft, $snapshot, $subscriptionId, $customerId, $paidThrough, $paidAt ?? now()));
 
             $this->invite($agency, self::receipt($snapshot));
 
@@ -60,7 +60,7 @@ class AgencyEnrollment
     /**
      * @param  array<string, mixed>  $snapshot
      */
-    private function create(AgencyRegistrationDraft $draft, array $snapshot, string $subscriptionId, string $customerId, ?CarbonInterface $paidThrough): Agency
+    private function create(AgencyRegistrationDraft $draft, array $snapshot, string $subscriptionId, string $customerId, ?CarbonInterface $paidThrough, CarbonInterface $paidAt): Agency
     {
         $a = $snapshot['agency'];
         $quote = $snapshot['quote'];
@@ -86,6 +86,12 @@ class AgencyEnrollment
             'stripe_subscription_id' => $subscriptionId,
             'paid_through_at' => $paidThrough,
             'status' => AgencyStatus::Active,
+            // The Billing panel from the first payment on, not only from later webhooks: the
+            // subscription bills the snapshot's headcount; the payment is the latest event so far
+            // (an older event arriving later changes no status, AgencyStripeEvents).
+            'billed_headcount' => (int) $quote['headcount'],
+            'payment_event_at' => $paidAt,
+            'paid_event_at' => $paidAt,
         ])->save();
 
         $principal = $snapshot['principal'];

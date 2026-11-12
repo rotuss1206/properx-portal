@@ -152,17 +152,34 @@ class AgencyModelTest extends TestCase
         $this->assertSame(3, $agency->fresh()->headcount);
     }
 
-    public function test_deleting_an_agency_keeps_its_people_as_individual_members(): void
+    public function test_an_agency_with_people_or_a_payment_is_never_deleted(): void
     {
         $agency = $this->agency(people: 2);
         $principal = $agency->principal;
 
+        try {
+            $agency->delete();
+            $this->fail('An agency with people was deleted.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('Cancel its membership instead', $e->getMessage());
+        }
+
+        $this->assertNotNull($agency->fresh());
+        $this->assertTrue($principal->fresh()->hasRole(Role::AgencyPrincipal->value));
+        $this->assertSame(2, MemberProfile::query()->where('agency_id', $agency->id)->count());
+
+        $paid = Agency::factory()->create(['stripe_subscription_id' => 'sub_paid']);
+        $this->expectException(LogicException::class);
+        $paid->delete();
+    }
+
+    public function test_an_empty_unpaid_agency_can_be_deleted_and_it_is_audited(): void
+    {
+        $agency = Agency::factory()->create(['stripe_customer_id' => null, 'stripe_subscription_id' => null, 'paid_through_at' => null]);
+
         $agency->delete();
 
-        $this->assertFalse($principal->fresh()->hasRole(Role::AgencyPrincipal->value));
-        $this->assertSame(0, MemberProfile::query()->whereNotNull('agency_id')->count());
-        $this->assertSame(MemberType::Individual, $principal->memberProfile->fresh()->member_type);
-        $this->assertNull($principal->memberProfile->fresh()->agency_role);
+        $this->assertNull($agency->fresh());
         $this->assertDatabaseHas('audit_logs', ['action' => 'agency_deleted', 'resource_id' => $agency->id]);
     }
 

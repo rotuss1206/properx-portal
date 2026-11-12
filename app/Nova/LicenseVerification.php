@@ -6,14 +6,15 @@ use App\Enums\LicenseVerification as Verification;
 use App\Models\LicenseDocument as LicenseDocumentModel;
 use App\Nova\Actions\MarkLicenseNeedsAttention;
 use App\Nova\Actions\MarkLicenseVerified;
+use App\Nova\Filters\LicenseVerificationAgency;
 use App\Nova\Filters\LicenseVerificationStatus;
+use App\Nova\Filters\LicenseVerificationType;
 use App\Support\UsStates;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Laravel\Nova\Actions\Action;
 use Laravel\Nova\Fields\Badge;
-use Laravel\Nova\Fields\BelongsTo;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\ID;
 use Laravel\Nova\Fields\Select;
@@ -139,16 +140,21 @@ class LicenseVerification extends Resource
         return [
             ID::make()->hideFromIndex(),
 
-            Text::make('Name', fn () => $profile->fullName()),
+            // A "Principal" badge beside the agency's principal (by agencies.principal_user_id).
+            Text::make('Name', fn () => e($profile->fullName()).($profile->isPrincipalOfAgency()
+                ? ' <span class="inline-flex items-center whitespace-nowrap min-h-6 px-2 ml-2 rounded-full uppercase text-xs font-bold bg-primary-50 text-primary-600">Principal</span>'
+                : ''))
+                ->asHtml(),
 
-            BelongsTo::make('Agency', 'agency', Agency::class)
-                ->nullable()
-                ->filterable()
-                ->help('Empty for individual members.'),
+            // The agency (a link), or "Individual" for members on no agency.
+            Text::make('Agency', fn () => $profile->agency === null
+                ? 'Individual'
+                : sprintf('<a class="link-default" href="%s">%s</a>', e(Nova::url('/resources/'.Agency::uriKey().'/'.$profile->agency_id)), e($profile->agency->legal_name)))
+                ->asHtml(),
 
             Text::make('Email', fn () => $profile->user?->email)->onlyOnDetail(),
 
-            Text::make('Role', fn () => $profile->agency_id === null ? 'Individual member' : ($profile->isAgencyPrincipal() ? 'Agency principal' : 'Licensed producer'))
+            Text::make('Role', fn () => $profile->agency_id === null ? 'Individual member' : ($profile->isPrincipalOfAgency() ? 'Agency principal' : 'Agency person'))
                 ->onlyOnDetail(),
 
             // Encrypted at rest: shown, searchable by exact value, not sortable.
@@ -229,7 +235,7 @@ class LicenseVerification extends Resource
      */
     public function filters(NovaRequest $request): array
     {
-        return [new LicenseVerificationStatus];
+        return [new LicenseVerificationStatus, new LicenseVerificationType, new LicenseVerificationAgency];
     }
 
     public function actions(NovaRequest $request): array

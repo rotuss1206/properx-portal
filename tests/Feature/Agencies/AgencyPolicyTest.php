@@ -36,8 +36,13 @@ class AgencyPolicyTest extends TestCase
             $this->assertTrue($staff->can('manageRoster', $agency));
         }
 
-        $this->assertTrue($director->can('delete', $agency));
+        // Not even the Executive Director deletes an agency with people; an empty one only they.
+        $this->assertFalse($director->can('delete', $agency));
         $this->assertFalse($coordinator->can('delete', $agency));
+
+        $empty = Agency::factory()->create(['stripe_customer_id' => null, 'stripe_subscription_id' => null, 'paid_through_at' => null]);
+        $this->assertTrue($director->can('delete', $empty));
+        $this->assertFalse($coordinator->can('delete', $empty));
     }
 
     public function test_compliance_specialist_and_members_have_no_agency_access(): void

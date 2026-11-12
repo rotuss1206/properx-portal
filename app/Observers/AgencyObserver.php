@@ -2,10 +2,9 @@
 
 namespace App\Observers;
 
-use App\Enums\MemberType;
-use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\AuditLog;
+use LogicException;
 
 /**
  * Audits every change to an agency and keeps the principal's role and roster entry
@@ -45,18 +44,16 @@ class AgencyObserver
     }
 
     /**
-     * People stay in the portal as individual members; the principal loses the Agency Principal role.
+     * Only an empty agency, with no people and nothing paid, is ever deleted (Agency::deletionBlocker),
+     * whoever asks and however: deleting one with people used to turn them into individual members
+     * with full access and left the Stripe subscription running. The rest is canceled instead.
      */
     public function deleting(Agency $agency): void
     {
-        $agency->members()->update([
-            'agency_id' => null,
-            'member_type' => MemberType::Individual->value,
-            'agency_role' => null,
-        ]);
+        $blocker = $agency->deletionBlocker();
 
-        if ($agency->principal?->hasRole(Role::AgencyPrincipal->value)) {
-            $agency->principal->removeRole(Role::AgencyPrincipal->value);
+        if ($blocker !== null) {
+            throw new LogicException($blocker);
         }
     }
 

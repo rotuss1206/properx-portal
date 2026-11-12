@@ -297,6 +297,19 @@ class MemberProfile extends Model
     }
 
     /**
+     * Why staff may not delete this profile or its account, or null when they may: agency people
+     * and members with a paid subscription are deactivated, never deleted.
+     */
+    public function deletionBlocker(): ?string
+    {
+        return match (true) {
+            $this->agency_id !== null => 'This person belongs to an agency. Deactivate them instead.',
+            filled($this->stripe_subscription_id) || in_array($this->payment_status, [PaymentStatus::Active, PaymentStatus::PastDue], true) => 'This member has a paid membership. Deactivate them instead.',
+            default => null,
+        };
+    }
+
+    /**
      * The license documents this person uploaded (they belong to the user account).
      *
      * @return HasMany<LicenseDocument, $this>
