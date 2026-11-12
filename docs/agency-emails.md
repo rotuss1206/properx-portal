@@ -166,6 +166,55 @@ panel. The email goes out only when an address is set (`AGENCY_STAFF_NOTIFICATIO
 > Regards,
 > ProPerX Alliance
 
+## 7. A license needs attention (to the principal)
+
+**When:** ProPerX staff check a person's NPN and resident state in NIPR or the state registry and mark
+it "Needs attention" (Agency spec 8.3). Staff must write what to fix. The person sees the same reason in
+the member portal (dashboard and bell); if the person is the principal, they get email 8 instead.
+**Class:** `App\Notifications\Member\LicenseNeedsAttention` (agency)
+
+**Subject:** Action needed: a license on your agency's list
+
+> **Hello,**
+>
+> ProPerX Alliance checked the NPN and resident state of one person on your agency's list and could not
+> verify them.
+>
+> What to fix: The NPN does not match the resident state in NIPR.
+>
+> You will see who under the bell in the member portal. The person can correct their NPN or resident
+> state in their profile, and we will check it again.
+>
+> **[Open the member portal]**
+>
+> Regards,
+> ProPerX Alliance Membership Team
+
+The email names nobody; the bell shows "Marcus Reyes: license needs attention" with the reason. The
+"What to fix" line is staff's text, as typed in the admin panel.
+
+## 8. Your license needs attention (to an individual member, or a principal about their own license)
+
+**When:** as email 7, for a member who is not in an agency, or for the principal's own license.
+**Class:** `App\Notifications\Member\LicenseNeedsAttention` (own)
+
+**Subject:** Action needed: your license could not be verified
+
+> **Hello,**
+>
+> ProPerX Alliance checked your NPN and resident state and could not verify them.
+>
+> What to fix: The NPN does not match the resident state in NIPR.
+>
+> Please correct them in your profile, and we will check them again.
+>
+> **[Update my profile]**
+>
+> Regards,
+> ProPerX Alliance Membership Team
+
+When the person corrects their NPN or state, the license goes back to "Pending review" in the staff queue.
+
 ---
 
 ## Questions for ProPerX

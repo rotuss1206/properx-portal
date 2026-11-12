@@ -35,6 +35,13 @@ return [
     // Credit cards only (card.funding = "credit"); not debit, prepaid, unknown or ACH.
     'credit_card_surcharge_basis_points' => 290,
 
+    // States where no surcharge is added, whatever the card: two-letter codes of the paying
+    // agency's legal address (screen 3), comma-separated, e.g. "CT,MA". Empty: none.
+    'surcharge_exempt_states' => array_values(array_filter(array_map(
+        fn (string $state) => strtoupper(trim($state)),
+        explode(',', (string) env('AGENCY_SURCHARGE_EXEMPT_STATES', '')),
+    ))),
+
     'tiers' => [
         'agency_2to9' => [
             'min_headcount' => 2,

@@ -224,6 +224,11 @@ body.ppx-member {
 
 .ppx-stat__action { align-self: flex-start; height: 28px; margin-top: 6px; }
 
+/* Staff's reason when a license needs attention, with the way to fix it. */
+.ppx-stat__note { margin: 8px 0 0; color: var(--ppx-danger, #b42318); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+
+.ppx-stat__note a { color: inherit; font-weight: 600; text-decoration: underline; }
+
 /* Membership timeline: points placed in proportion to their dates (left: N %, 5 % steps). */
 
 .ppx-card--timeline .ppx-card__header { padding: 20px 22px 10px; border-bottom: 0; }

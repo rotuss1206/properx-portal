@@ -248,6 +248,22 @@ class AgencyPaymentTest extends TestCase
         $this->assertSame(0, Agency::query()->count());
     }
 
+    public function test_an_agency_in_a_surcharge_exempt_state_pays_no_surcharge_by_credit_card(): void
+    {
+        config(['agency.surcharge_exempt_states' => ['TX']]);
+
+        $this->reviewScreen()
+            ->assertDontSee('Credit cards add 2.9%')
+            ->call('preparePayment', 'ctoken_credit')
+            ->assertSet('checkout.funding', 'credit')
+            ->assertSet('checkout.surcharge', 0)
+            ->assertSet('checkout.total', self::DUES)
+            ->assertSee('None for this payment method')
+            ->call('startPayment');
+
+        $this->assertArrayNotHasKey('add_invoice_items', $this->stripe->sent('POST', '/v1/subscriptions')[0]['params']);
+    }
+
     public function test_a_debit_card_gets_no_surcharge_line(): void
     {
         $this->reviewScreen()->call('preparePayment', 'ctoken_debit')->call('startPayment');

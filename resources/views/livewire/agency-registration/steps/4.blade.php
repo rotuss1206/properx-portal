@@ -15,7 +15,7 @@
 
 <div class="grid grid-2">
     <x-join.input name="principal.npn" label="Individual NPN" required inputmode="numeric" maxlength="10"
-        hint="National Producer Number, up to 10 digits." />
+        hint="National Producer Number, 7 to 10 digits." />
     <x-join.select name="principal.license_state" label="Resident license state" :options="$states" required />
 </div>
 

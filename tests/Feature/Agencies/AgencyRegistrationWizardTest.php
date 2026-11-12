@@ -535,21 +535,21 @@ class AgencyRegistrationWizardTest extends TestCase
      */
     public static function invalidNpns(): array
     {
-        return ['letters' => ['12ab5678'], 'too long' => ['12345678901'], 'dashes' => ['1234-5678']];
+        return ['letters' => ['12ab5678'], 'too long' => ['12345678901'], 'dashes' => ['1234-5678'], 'too short' => ['123456'], '1 digit' => ['1']];
     }
 
     #[DataProvider('invalidNpns')]
-    public function test_npn_must_be_1_to_10_digits(string $npn): void
+    public function test_npn_must_be_7_to_10_digits(string $npn): void
     {
         $this->fill($this->wizardAt(4), 'principal', self::PRINCIPAL)
             ->set('principal.npn', $npn)
             ->call('next')
             ->assertHasErrors(['principal.npn' => 'regex'])
-            ->assertSee('The NPN must be up to 10 digits, numbers only.');
+            ->assertSee('The NPN must be 7 to 10 digits, numbers only.');
     }
 
     #[DataProvider('validNpns')]
-    public function test_npn_of_1_to_10_digits_is_accepted(string $npn): void
+    public function test_npn_of_7_to_10_digits_is_accepted(string $npn): void
     {
         $this->fill($this->wizardAt(4), 'principal', self::PRINCIPAL)
             ->set('principal.npn', $npn)
@@ -563,7 +563,7 @@ class AgencyRegistrationWizardTest extends TestCase
      */
     public static function validNpns(): array
     {
-        return ['1 digit' => ['1'], '7 digits' => ['1234567'], '10 digits' => ['1234567890']];
+        return ['7 digits' => ['1234567'], '8 digits' => ['12345678'], '10 digits' => ['1234567890']];
     }
 
     public function test_an_email_already_in_the_portal_is_blocked(): void
@@ -1028,7 +1028,12 @@ class AgencyRegistrationWizardTest extends TestCase
 
         $this->addPerson($wizard, ['npn' => '12ab'] + self::PRODUCER)
             ->assertHasErrors(['people.entry.npn' => 'regex'])
-            ->assertSee('The NPN must be up to 10 digits, numbers only.');
+            ->assertSee('The NPN must be 7 to 10 digits, numbers only.');
+
+        // Agency people: at least 7 digits (the client's rule).
+        $this->addPerson($wizard, ['npn' => '123456'] + self::PRODUCER)
+            ->assertHasErrors(['people.entry.npn'])
+            ->assertSee('The NPN must be 7 to 10 digits, numbers only.');
 
         // An employee needs neither, and the fields are not shown.
         $this->addPerson($wizard, self::EMPLOYEE)->assertHasNoErrors()->assertCount('people.rows', 1);
@@ -1292,7 +1297,7 @@ class AgencyRegistrationWizardTest extends TestCase
             ."licensed_producer,Marcus,Reyes,,20304050,TX\r\n"                   // row 3: no email
             ."licensed_producer,Owen,Brooks,owen@lonestarbenefits.example,,\r\n" // row 4: no NPN or state
             ."contractor,Lena,Ortiz,lena@lonestarbenefits.example,,\r\n"         // row 5: unknown type
-            ."licensed_producer,Ana,Diaz,ana@lonestarbenefits.example,123,ZZ\r\n"; // row 6: unknown state
+            ."licensed_producer,Ana,Diaz,ana@lonestarbenefits.example,123,ZZ\r\n"; // row 6: short NPN, unknown state
 
         $wizard = $this->upload($this->wizardAt(5), $csv)
             ->assertSet('people.rows', [self::EMPLOYEE])
@@ -1304,7 +1309,7 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertSet('people.problems.0.errors', ['email' => 'The email field is required.'])
             ->assertSet('people.problems.1.errors', ['npn' => 'Enter the NPN of this licensed producer.', 'license_state' => 'Choose the resident license state.'])
             ->assertSet('people.problems.2.errors', ['type' => 'Choose licensed producer or agency employee.'])
-            ->assertSet('people.problems.3.errors', ['license_state' => 'Choose the resident license state.'])
+            ->assertSet('people.problems.3.errors', ['npn' => 'The NPN must be 7 to 10 digits, numbers only.', 'license_state' => 'Choose the resident license state.'])
             ->assertSeeInOrder(['Rows to fix', 'Row 3', 'Marcus Reyes', 'Email: The email field is required.', 'Row 4', 'NPN: Enter the NPN of this licensed producer.', 'Row 5', 'Person type: Choose licensed producer or agency employee.', 'Row 6']);
 
         // The rows are fixed or skipped before going on.

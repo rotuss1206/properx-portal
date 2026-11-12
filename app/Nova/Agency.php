@@ -18,6 +18,7 @@ use App\Support\Money;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Laravel\Nova\Fields\Badge;
 use Laravel\Nova\Fields\BelongsTo;
@@ -212,6 +213,7 @@ class Agency extends Resource
             Text::make('FEIN')
                 ->rules('nullable', 'regex:/^\d{2}-?\d{7}$/', new UniqueBlindIndex(\App\Models\Agency::class, 'fein', $request->resourceId))
                 ->help('For invoices and receipts, e.g. 12-3456789.')
+                ->readonly(fn (NovaRequest $request) => $this->resource->exists && ! Gate::forUser($request->user())->check('updateFein', $this->resource))
                 ->hideFromIndex(),
 
             Textarea::make('Business Address', 'legal_address')

@@ -146,6 +146,7 @@ Production values are App Service settings and Key Vault references (root `READM
 | `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default. Livewire uses `/livewire/*` routes, which the ingress must pass through. The Stripe webhook needs the events `invoice.paid` and `invoice.payment_failed` (already sent for members) |
 | `PORTAL_TERMS_URL`, `PORTAL_PRIVACY_URL` | Terms of Service and Privacy Policy linked from the enrollment's consents and from the last step of an agency invitation; properx.org's pages by default |
 | `AGENCY_STAFF_NOTIFICATION_EMAIL` | Optional address that also gets "New agency enrolled" by email (staff always see it in Nova) |
+| `AGENCY_SURCHARGE_EXEMPT_STATES` | Optional, comma-separated two-letter states (e.g. `CT,MA`): agencies whose legal address is there pay no credit card surcharge. Empty by default |
 | `INDIVIDUAL_MEMBERSHIP_URL` | Individual application on the marketing site ("Just me" on `/join/agency`) |
 | `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
 | `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |

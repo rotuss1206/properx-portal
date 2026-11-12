@@ -65,6 +65,7 @@ class AuditLog extends Model
         'agency_invitation_password_set',
         'agency_invitation_accepted',
         'agency_invitation_requested',
+        'license_verification_changed',
         'partner_code_created',
         'partner_code_updated',
         'partner_code_deleted',

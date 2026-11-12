@@ -814,7 +814,15 @@ class Wizard extends Component
 
     private function priceFor(?string $cardFunding): AgencyQuote
     {
-        return app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode, $cardFunding);
+        return app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode, $cardFunding, payerState: $this->payerState());
+    }
+
+    /**
+     * The agency pays: its legal address (screen 3) decides whether a credit card pays the surcharge.
+     */
+    private function payerState(): ?string
+    {
+        return $this->agency->legal_address['state'] ?? null;
     }
 
     /**
@@ -1007,6 +1015,7 @@ class Wizard extends Component
             'termsUrl' => config('portal.registration.terms_url'),
             'privacyUrl' => config('portal.registration.privacy_url'),
             'paymentConfigured' => AgencyCheckout::isConfigured(),
+            'surchargeApplies' => app(AgencyPricingService::class)->surchargeApplies($this->payerState()),
             'stripeKey' => config('services.stripe.key'),
         ]);
     }

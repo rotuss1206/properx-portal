@@ -4,6 +4,7 @@ namespace App\Nova;
 
 use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
+use App\Enums\LicenseVerification;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Models\User;
@@ -158,6 +159,9 @@ class AuditLog extends Resource
             'agency_invitation_password_set' => 'Password set through the invitation link',
             'agency_invitation_accepted' => 'Profile checked; consents v'.($details['consents_version'] ?? '?').': '.implode(', ', array_map(fn (string $key) => Str::headline($key), $details['consents'] ?? [])),
             'agency_invitation_requested' => 'Asked for a new invitation from a '.($details['state'] ?? '—').' link',
+            'license_verification_changed' => 'License verification: '.(LicenseVerification::tryFrom((string) ($details['from'] ?? ''))?->label() ?? '—')
+                .' → '.(LicenseVerification::tryFrom((string) ($details['to'] ?? ''))?->label() ?? '—')
+                .(($details['reason_given'] ?? false) ? ' (reason given to the person)' : ''),
             'agency_updated', 'profile_updated' => isset($details['fields'])
                 ? 'Changed fields: '.implode(', ', array_map(fn (string $field) => Str::headline($field), $details['fields']))
                 : null,

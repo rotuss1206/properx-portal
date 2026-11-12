@@ -8,6 +8,7 @@ use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\Member\AgencyInvitationNotice;
 use App\Notifications\Member\LicenseDocumentReviewed;
+use App\Notifications\Member\LicenseNeedsAttention;
 use App\Notifications\Member\RenewalDue;
 use App\Notifications\Member\TaxDocumentAvailable;
 use Carbon\CarbonInterface;
@@ -70,6 +71,9 @@ final class NotificationFeed
             LicenseDocumentReviewed::class => self::licenseDocumentTarget($notification),
             RenewalDue::class => route('member.dashboard'),
             AgencyInvitationNotice::class => route('member.dashboard'),
+            LicenseNeedsAttention::class => ($notification->data['kind'] ?? null) === LicenseNeedsAttention::OWN
+                ? route('member.profile', ['edit' => 'business'])
+                : route('member.dashboard'),
             default => null,
         };
     }
@@ -107,6 +111,7 @@ final class NotificationFeed
             TaxDocumentAvailable::class => 'New tax document available',
             RenewalDue::class => self::renewalTitle($data['paid_through'] ?? null),
             AgencyInvitationNotice::class => self::invitationTitle($notification),
+            LicenseNeedsAttention::class => self::licenseTitle($notification),
             default => null,
         };
 
@@ -114,9 +119,11 @@ final class NotificationFeed
             return null;
         }
 
-        $reason = $notification->type === LicenseDocumentReviewed::class && ($data['status'] ?? null) === VerificationStatus::Rejected->value
-            ? $rejected->get($data['document_id'] ?? 0)?->rejection_reason
-            : null;
+        $reason = match (true) {
+            $notification->type === LicenseDocumentReviewed::class && ($data['status'] ?? null) === VerificationStatus::Rejected->value => $rejected->get($data['document_id'] ?? 0)?->rejection_reason,
+            $notification->type === LicenseNeedsAttention::class => self::licenseProfile($notification)?->license_verification_note,
+            default => null,
+        };
 
         return [
             'id' => $notification->getKey(),
@@ -142,6 +149,50 @@ final class NotificationFeed
             $days === 0 => 'Membership renews today',
             default => 'Membership renewal is due',
         };
+    }
+
+    /**
+     * The person's own license, or one of the principal's people (by name, while still on the
+     * principal's agency). Once fixed or verified the notice stays, without the reason.
+     */
+    private static function licenseTitle(DatabaseNotification $notification): ?string
+    {
+        if (($notification->data['kind'] ?? null) === LicenseNeedsAttention::OWN) {
+            return 'Your license needs attention';
+        }
+
+        $profile = self::licenseProfile($notification);
+
+        return $profile === null ? null : trim($profile->first_name.' '.$profile->last_name).': license needs attention';
+    }
+
+    /**
+     * The profile a license notice is about: the person's own, or one on the principal's agency;
+     * null once it is neither (or no longer needs attention, for the reason).
+     */
+    private static function licenseProfile(DatabaseNotification $notification): ?MemberProfile
+    {
+        $user = $notification->notifiable;
+
+        if (! $user instanceof User) {
+            return null;
+        }
+
+        $query = MemberProfile::query()->whereKey($notification->data['profile_id'] ?? 0);
+
+        if (($notification->data['kind'] ?? null) === LicenseNeedsAttention::OWN) {
+            $query->where('user_id', $user->getKey());
+        } else {
+            $agencyId = $user->memberProfile?->agency_id;
+
+            if ($agencyId === null || ! $user->memberProfile->isPrincipalOfAgency()) {
+                return null;
+            }
+
+            $query->where('agency_id', $agencyId);
+        }
+
+        return $query->first();
     }
 
     /**

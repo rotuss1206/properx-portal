@@ -5,6 +5,7 @@ namespace Tests\Feature\Agencies;
 use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\PartnerCode;
+use App\Policies\AgencyPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
@@ -68,6 +69,22 @@ class AgencyPolicyTest extends TestCase
         $this->assertFalse($principal->can('create', Agency::class));
         $this->assertFalse($principal->can('delete', $agency));
         $this->assertFalse($principal->can('reassignPrincipal', $agency)); // staff only
+    }
+
+    public function test_only_staff_change_the_fein_the_principal_edits_the_rest(): void
+    {
+        $agency = $this->agency();
+        $principal = $agency->principal;
+
+        $this->assertTrue($principal->can('update', $agency));
+        $this->assertFalse($principal->can('updateFein', $agency));
+        $this->assertSame('Contact ProPerX to change the FEIN', AgencyPolicy::FEIN_HINT);
+
+        foreach ([$this->staff(Role::ExecutiveDirector), $this->staff(Role::MembershipCoordinator)] as $staff) {
+            $this->assertTrue($staff->can('updateFein', $agency));
+        }
+
+        $this->assertFalse($this->staff(Role::ComplianceSpecialist)->can('updateFein', $agency));
     }
 
     public function test_agency_members_who_are_not_the_principal_have_no_access(): void

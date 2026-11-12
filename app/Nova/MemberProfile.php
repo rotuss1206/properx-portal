@@ -199,7 +199,15 @@ class MemberProfile extends Resource
             // Encrypted at rest: searchable by exact value, not sortable.
             Text::make('Member ID', 'member_number')->exceptOnForms(),
 
-            Text::make('NPN', 'npn')->rules('nullable', 'max:20'),
+            // Agency people 7 to 10 digits (Agency spec 5.3); an unchanged older value still saves.
+            Text::make('NPN', 'npn')->rules('nullable', 'max:20', function (string $attribute, mixed $value, \Closure $fail) {
+                $request = app(NovaRequest::class);
+                $inAgency = $request->exists('agency') ? filled($request->input('agency')) : $this->resource?->agency_id !== null;
+
+                if ($inAgency && filled($value) && (string) $value !== (string) $this->resource?->npn) {
+                    \App\Models\MemberProfile::npnFormatRule(true)($attribute, $value, $fail);
+                }
+            }),
 
             self::individualLicenseOnly(Text::make('License Number')->rules('nullable', 'max:50')->sortable()),
 
@@ -209,16 +217,21 @@ class MemberProfile extends Resource
                 ->rules('nullable', 'size:2')
                 ->filterable(),
 
-            // Staff verify NPN and resident state; members see the outcome (member area dashboard).
+            // Staff verify NPN and resident state in the License verification queue (its actions
+            // record the reason and tell the person); members see the outcome. Read-only here.
             // Agency employees hold no license.
             Select::make('License Verification', 'license_verification')
                 ->options(collect(LicenseVerification::cases())->mapWithKeys(fn (LicenseVerification $case) => [$case->value => $case->label()])->all())
                 ->displayUsingLabels()
-                ->rules('nullable', Rule::enum(LicenseVerification::class))
-                ->readonly(fn (NovaRequest $request) => ! static::viewerIsStaff($request))
+                ->readonly()
+                ->help('Changed in Members > License verification.')
                 ->canSee(fn () => ! $this->resource->isAgencyEmployee())
                 ->hideFromIndex()
                 ->filterable(),
+
+            Text::make('License Verification Reason', 'license_verification_note')
+                ->onlyOnDetail()
+                ->canSee(fn () => $this->resource->license_verification === LicenseVerification::NeedsAttention),
 
             // Members hold several ("Life, Health", from the application or the profile page): the
             // stored value stays on the list, or saving this form would blank it.

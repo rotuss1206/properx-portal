@@ -187,6 +187,14 @@ class Agency extends Model
         return $this->mailing_same_as_legal ? $this->legal_address : $this->mailing_address;
     }
 
+    /**
+     * The two-letter state of the legal address ("…, Austin, TX 78701"), null when it cannot be read.
+     */
+    public function legalState(): ?string
+    {
+        return preg_match('/\b([A-Z]{2})\s+\d{5}(?:-\d{4})?\s*$/', (string) $this->legal_address, $match) === 1 ? $match[1] : null;
+    }
+
     public function isLedBy(User $user): bool
     {
         return $this->principal_user_id !== null && $this->principal_user_id === $user->getKey();

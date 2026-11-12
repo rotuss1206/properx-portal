@@ -92,7 +92,7 @@
         <div class="review-total">
             <span>Total for the year</span>
             <strong>{{ \App\Support\Money::format($quote->subtotal) }}</strong>
-            <span class="review-note">{{ $quote->summary() }}. Credit cards add {{ rtrim(rtrim(number_format(config('agency.credit_card_surcharge_basis_points') / 100, 2), '0'), '.') }}%; debit cards and bank transfers (ACH) do not.</span>
+            <span class="review-note">{{ $quote->summary() }}.@if ($surchargeApplies) Credit cards add {{ rtrim(rtrim(number_format(config('agency.credit_card_surcharge_basis_points') / 100, 2), '0'), '.') }}%; debit cards and bank transfers (ACH) do not.@endif</span>
         </div>
     @endif
 </section>
@@ -134,7 +134,7 @@
         </button>
         <p class="hint" id="pay-hint">Tick all four boxes above to choose how to pay.</p>
     @else
-        <p class="hint payment-intro">Pay by card or straight from a US bank account (ACH). Credit cards add {{ rtrim(rtrim(number_format(config('agency.credit_card_surcharge_basis_points') / 100, 2), '0'), '.') }}%; you'll see the total before you pay.</p>
+        <p class="hint payment-intro">Pay by card or straight from a US bank account (ACH).@if ($surchargeApplies) Credit cards add {{ rtrim(rtrim(number_format(config('agency.credit_card_surcharge_basis_points') / 100, 2), '0'), '.') }}%; you'll see the total before you pay.@else You'll see the total before you pay.@endif</p>
         <div class="payment-element" wire:ignore wire:key="payment-element"
             data-join-payment data-key="{{ $stripeKey }}" data-amount="{{ $quote->subtotal }}" data-currency="{{ config('agency.currency') }}"
             data-return-url="{{ route('join.agency') }}" data-business="{{ config('portal.brand.name', 'ProPerX Alliance') }}"></div>

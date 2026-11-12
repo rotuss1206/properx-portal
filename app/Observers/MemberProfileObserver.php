@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Enums\LicenseVerification;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Services\Certificates\CertificateGeneratorService;
@@ -36,6 +37,11 @@ class MemberProfileObserver
      */
     private const INDEX_ATTRIBUTES = ['member_number_index', 'npn_index', 'certificate_code_index'];
 
+    /**
+     * Audited as "license_verification_changed" (from, to), never as a profile edit.
+     */
+    private const VERIFICATION_ATTRIBUTES = ['license_verification', 'license_verification_changed_at', 'license_verification_note'];
+
     public function __construct(private CertificateGeneratorService $certificates) {}
 
     public function created(MemberProfile $profile): void
@@ -64,11 +70,23 @@ class MemberProfileObserver
         // Joining an agency also defaults the person type; that is part of the roster change.
         $roster = $profile->wasChanged('agency_id') ? [...self::ROSTER_ATTRIBUTES, 'person_type'] : self::ROSTER_ATTRIBUTES;
 
-        $edited = array_diff(array_keys($profile->getChanges()), [...self::SYSTEM_ATTRIBUTES, ...$roster, ...self::INDEX_ATTRIBUTES]);
+        $edited = array_diff(array_keys($profile->getChanges()), [...self::SYSTEM_ATTRIBUTES, ...$roster, ...self::INDEX_ATTRIBUTES, ...self::VERIFICATION_ATTRIBUTES]);
 
         // Field names only, never the values.
         if ($edited !== []) {
             AuditLog::record('profile_updated', $profile, details: ['fields' => array_values($edited)]);
+        }
+
+        // Staff's decision, or a member's edit sending the license back to review. Never the reason's text.
+        // A new reason for a license that already needed attention counts as a decision too.
+        if ($profile->wasChanged(['license_verification', 'license_verification_note'])) {
+            $from = $profile->getOriginal('license_verification');
+
+            AuditLog::record('license_verification_changed', $profile, details: array_filter([
+                'from' => $from instanceof LicenseVerification ? $from->value : $from,
+                'to' => $profile->license_verification?->value,
+                'reason_given' => filled($profile->license_verification_note) ? true : null,
+            ], fn ($value) => $value !== null));
         }
     }
 

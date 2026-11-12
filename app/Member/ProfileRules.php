@@ -37,10 +37,11 @@ final class ProfileRules
     {
         $rules = ['firm_name' => ['nullable', 'string', 'max:255']];
 
-        // As on properx.org: 1 to 10 digits. An NPN cannot be cleared (Agency::principalProblem()
-        // needs the principal's), but a record without one can still change its firm name.
+        // Individuals as on properx.org: 1 to 10 digits; agency people 7 to 10. An NPN cannot be
+        // cleared (Agency::principalProblem() needs the principal's), but a record without one
+        // can still change its firm name.
         if (! $profile->isAgencyEmployee()) {
-            $rules['npn'] = [filled($profile->npn) ? 'required' : 'nullable', 'string', 'regex:/^\d{1,10}$/', new UniqueBlindIndex(MemberProfile::class, 'npn', $profile->getKey())];
+            $rules['npn'] = [filled($profile->npn) ? 'required' : 'nullable', 'string', MemberProfile::npnFormatRule($profile->agency_id !== null), new UniqueBlindIndex(MemberProfile::class, 'npn', $profile->getKey())];
         }
 
         return self::unlessUnchanged($profile, $input, ['npn'], $rules);
@@ -98,7 +99,6 @@ final class ProfileRules
             'first_name.required' => 'Enter your first name.',
             'last_name.required' => 'Enter your last name.',
             'npn.required' => 'Enter your National Producer Number.',
-            'npn.regex' => 'The NPN must be up to 10 digits, numbers only.',
             'license_state.required' => 'Choose your resident state.',
             'license_state.in' => 'Choose your resident state from the list.',
             'license_type.required' => 'Choose at least one license type.',

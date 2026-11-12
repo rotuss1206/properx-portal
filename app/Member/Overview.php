@@ -112,14 +112,14 @@ final class Overview
     }
 
     /**
-     * @return array{applicable: bool, label: string, variant: string, npn: ?string, state: ?string}
+     * @return array{applicable: bool, label: string, variant: string, npn: ?string, state: ?string, reason: ?string}
      */
     public function license(): array
     {
         $profile = $this->profile();
 
         if ($profile === null || $profile->isAgencyEmployee()) {
-            return ['applicable' => false, 'label' => 'Not applicable', 'variant' => 'neutral', 'npn' => null, 'state' => null];
+            return ['applicable' => false, 'label' => 'Not applicable', 'variant' => 'neutral', 'npn' => null, 'state' => null, 'reason' => null];
         }
 
         $verification = $profile->license_verification ?? LicenseVerification::PendingReview;
@@ -134,6 +134,8 @@ final class Overview
             },
             'npn' => $profile->npn,
             'state' => UsStates::ALL[$profile->license_state] ?? $profile->license_state,
+            // Staff's reason; correcting the NPN or state sends the license back to review.
+            'reason' => $verification === LicenseVerification::NeedsAttention ? $profile->license_verification_note : null,
         ];
     }
 

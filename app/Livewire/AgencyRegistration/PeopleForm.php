@@ -148,7 +148,7 @@ class PeopleForm extends StepForm
                 "{$prefix}.type.required" => 'Choose licensed producer or agency employee.',
                 "{$prefix}.type.enum" => 'Choose licensed producer or agency employee.',
                 "{$prefix}.npn.required" => 'Enter the NPN of this licensed producer.',
-                "{$prefix}.npn.regex" => 'The NPN must be up to 10 digits, numbers only.',
+                "{$prefix}.npn.regex" => MemberProfile::AGENCY_NPN_MESSAGE,
                 "{$prefix}.license_state.required" => 'Choose the resident license state.',
                 "{$prefix}.license_state.in" => 'Choose the resident license state.',
             ];
@@ -231,7 +231,7 @@ class PeopleForm extends StepForm
                     $fail('This email is already registered in the portal. Please contact ProPerX.');
                 }
             }],
-            "{$prefix}.npn" => [$producer, 'required', 'regex:/^\d{1,10}$/', function (string $attribute, mixed $value, Closure $fail) use ($ownIndex, $principal) {
+            "{$prefix}.npn" => [$producer, 'required', MemberProfile::AGENCY_NPN_RULE, function (string $attribute, mixed $value, Closure $fail) use ($ownIndex, $principal) {
                 if ((string) $value === trim($principal->npn)) {
                     $fail("This is the principal's NPN. Each person needs their own NPN.");
                 } elseif ($this->listedElsewhere('npn', (string) $value, $ownIndex($attribute))) {

@@ -49,6 +49,17 @@ class AgencyPolicy
     }
 
     /**
+     * The principal edits the rest of the agency's details, never the FEIN: only staff change it
+     * (the client's rule). The agency area shows the field read-only with FEIN_HINT.
+     */
+    public function updateFein(User $user, Agency $agency): bool
+    {
+        return $user->checkPermissionTo('agencies.update');
+    }
+
+    public const FEIN_HINT = 'Contact ProPerX to change the FEIN';
+
+    /**
      * Staff only, never self-serve.
      */
     public function reassignPrincipal(User $user, Agency $agency): bool

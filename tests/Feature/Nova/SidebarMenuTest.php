@@ -98,7 +98,7 @@ class SidebarMenuTest extends TestCase
         return [
             'Executive Director' => [Role::ExecutiveDirector, [
                 'Menu' => ['*Dashboard'],
-                'Members' => ['Member Accounts', 'Member Profiles'],
+                'Members' => ['Member Accounts', 'Member Profiles', 'License verification'],
                 'Documents' => ['License Documents', 'Tax Documents', 'Library'],
                 'Agencies' => ['Agencies', 'Partner Codes'],
                 'Logs' => ['Audit Log', 'Reminder Log'],
@@ -106,7 +106,7 @@ class SidebarMenuTest extends TestCase
             ]],
             'Membership Coordinator' => [Role::MembershipCoordinator, [
                 'Menu' => ['*Dashboard'],
-                'Members' => ['Member Accounts', 'Member Profiles'],
+                'Members' => ['Member Accounts', 'Member Profiles', 'License verification'],
                 'Documents' => ['License Documents'],
                 'Agencies' => ['Agencies', 'Partner Codes'],
                 'Logs' => ['Reminder Log'],

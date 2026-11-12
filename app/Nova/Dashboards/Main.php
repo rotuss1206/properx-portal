@@ -2,6 +2,8 @@
 
 namespace App\Nova\Dashboards;
 
+use App\Nova\Cards\PendingVerification;
+use App\Nova\LicenseVerification;
 use App\Nova\Metrics\ExpiringLicenses;
 use App\Nova\Metrics\LicenseStatusPartition;
 use App\Nova\Metrics\NewMembers;
@@ -30,6 +32,8 @@ class Main extends Dashboard
         $staffOnly = fn (Request $request) => (bool) $request->user()?->isStaff();
 
         return [
+            // The license verification queue (Agency spec 8.3), for those who work it.
+            PendingVerification::make()->canSee(fn (Request $request) => LicenseVerification::canVerify($request)),
             ExpiringLicenses::make()->canSee($staffOnly),
             LicenseStatusPartition::make()->canSee($staffOnly),
             NewMembers::make()->canSee($staffOnly),

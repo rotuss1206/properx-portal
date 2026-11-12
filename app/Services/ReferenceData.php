@@ -35,6 +35,8 @@ class ReferenceData
             'members.update',
             'license-documents.view',
             'license-documents.verify',
+            // The license verification queue: NPN and state checked in NIPR (Agency spec 8.3).
+            'members.license.verify',
             'members.message',
             'reminder-logs.view',
             'agencies.view',

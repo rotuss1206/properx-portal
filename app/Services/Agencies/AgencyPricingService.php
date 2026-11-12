@@ -20,6 +20,7 @@ class AgencyPricingService
      * @param  CarbonInterface|null  $paidAt  when the payment is completed (default: now)
      * @param  string|null  $cardFunding  Stripe PaymentMethod card.funding; null for ACH or not known yet
      * @param  RateType|null  $rateType  a locked rate type (renewals); by default it follows $paidAt
+     * @param  string|null  $payerState  the paying agency's state (legal address): no surcharge in an exempt state
      *
      * @throws HeadcountTooLowException
      */
@@ -29,6 +30,7 @@ class AgencyPricingService
         ?PartnerCode $partnerCode = null,
         ?string $cardFunding = null,
         ?RateType $rateType = null,
+        ?string $payerState = null,
     ): AgencyQuote {
         $minimum = (int) config('agency.minimum_headcount');
 
@@ -46,7 +48,7 @@ class AgencyPricingService
         $rate = $partnerCodeValid ? min($tierRate, (int) config('agency.partner_rate')) : $tierRate;
 
         $subtotal = $rate * $headcount;
-        $surcharge = $this->surcharge($subtotal, $cardFunding);
+        $surcharge = $this->surcharge($subtotal, $cardFunding, $payerState);
 
         return new AgencyQuote(
             headcount: $headcount,
@@ -75,6 +77,7 @@ class AgencyPricingService
             partnerCode: $agency->partnerCode,
             cardFunding: $cardFunding,
             rateType: $agency->rate_type,
+            payerState: $agency->legalState(),
         );
     }
 
@@ -86,14 +89,23 @@ class AgencyPricingService
     }
 
     /**
-     * Rounded half up to the cent; only for cards whose funding is "credit".
+     * Rounded half up to the cent; only for cards whose funding is "credit", and never for a
+     * payer in a state listed in agency.surcharge_exempt_states.
      */
-    public function surcharge(int $amount, ?string $cardFunding): int
+    public function surcharge(int $amount, ?string $cardFunding, ?string $payerState = null): int
     {
-        if ($cardFunding !== 'credit') {
+        if ($cardFunding !== 'credit' || ! $this->surchargeApplies($payerState)) {
             return 0;
         }
 
         return intdiv($amount * (int) config('agency.credit_card_surcharge_basis_points') + 5000, 10000);
+    }
+
+    /**
+     * Whether a credit card from a payer in this state pays the surcharge at all.
+     */
+    public function surchargeApplies(?string $payerState): bool
+    {
+        return ! in_array(strtoupper(trim((string) $payerState)), (array) config('agency.surcharge_exempt_states'), true);
     }
 }

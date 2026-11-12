@@ -14,6 +14,7 @@ use App\Enums\PersonType;
 use App\Models\Concerns\HasBlindIndexes;
 use App\Observers\MemberProfileObserver;
 use Carbon\CarbonInterface;
+use Closure;
 use Database\Factories\MemberProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -65,6 +66,34 @@ class MemberProfile extends Model
      */
     public const LICENSE_REVIEW_FIELDS = ['npn', 'license_state', 'license_number', 'license_expires_at'];
 
+    /**
+     * NPN format of agency principals and agency people (Agency spec 5.3, the client's answer):
+     * 7 to 10 digits. Individual members keep properx.org's 1 to 10 until the client decides.
+     */
+    public const AGENCY_NPN_PATTERN = '/^\d{7,10}$/';
+
+    public const AGENCY_NPN_RULE = 'regex:'.self::AGENCY_NPN_PATTERN;
+
+    public const AGENCY_NPN_MESSAGE = 'The NPN must be 7 to 10 digits, numbers only.';
+
+    public const INDIVIDUAL_NPN_PATTERN = '/^\d{1,10}$/';
+
+    public const INDIVIDUAL_NPN_MESSAGE = 'The NPN must be up to 10 digits, numbers only.';
+
+    /**
+     * The NPN format this person's NPN must follow: agency people 7 to 10 digits, individuals 1 to 10.
+     *
+     * @return Closure(string, mixed, Closure): void
+     */
+    public static function npnFormatRule(bool $inAgency): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($inAgency) {
+            if (preg_match($inAgency ? self::AGENCY_NPN_PATTERN : self::INDIVIDUAL_NPN_PATTERN, (string) $value) !== 1) {
+                $fail($inAgency ? self::AGENCY_NPN_MESSAGE : self::INDIVIDUAL_NPN_MESSAGE);
+            }
+        };
+    }
+
     protected static function booted(): void
     {
         // Model events are muted while seeding: factories set these values themselves.
@@ -112,6 +141,15 @@ class MemberProfile extends Model
                 if ($profile->exists && $profile->isDirty(self::LICENSE_REVIEW_FIELDS) && self::actorIsMember()) {
                     $profile->license_verification = LicenseVerification::PendingReview;
                 }
+            }
+
+            // The queue's date; staff's reason stays only while the license needs attention.
+            if ($profile->isDirty('license_verification')) {
+                $profile->license_verification_changed_at = $profile->license_verification === null ? null : now();
+            }
+
+            if ($profile->license_verification !== LicenseVerification::NeedsAttention) {
+                $profile->license_verification_note = null;
             }
         });
     }
@@ -180,6 +218,9 @@ class MemberProfile extends Model
             'payment_event_at' => 'datetime',
             'paid_through_at' => 'datetime',
             'license_verification' => LicenseVerification::class,
+            'license_verification_changed_at' => 'datetime',
+            // Staff's words for the person (may name what is wrong with their NPN or state).
+            'license_verification_note' => 'encrypted',
             // Contact details of members and agency principals.
             'phone' => 'encrypted',
             'address' => 'encrypted',
@@ -253,6 +294,16 @@ class MemberProfile extends Model
     public function invitations(): HasMany
     {
         return $this->hasMany(AgencyInvitation::class);
+    }
+
+    /**
+     * The license documents this person uploaded (they belong to the user account).
+     *
+     * @return HasMany<LicenseDocument, $this>
+     */
+    public function licenseDocuments(): HasMany
+    {
+        return $this->hasMany(LicenseDocument::class, 'user_id', 'user_id');
     }
 
     /**

@@ -30,7 +30,7 @@
                 <x-ppx.form-static label="Role">{{ $agencyRole }}</x-ppx.form-static>
             @endif
             @if ($profile->holdsLicense())
-                <x-ppx.form-row name="npn" label="National Producer Number" :value="old('npn', $member->npn)" inputmode="numeric" hint="Up to 10 digits, numbers only." required :autofocus="! $warned && $focus === 'npn'" />
+                <x-ppx.form-row name="npn" label="National Producer Number" :value="old('npn', $member->npn)" inputmode="numeric" :hint="$member->agency_id !== null ? '7 to 10 digits, numbers only.' : 'Up to 10 digits, numbers only.'" required :autofocus="! $warned && $focus === 'npn'" />
             @endif
 
             {{-- After the warning the keyboard is on the decision, and it reads the warning out. --}}

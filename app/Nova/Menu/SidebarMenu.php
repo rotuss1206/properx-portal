@@ -10,6 +10,7 @@ use App\Nova\Dashboards\Main;
 use App\Nova\Dashboards\MyMembership;
 use App\Nova\LibraryDocument;
 use App\Nova\LicenseDocument;
+use App\Nova\LicenseVerification;
 use App\Nova\Member;
 use App\Nova\MemberProfile as MemberProfileResource;
 use App\Nova\PartnerCode;
@@ -107,6 +108,7 @@ final class SidebarMenu
             MenuSection::make('Members', [
                 PortalMenuItem::resource(Member::class)->icon('profile'),
                 PortalMenuItem::resource(MemberProfileResource::class)->icon('profile'),
+                PortalMenuItem::resource(LicenseVerification::class)->icon('license'),
             ]),
             MenuSection::make('Documents', [
                 PortalMenuItem::resource(LicenseDocument::class)->icon('license'),

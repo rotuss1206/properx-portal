@@ -161,7 +161,7 @@
     @if ($isProducer)
         <div class="grid grid-2">
             <x-join.input name="people.entry.npn" wire:keydown.enter.prevent="savePerson" label="Individual NPN" required inputmode="numeric" maxlength="10" autocomplete="off"
-                hint="Up to 10 digits." />
+                hint="7 to 10 digits." />
             <x-join.select name="people.entry.license_state" label="Resident license state" :options="$states" required />
         </div>
     @endif

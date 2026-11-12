@@ -175,6 +175,31 @@ class AgencyPricingServiceTest extends TestCase
         }
     }
 
+    public function test_no_surcharge_for_a_payer_in_an_exempt_state(): void
+    {
+        // Empty by default: every state pays it.
+        $this->assertSame([], config('agency.surcharge_exempt_states'));
+        $this->assertSame(5185, $this->pricing->quote(12, $this->foundingDate, cardFunding: 'credit', payerState: 'CT')->surcharge);
+
+        config(['agency.surcharge_exempt_states' => ['CT', 'MA']]);
+
+        $exempt = $this->pricing->quote(12, $this->foundingDate, cardFunding: 'credit', payerState: 'ct');
+        $this->assertSame(0, $exempt->surcharge);
+        $this->assertSame(178800, $exempt->total);
+        $this->assertSame(5185, $this->pricing->quote(12, $this->foundingDate, cardFunding: 'credit', payerState: 'TX')->surcharge);
+        $this->assertSame(5185, $this->pricing->quote(12, $this->foundingDate, cardFunding: 'credit')->surcharge);
+
+        // Renewals: the agency's legal address.
+        $agency = Agency::factory()->make(['rate_type' => RateType::Founding, 'legal_address' => '12 Elm Street, Suite 4, Hartford, CT 06103']);
+        $agency->headcount = 12;
+        $this->assertSame('CT', $agency->legalState());
+        $this->assertSame(0, $this->pricing->quoteForAgency($agency, $this->foundingDate, 'credit')->surcharge);
+
+        $agency->legal_address = '500 Congress Ave, Austin, TX 78701-1234';
+        $this->assertSame('TX', $agency->legalState());
+        $this->assertSame(5185, $this->pricing->quoteForAgency($agency, $this->foundingDate, 'credit')->surcharge);
+    }
+
     public function test_surcharge_is_charged_on_the_discounted_amount(): void
     {
         $quote = $this->pricing->quote(4, $this->foundingDate, PartnerCode::factory()->make(), 'credit');

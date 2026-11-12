@@ -30,6 +30,9 @@
                             <span>{{ $license['state'] }}</span>
                         @endif
                     </p>
+                    @if ($license['reason'])
+                        <p class="ppx-stat__note">{{ $license['reason'] }} <a href="{{ route('member.profile', ['edit' => 'business']) }}">Update your NPN or state</a></p>
+                    @endif
                 @else
                     <p class="ppx-stat__value">Not applicable</p>
                     <p class="ppx-stat__meta"><span>Agency staff hold no license.</span></p>
