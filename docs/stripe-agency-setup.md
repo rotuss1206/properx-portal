@@ -72,13 +72,15 @@ The payment form offers exactly these two (`card`, `us_bank_account`).
 
 | Resource | Permission | Used for |
 |---|---|---|
-| Customers | Write | creating the agency's customer at checkout |
-| Subscriptions | Write | creating the yearly subscription (with the surcharge line), cancelling an unpaid one left behind when the order changes, reading a subscription |
-| Invoices | Read | reading the subscription's first invoice to confirm the payment |
+| Customers | Write | creating the agency's customer at checkout; updating its billing email and name when the principal changes them |
+| Subscriptions | Write | creating the yearly subscription (with the surcharge line), cancelling an unpaid one left behind when the order changes, reading a subscription for the Billing page |
+| Invoices | Read | reading the subscription's first invoice to confirm the payment; the invoice history on the Billing page |
 | PaymentIntents | Read | checking the payment after the browser confirms it |
+| PaymentMethods | Read | the card or bank account shown on the Billing page |
 | ConfirmationTokens | Read | reading the chosen payment method before paying (credit card or not, for the surcharge) |
 | Prices | Read | finding the six prices by lookup key |
 | Products | Read | finding the two products by metadata |
+| Customer portal | Write | opening Stripe's Customer Portal from "Manage payment method" (step 7) |
 
 Prices and Products **Write** are needed only for `php artisan app:stripe:agency-prices --create`, which works
 with test-mode keys only and is not used in live mode.
@@ -116,17 +118,46 @@ are answered with 200 and ignored):
 | `customer.subscription.updated` | status and paid-through date | billed people, tier, rate type, cancel at period end, status |
 | `customer.subscription.deleted` | canceled | inactive |
 
-## 7. Portal settings
+## 7. Customer Portal
+
+The member portal's **Billing** page has a "Manage payment method" button. It opens Stripe's Customer
+Portal for the agency (or for an individual member), where they can change the card or bank account and see
+their invoices, and then return to the Billing page. Cancelling and changing the plan stay with ProPerX, so
+they must be off in the portal.
+
+**Settings** → **Billing** → **Customer portal** (in some dashboards: search "Customer portal"):
+
+1. **Functionality**
+   - **Invoices** → **Invoice history**: on.
+   - **Payment methods** → **Customers can update payment methods**: on.
+   - **Customer information** (name, email, address, phone, tax ID): off. The agency changes its billing email
+     in the member portal, which updates Stripe.
+   - **Subscriptions** → **Customers can cancel subscriptions**: off.
+   - **Subscriptions** → **Customers can switch plans** / **update quantities**: off.
+2. **Business information**
+   - **Headline:** `ProPerX Alliance: payment method and invoices`.
+   - **Terms of service:** `https://properx.org/terms-of-service/`; **Privacy policy:**
+     `https://properx.org/privacy-policy/`.
+3. **Default redirect link:** `https://<portal host>/member/billing`. The portal sends this address anyway.
+   The portal page's title and its "Return to …" link show the account's **public business name**
+   (**Settings** → **Business** → **Public details**): it should read `ProPerX Alliance`.
+4. **Save**.
+
+The portal uses the account's default portal configuration. To use a different one, put its ID (`bpc_…`) in
+`STRIPE_PORTAL_CONFIGURATION`.
+
+## 8. Portal settings
 
 | Variable | Value |
 |---|---|
 | `STRIPE_KEY` | publishable key |
 | `STRIPE_SECRET` | restricted key |
 | `STRIPE_WEBHOOK_SECRET` | signing secret of the endpoint |
+| `STRIPE_PORTAL_CONFIGURATION` | optional: a Customer Portal configuration other than the default (`bpc_…`) |
 | `PAYMENT_PORTAL_URL` | page where an agency can pay an overdue invoice when Stripe gives no invoice link (optional) |
 | `AGENCY_ENROLLMENT_ENABLED` | `true` once the steps above are done |
 
-## 8. Check
+## 9. Check
 
 1. **Prices and products.** On the portal (after deployment, and after any change in Stripe):
 
@@ -153,5 +184,9 @@ are answered with 200 and ignored):
 
    A permission missing from the restricted key shows up here as a Stripe error naming the permission.
 
-3. **Optional:** if the webhook's page offers **Send test event**, send `invoice.paid`: the endpoint must
+3. **Billing page:** sign in as the principal (the link in the welcome email) and open **Billing**. It shows
+   the plan, the card ending 4242 and the first invoice. **Manage payment method** opens Stripe's page with
+   the payment method and invoices only (no cancel or plan buttons); **Return** comes back to Billing.
+
+4. **Optional:** if the webhook's page offers **Send test event**, send `invoice.paid`: the endpoint must
    answer **200** (a test event matches no member or agency, so nothing changes in the portal).

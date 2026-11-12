@@ -18,6 +18,7 @@ final class MemberMenu
     public const PAGES = [
         'dashboard' => ['Dashboard', 'dashboard'],
         'profile' => ['Profile', 'profile'],
+        'agency' => ['My agency', 'badge-check'],
         'license-documents' => ['License documents', 'license'],
         'tax-documents' => ['Tax documents', 'tax'],
         'certificate' => ['Certificate', 'certificate'],
@@ -44,9 +45,10 @@ final class MemberMenu
     }
 
     /**
-     * Agency people hold NPN and resident state only (no license document uploads) and the
-     * principal pays the agency's invoice, so only the principal sees Billing. License
-     * documents and the library close while the membership is restricted (Spec 7).
+     * Agency people hold NPN and resident state only (no license document uploads). Billing is
+     * everyone's: the principal manages the agency's, other agency people learn who pays
+     * (App\Member\BillingPage). "My agency" is the principal's only. License documents and the
+     * library close while the membership is restricted (Spec 7).
      */
     public static function visible(User $user, string $key): bool
     {
@@ -56,7 +58,7 @@ final class MemberMenu
         return match ($key) {
             'license-documents' => (! $inAgency || (bool) config('portal.member_area.agency_people.license_upload'))
                 && $user->can('viewAny', LicenseDocument::class),
-            'billing' => ! $inAgency || ($profile->isAgencyPrincipal() && config('portal.member_area.agency_people.principal_billing')),
+            'agency' => AgencyPage::visible($user),
             'library' => $user->can('viewAny', LibraryDocument::class),
             default => array_key_exists($key, self::PAGES),
         };

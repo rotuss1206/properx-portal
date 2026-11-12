@@ -149,27 +149,27 @@ class MemberAreaTest extends TestCase
         $this->assertMatchesRegularExpression('#href="'.preg_quote(route('member.billing'), '#').'"\s+class="ppx-sidebar__item is-active"\s+aria-current="page"#', $response->getContent());
         $this->assertSame(1, substr_count($response->getContent(), 'aria-current="page"'));
         $response->assertSee('#'.$member->memberProfile->member_number);
-        $response->assertSee('This section is coming soon');
+        $response->assertDontSee('This section is coming soon');
+        $response->assertDontSee('My agency');
         $response->assertSee('ppx-header__search', false); // member_area.header_search
         $response->assertSee('action="'.route('nova.logout').'"', false);
         $response->assertSee('href="'.route('member.profile').'#security"', false);
     }
 
-    public function test_agency_people_see_no_license_uploads_and_only_the_principal_sees_billing(): void
+    public function test_agency_people_see_no_license_uploads_and_only_the_principal_sees_my_agency(): void
     {
         $agency = $this->agency(2);
         $principal = $agency->principal()->first();
         $person = $agency->members()->where('user_id', '!=', $principal->id)->first()->user;
 
-        $this->actingAs($person)->get('/member')->assertOk()->assertDontSee('License documents')->assertDontSee('Billing');
-        $this->get('/member/billing')->assertNotFound();
+        $this->actingAs($person)->get('/member')->assertOk()->assertDontSee('License documents')->assertSee('Billing')->assertDontSee('My agency');
+        $this->get('/member/billing')->assertOk()->assertSee('Your membership is paid by');
+        $this->get('/member/agency')->assertNotFound();
         $this->get('/member/license-documents')->assertNotFound();
 
-        $this->actingAs($principal)->get('/member')->assertOk()->assertSee('Billing')->assertDontSee('License documents');
+        $this->actingAs($principal)->get('/member')->assertOk()->assertSeeInOrder(['Profile', 'My agency', 'Billing'])->assertDontSee('License documents');
         $this->get('/member/billing')->assertOk();
-
-        config(['portal.member_area.agency_people.principal_billing' => false]);
-        $this->get('/member/billing')->assertNotFound();
+        $this->get('/member/agency')->assertOk();
     }
 
     public function test_the_renewal_card_shows_within_90_days(): void

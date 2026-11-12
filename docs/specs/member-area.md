@@ -321,7 +321,7 @@ announcements), saved to `notification_settings` with the same policy as the Nov
 | 4.2 | Member ID in our format (`PPX-M000005`), shown as stored. | — (format lives in `MemberProfile::formatMemberNumber`) |
 | 4.3 | Second signature off. | `member_area.certificate.second_signatory = null` or `['name' => …, 'title' => …]`; first signatory `member_area.certificate.signatory` (name, title, optional image) |
 | 4.4 | Certificate PDF only (no PNG: no image renderer in the container); QR always printed. | — |
-| 4.5 | Agency people: license = NPN + state + verification status; no license upload; Billing only for the principal (the agency's subscription). Individuals: fields from current data. | `member_area.agency_people.license_upload = false`, `member_area.agency_people.principal_billing = true` |
+| 4.5 | Agency people: license = NPN + state + verification status; no license upload; Billing shows the agency's subscription to the principal and who pays to the others; "My agency" for the principal. Individuals: fields from current data. | `member_area.agency_people.license_upload = false` |
 | 4.6 | No "scanned for malware" wording until scanning exists. | `member_area.malware_scan = false` |
 | 4.7 | CE credits and benefit statuses hidden. | `member_area.ce_credits = false`, `member_area.benefit_statuses = false`; catalogue `member_area.benefits = [...]` |
 | 4.8 | Billing from the Stripe API; card update, renewal management and the full invoice list in the Stripe Customer Portal. | `STRIPE_SECRET`, optional `STRIPE_BILLING_PORTAL_CONFIGURATION`, return URL `/member/billing` |

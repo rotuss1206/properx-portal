@@ -26,6 +26,9 @@ return [
         // Per IP. Higher than the rest of the machine API (120): Stripe sends bursts,
         // e.g. at renewals or when it redelivers after an outage.
         'webhook_requests_per_minute' => 600,
+        // Optional: the Customer Portal configuration for "Manage payment method" on /member/billing
+        // (bpc_...). Empty: the account's default portal settings.
+        'portal_configuration' => env('STRIPE_PORTAL_CONFIGURATION'),
     ],
 
     // API Service account (Spec 3.7, 8): the plain key comes from the environment

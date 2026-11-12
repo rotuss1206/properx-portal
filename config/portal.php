@@ -116,8 +116,6 @@ return [
         'agency_people' => [
             // Agency people hold NPN + resident state only; no license document uploads.
             'license_upload' => false,
-            // The principal sees the agency's subscription; other agency people see no Billing.
-            'principal_billing' => true,
         ],
 
         'certificate' => [
@@ -279,6 +277,10 @@ return [
         // "Ask for a new invitation": the principal hears of it at most once a day per invitation.
         'renewal_request_hours' => 24,
         'renewal_requests_per_hour_per_ip' => 10,
+        // The principal's "Resend invitation" in /member/agency: once per person in this many
+        // minutes, and at most this many a principal sends in an hour.
+        'principal_resend_minutes' => 60,
+        'principal_resends_per_hour' => 20,
     ],
 
     /*

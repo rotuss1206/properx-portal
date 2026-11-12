@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Member\AgencyController;
+use App\Http\Controllers\Member\BillingController;
 use App\Http\Controllers\Member\CertificateController;
 use App\Http\Controllers\Member\DocumentDownloadController;
 use App\Http\Controllers\Member\LibraryController;
@@ -17,7 +19,8 @@ use Illuminate\Support\Facades\Route;
 /*
  * Member area: Members only, behind MEMBER_AREA_ENABLED,
  * two-factor authentication as in Nova. Built: the dashboard (with document downloads), the
- * profile, license documents, the certificate and the library; the other pages lead elsewhere or are placeholders.
+ * profile, the principal's agency, license documents, the certificate, billing and the library;
+ * tax documents and notification settings lead elsewhere.
  */
 Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::class, RequireAcceptedInvitation::class])
     ->prefix('member')
@@ -35,12 +38,24 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
         Route::get('profile/recovery-codes/download', [ProfileController::class, 'downloadRecoveryCodes'])->name('profile.recovery-codes.download');
 
         foreach (array_keys(MemberMenu::PAGES) as $page) {
-            if (! in_array($page, ['dashboard', 'profile', 'license-documents', 'certificate', 'library'], true)) {
+            if (! in_array($page, ['dashboard', 'profile', 'agency', 'license-documents', 'certificate', 'billing', 'library'], true)) {
                 Route::get($page, [PageController::class, 'placeholder'])->name($page)->defaults('page', $page);
             }
         }
 
         Route::get('certificate', [CertificateController::class, 'show'])->name('certificate');
+
+        // The principal's agency (Agency spec 8.1); a 404 for anyone else.
+        Route::get('agency', [AgencyController::class, 'show'])->name('agency');
+        Route::patch('agency', [AgencyController::class, 'update'])->middleware('throttle:20,1')->name('agency.update');
+        Route::post('agency/people/{person}/invitation', [AgencyController::class, 'resend'])
+            ->whereNumber('person')
+            ->middleware('throttle:20,1')
+            ->name('agency.resend');
+
+        // Billing (G5): Stripe read live; the Customer Portal for the payment method.
+        Route::get('billing', [BillingController::class, 'show'])->name('billing');
+        Route::post('billing/portal', [BillingController::class, 'portal'])->middleware('throttle:10,1')->name('billing.portal');
 
         Route::get('library', [LibraryController::class, 'index'])->name('library');
         Route::post('library/search', [LibraryController::class, 'search'])->middleware('throttle:30,1')->name('library.search');

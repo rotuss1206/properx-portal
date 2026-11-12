@@ -188,6 +188,34 @@ class Agency extends Model
     }
 
     /**
+     * The rate per person this agency pays now: its own tier and rate type (they change only at
+     * renewal or by staff), capped by a valid partner code. Null while either is unknown.
+     */
+    public function currentRate(): ?int
+    {
+        if ($this->tier === null || $this->rate_type === null) {
+            return null;
+        }
+
+        $rate = $this->tier->rate($this->rate_type);
+
+        return $this->partnerCode?->isValid(now()) ? min($rate, (int) config('agency.partner_rate')) : $rate;
+    }
+
+    public function partnerRateApplies(): bool
+    {
+        return $this->tier !== null && $this->rate_type !== null && $this->currentRate() < $this->tier->rate($this->rate_type);
+    }
+
+    /**
+     * How many people the subscription bills: Stripe's quantity once known, the roster before.
+     */
+    public function billingHeadcount(): int
+    {
+        return $this->billed_headcount ?? $this->headcount;
+    }
+
+    /**
      * The two-letter state of the legal address ("…, Austin, TX 78701"), null when it cannot be read.
      */
     public function legalState(): ?string

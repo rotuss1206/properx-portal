@@ -159,6 +159,7 @@ class MemberLinksTest extends TestCase
         $paths = $this->paths($this->assertEveryLinkOpens($principal));
 
         $this->assertContains($this->pathOf(route('member.billing')), $paths);
+        $this->assertContains($this->pathOf(route('member.agency')), $paths);
         $this->assertContains('/member/library', $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
         $this->assertNotContains('/member/license-documents', $paths);
@@ -171,7 +172,9 @@ class MemberLinksTest extends TestCase
 
         $paths = $this->paths($this->assertEveryLinkOpens($person));
 
-        $this->assertNotContains($this->pathOf(route('member.billing')), $paths);
+        // Billing says who pays; the agency's own page is the principal's.
+        $this->assertContains($this->pathOf(route('member.billing')), $paths);
+        $this->assertNotContains($this->pathOf(route('member.agency')), $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
         $this->assertNotContains('/member/license-documents', $paths);
     }
@@ -196,7 +199,7 @@ class MemberLinksTest extends TestCase
         $this->get('/nova/resources/license-documents')->assertRedirect(route('member.dashboard'));
     }
 
-    public function test_only_billing_says_coming_soon_and_leads_back_to_the_dashboard(): void
+    public function test_no_page_says_coming_soon_any_more(): void
     {
         $member = $this->member();
         $this->actingAs($member);
@@ -206,11 +209,7 @@ class MemberLinksTest extends TestCase
             ->keys()
             ->all();
 
-        $this->assertSame(['billing'], $placeholders);
-
-        $response = $this->get(route('member.billing'))->assertOk()->assertSee('Back to dashboard');
-
-        $this->assertMatchesRegularExpression('#<a\b[^>]*href="'.preg_quote(route('member.dashboard'), '#').'"[^>]*ppx-empty__action#s', $response->getContent());
+        $this->assertSame([], $placeholders);
     }
 
     public function test_tax_documents_lead_to_the_dashboards_documents_tab_filtered_to_tax(): void

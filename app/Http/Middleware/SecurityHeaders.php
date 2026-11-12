@@ -36,7 +36,7 @@ class SecurityHeaders
         if (config('portal.security.csp_enabled')) {
             $headers->set(
                 config('portal.security.csp_report_only') ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy',
-                $this->contentSecurityPolicy(Vite::cspNonce(), $request->routeIs(...self::STRIPE_PAGES)),
+                $this->contentSecurityPolicy(Vite::cspNonce(), $request->routeIs(...self::STRIPE_PAGES), $request->routeIs(...self::BILLING_PAGES)),
             );
         }
 
@@ -56,7 +56,16 @@ class SecurityHeaders
         'connect-src' => 'https://api.stripe.com https://m.stripe.network',
     ];
 
-    private function contentSecurityPolicy(string $nonce, bool $stripe = false): string
+    /**
+     * The member's billing page: its "Manage payment method" form is answered with a redirect to
+     * Stripe's Customer Portal, and browsers check a form's redirect against form-action. Only
+     * this page may send a form there; it loads nothing of Stripe's.
+     */
+    public const BILLING_PAGES = ['member.billing'];
+
+    public const BILLING_FORM_ACTION = 'https://billing.stripe.com';
+
+    private function contentSecurityPolicy(string $nonce, bool $stripe = false, bool $billing = false): string
     {
         $add = fn (string $directive) => $stripe ? ' '.self::STRIPE_SOURCES[$directive] : '';
 
@@ -70,7 +79,7 @@ class SecurityHeaders
             $stripe ? "frame-src 'self'".$add('frame-src') : null,
             "object-src 'none'",
             "base-uri 'self'",
-            "form-action 'self'",
+            "form-action 'self'".($billing ? ' '.self::BILLING_FORM_ACTION : ''),
             "frame-ancestors 'none'",
         ]));
     }

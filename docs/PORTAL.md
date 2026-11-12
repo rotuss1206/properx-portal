@@ -114,6 +114,10 @@ enrollment, `/join/agency` (route `join.agency`) only:
 | `frame-src` | `'self' https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://m.stripe.network` (card fields, 3D Secure, bank connection) |
 | `connect-src` | `https://api.stripe.com https://m.stripe.network` |
 
+The member's billing page, `/member/billing` (route `member.billing`), adds one source to `form-action`:
+`https://billing.stripe.com`. Its "Manage payment method" form is answered with a redirect to Stripe's
+Customer Portal, and browsers check that redirect against `form-action`. The page loads nothing of Stripe's.
+
 Nothing else changes: no `unsafe-*` sources, and every other page keeps the strict policy.
 `Permissions-Policy` keeps `payment=()`, so wallets (Apple Pay, Google Pay) stay off; the browser logs a
 harmless notice about it on that page.
@@ -142,6 +146,7 @@ Production values are App Service settings and Key Vault references (root `READM
 | `STRIPE_WEBHOOK_SECRET`, `PAYMENT_PORTAL_URL`, `PAYMENT_GRACE_DAYS` | Stripe membership payment status |
 | `STRIPE_SECRET` | Stripe secret (or restricted) key. Reads a new member's subscription; with agency enrollment on, also creates the agency's customer and subscription (Customers and Subscriptions write; Prices, Products, Invoices, PaymentIntents and ConfirmationTokens read) |
 | `STRIPE_KEY` | Stripe publishable key of the same account: the payment form on `/join/agency` |
+| `STRIPE_PORTAL_CONFIGURATION` | Optional Stripe Customer Portal configuration (`bpc_…`) for "Manage payment method" on `/member/billing`; empty uses the account's default (payment method and invoices only, no cancelling or plan changes). The restricted key also needs Customer portal write and PaymentMethods read |
 | `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise). After deployment, `php artisan app:stripe:agency-prices` checks the six prices and the "Credit card surcharge" product |
 | `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default. Livewire uses `/livewire/*` routes, which the ingress must pass through. The Stripe webhook needs the events `invoice.paid` and `invoice.payment_failed` (already sent for members) |
 | `PORTAL_TERMS_URL`, `PORTAL_PRIVACY_URL` | Terms of Service and Privacy Policy linked from the enrollment's consents and from the last step of an agency invitation; properx.org's pages by default |
@@ -150,7 +155,7 @@ Production values are App Service settings and Key Vault references (root `READM
 | `INDIVIDUAL_MEMBERSHIP_URL` | Individual application on the marketing site ("Just me" on `/join/agency`) |
 | `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
 | `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |
-| `MEMBER_AREA_ENABLED` | `true` opens the new member area at `/member` and sends members there from Nova (User Security and sign-out stay in Nova). The profile with contact, business, license, security and notification sections is at `/member/profile`; license documents (list, upload, withdrawing a pending one) are at `/member/license-documents`; the certificate (options, live preview, PDF download) is at `/member/certificate`; the compliance library (categories, search, details, preview) is at `/member/library`; tax documents are on the dashboard's Documents tab; Billing shows "This section is coming soon". Off by default; members then use Nova |
+| `MEMBER_AREA_ENABLED` | `true` opens the new member area at `/member` and sends members there from Nova (User Security and sign-out stay in Nova). The profile with contact, business, license, security and notification sections is at `/member/profile`; license documents (list, upload, withdrawing a pending one) are at `/member/license-documents`; the certificate (options, live preview, PDF download) is at `/member/certificate`; the compliance library (categories, search, details, preview) is at `/member/library`; tax documents are on the dashboard's Documents tab; billing (plan, payment method, invoices from Stripe, "Manage payment method" through Stripe's Customer Portal) is at `/member/billing`; the agency principal's agency (summary, people, invitations, agency details) is at `/member/agency`. Off by default; members then use Nova |
 | `CERTIFICATE_SECOND_SIGNATORY_NAME`, `CERTIFICATE_SECOND_SIGNATORY_TITLE` | Second signature on the certificate. Empty by default: the date of issue stands in its place |
 | `CERTIFICATE_SIGNATURE_IMAGE` | File name of a PNG of the Executive Director's signature in `resources/views/pdf/images`. Empty by default: the name is set in type |
 | `AZURE_CLIENT_ID` | Client ID of a user-assigned managed identity, if one is used |

@@ -16,4 +16,12 @@ final class Money
 
         return ($cents < 0 ? '-' : '').'$'.number_format(abs($cents) / 100, $decimals);
     }
+
+    /**
+     * Always with cents, as on invoices: "$199.00".
+     */
+    public static function exact(int $cents): string
+    {
+        return ($cents < 0 ? '-' : '').'$'.number_format(abs($cents) / 100, 2);
+    }
 }

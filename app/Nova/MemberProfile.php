@@ -3,6 +3,7 @@
 namespace App\Nova;
 
 use App\Enums\AgencyRole;
+use App\Enums\AgencyStatus;
 use App\Enums\LicenseStatus;
 use App\Enums\LicenseVerification;
 use App\Enums\MemberStatus;
@@ -12,8 +13,10 @@ use App\Enums\PaymentStatus;
 use App\Enums\PersonType;
 use App\Exceptions\CertificateUnavailableException;
 use App\Models\NotificationSetting;
+use App\Nova\Actions\DeactivateAgencyPerson;
 use App\Nova\Actions\DownloadMyCertificate;
 use App\Nova\Actions\GenerateCertificate;
+use App\Nova\Actions\ReactivateAgencyPerson;
 use App\Nova\Actions\ResendInvitation;
 use App\Services\Certificates\CertificateGeneratorService;
 use App\Support\UsStates;
@@ -171,6 +174,10 @@ class MemberProfile extends Resource
             Text::make('Resident State', fn () => $licensed ? (UsStates::ALL[$profile->license_state] ?? null) : null),
             Text::make('Invite Status', fn () => $profile->invite_status?->label()),
             Text::make('Status', fn () => $profile->status?->label()),
+            // The agency's own payment status (Agency spec 8.4): past due or inactive affects everyone.
+            Badge::make('Agency Payment', fn () => $profile->agency?->status?->value)
+                ->map(['active' => 'success', 'pending' => 'warning', 'past_due' => 'warning', 'inactive' => 'danger'])
+                ->labels(collect(AgencyStatus::cases())->mapWithKeys(fn ($status) => [$status->value => $status->label()])->all()),
             // Agency people's access follows the agency's paid period (Agency spec 6).
             Text::make('Access Until', fn () => $profile->agency?->paid_through_at?->toFormattedDateString() ?? '—'),
         ];
@@ -453,6 +460,18 @@ class MemberProfile extends Resource
                 ->showInline()
                 ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
                 ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => ResendInvitation::applies($profile)
+                    && Gate::forUser($request->user())->check('update', $profile)),
+
+            DeactivateAgencyPerson::make()
+                ->showInline()
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
+                ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => DeactivateAgencyPerson::applies($profile, MemberStatus::Inactive)
+                    && Gate::forUser($request->user())->check('update', $profile)),
+
+            ReactivateAgencyPerson::make()
+                ->showInline()
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
+                ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => ReactivateAgencyPerson::applies($profile, MemberStatus::Active)
                     && Gate::forUser($request->user())->check('update', $profile)),
 
             DownloadMyCertificate::make()
