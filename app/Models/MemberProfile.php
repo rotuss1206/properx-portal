@@ -219,6 +219,9 @@ class MemberProfile extends Model
             'paid_through_at' => 'datetime',
             'license_verification' => LicenseVerification::class,
             'license_verification_changed_at' => 'datetime',
+            // Removal from the agency at its next renewal (G4); access stays until then.
+            'removal_effective_at' => 'datetime',
+            'removal_scheduled_at' => 'datetime',
             // Staff's words for the person (may name what is wrong with their NPN or state).
             'license_verification_note' => 'encrypted',
             // Contact details of members and agency principals.
@@ -295,6 +298,14 @@ class MemberProfile extends Model
     public function invitations(): HasMany
     {
         return $this->hasMany(AgencyInvitation::class);
+    }
+
+    /**
+     * On an agency, with a removal scheduled for its next renewal.
+     */
+    public function leavesAgency(): bool
+    {
+        return $this->agency_id !== null && $this->removal_effective_at !== null;
     }
 
     /**

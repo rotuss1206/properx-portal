@@ -13,20 +13,15 @@
         <div class="ppx-agency__intro">
             <p class="ppx-docs__lead">Your agency’s membership, its people and its details.</p>
             <div class="ppx-agency__add">
-                <x-ppx.button variant="secondary" icon="profile" aria-disabled="true" disabled>Add people — coming soon</x-ppx.button>
-                <span>
-                    To add or remove people now,
-                    @if ($supportUrl)
-                        <a href="{{ $supportUrl }}" target="_blank" rel="noopener">contact ProPerX<span class="ppx-visually-hidden"> (opens in a new tab)</span></a>.
-                    @else
-                        contact ProPerX.
-                    @endif
-                </span>
+                <x-ppx.button variant="primary" icon="profile" :href="route('member.agency.add')">Add people</x-ppx.button>
             </div>
         </div>
 
         @if (session('status'))
             <p class="ppx-notice ppx-notice--success" role="status">{{ session('status') }}</p>
+        @endif
+        @if ($summary['ends_at_renewal'] && $summary['paid_through'])
+            <p class="ppx-notice ppx-notice--warning" role="status">An agency membership needs at least {{ config('agency.minimum_headcount') }} people. With the removals planned, your agency's membership ends on {{ $summary['paid_through']->format('F j, Y') }} and will not renew. Everyone has been offered individual membership. Keep someone to continue.</p>
         @endif
         @if (session('agency_error'))
             <p class="ppx-notice ppx-notice--danger" role="alert">{{ session('agency_error') }}</p>
@@ -60,6 +55,9 @@
                 <p class="ppx-stat__value">{{ $summary['people'] }}</p>
                 <p class="ppx-stat__meta">
                     <span>{{ $counts['not_accepted'] }} not set up yet</span>
+                    @if ($counts['leaving'] > 0)
+                        <span>{{ $counts['leaving'] }} leaving on {{ $removalDate->format('j M Y') }}</span>
+                    @endif
                     @if ($counts['needs_attention'] > 0)
                         <span>{{ $counts['needs_attention'] }} {{ $counts['needs_attention'] === 1 ? 'license needs' : 'licenses need' }} attention</span>
                     @endif
@@ -113,20 +111,65 @@
                                             <span class="ppx-agency__muted">Not applicable</span>
                                         @endif
                                     </td>
-                                    <td data-label="Account"><x-ppx.badge :variant="$person['account_variant']">{{ $person['account'] }}</x-ppx.badge></td>
-                                    <td class="ppx-doc-table__action">
-                                        @if ($person['can_resend'])
-                                            @if ($person['resend_after'])
-                                                <span class="ppx-agency__muted">Sent recently</span>
-                                            @else
-                                                <form method="POST" action="{{ route('member.agency.resend', $person['id']) }}" class="ppx-agency__resend">
-                                                    @csrf
-                                                    <x-ppx.button type="submit" variant="secondary" size="sm">Resend invitation<span class="ppx-visually-hidden"> to {{ $person['name'] }}</span></x-ppx.button>
-                                                </form>
-                                            @endif
+                                    <td data-label="Account">
+                                        <x-ppx.badge :variant="$person['account_variant']">{{ $person['account'] }}</x-ppx.badge>
+                                        @if ($person['leaves_on'])
+                                            <span class="ppx-agency__leaving">Leaves {{ $person['leaves_on']->format('j M Y') }}</span>
                                         @endif
                                     </td>
+                                    <td class="ppx-doc-table__action">
+                                        <span class="ppx-agency__row-actions">
+                                            @if ($person['can_resend'] && ! $person['leaves_on'])
+                                                @if ($person['resend_after'])
+                                                    <span class="ppx-agency__muted">Sent recently</span>
+                                                @else
+                                                    <form method="POST" action="{{ route('member.agency.resend', $person['id']) }}" class="ppx-agency__resend">
+                                                        @csrf
+                                                        <x-ppx.button type="submit" variant="secondary" size="sm">Resend invitation<span class="ppx-visually-hidden"> to {{ $person['name'] }}</span></x-ppx.button>
+                                                    </form>
+                                                @endif
+                                            @endif
+                                            @if ($person['leaves_on'])
+                                                <form method="POST" action="{{ route('member.agency.keep', $person['id']) }}" class="ppx-agency__resend">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <x-ppx.button type="submit" variant="secondary" size="sm">Keep<span class="ppx-visually-hidden"> {{ $person['name'] }} in the agency</span></x-ppx.button>
+                                                </form>
+                                            @elseif ($person['can_remove'] && ($removing['id'] ?? null) !== $person['id'])
+                                                <x-ppx.button variant="secondary" size="sm" :href="route('member.agency', ['remove' => $person['id']]).'#remove-'.$person['id']">Remove<span class="ppx-visually-hidden"> {{ $person['name'] }}</span></x-ppx.button>
+                                            @endif
+                                        </span>
+                                    </td>
                                 </tr>
+                                @if (($removing['id'] ?? null) === $person['id'] && $person['can_remove'])
+                                    @php
+                                        $lastOnes = $summary['continuing'] - 1 < (int) config('agency.minimum_headcount');
+                                    @endphp
+                                    <tr class="ppx-agency__confirm-row">
+                                        <td colspan="6">
+                                            <form method="POST" action="{{ route('member.agency.remove', $person['id']) }}" class="ppx-agency__confirm" id="remove-{{ $person['id'] }}">
+                                                @csrf
+                                                <p class="ppx-docs__confirm-title">Remove {{ $person['name'] }} from the agency?</p>
+                                                <p class="ppx-docs__confirm-text">They keep their access until your renewal on {{ $removalDate->format('F j, Y') }}, then leave the agency. Your renewal bills one person fewer; nothing is refunded or credited for this year. They are emailed a link to apply as an individual member.</p>
+                                                @if ($lastOnes)
+                                                    <p class="ppx-notice ppx-notice--warning">After this, fewer than {{ config('agency.minimum_headcount') }} people stay: your agency's membership ends on {{ $removalDate->format('F j, Y') }} and will not renew. Everyone is offered individual membership.</p>
+                                                @endif
+                                                <label class="ppx-form__label" for="reason-{{ $person['id'] }}">Why does {{ $person['name'] }} leave?</label>
+                                                <select class="ppx-field__input ppx-agency__reason-select" id="reason-{{ $person['id'] }}" name="reason" required>
+                                                    <option value="">Choose…</option>
+                                                    @foreach ($removalReasons as $key => $label)
+                                                        <option value="{{ $key }}" @selected(old('reason') === $key)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                                @error('reason')<p class="ppx-field__error">{{ $message }}</p>@enderror
+                                                <span class="ppx-docs__actions">
+                                                    <x-ppx.button type="submit" variant="primary" size="sm">Remove at the renewal</x-ppx.button>
+                                                    <x-ppx.button variant="secondary" size="sm" :href="route('member.agency').'#people'">Cancel</x-ppx.button>
+                                                </span>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>

@@ -73,8 +73,8 @@ The payment form offers exactly these two (`card`, `us_bank_account`).
 | Resource | Permission | Used for |
 |---|---|---|
 | Customers | Write | creating the agency's customer at checkout; updating its billing email and name when the principal changes them |
-| Subscriptions | Write | creating the yearly subscription (with the surcharge line), cancelling an unpaid one left behind when the order changes, reading a subscription for the Billing page |
-| Invoices | Read | reading the subscription's first invoice to confirm the payment; the invoice history on the Billing page |
+| Subscriptions | Write | creating the yearly subscription (with the surcharge line), cancelling an unpaid one left behind when the order changes, reading a subscription for the Billing page; adding people (quantity, price and the prorated charge) and setting next year's quantity when people are removed |
+| Invoices | Read | reading the subscription's first invoice to confirm the payment; the invoice history on the Billing page; the preview of the prorated amount before people are added |
 | PaymentIntents | Read | checking the payment after the browser confirms it |
 | PaymentMethods | Read | the card or bank account shown on the Billing page |
 | ConfirmationTokens | Read | reading the chosen payment method before paying (credit card or not, for the surcharge) |

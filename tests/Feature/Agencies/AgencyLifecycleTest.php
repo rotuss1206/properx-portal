@@ -303,6 +303,7 @@ class AgencyLifecycleTest extends TestCase
     public function test_an_older_event_arriving_later_changes_no_status(): void
     {
         Notification::fake();
+        config(['portal.renewals.expiry_emails_enabled' => true]);
         $failedAt = now()->getTimestamp();
 
         $this->webhook('customer.subscription.deleted', $this->subscription('canceled'), $failedAt + 60);

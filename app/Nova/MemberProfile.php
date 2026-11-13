@@ -18,6 +18,7 @@ use App\Nova\Actions\DownloadMyCertificate;
 use App\Nova\Actions\GenerateCertificate;
 use App\Nova\Actions\ReactivateAgencyPerson;
 use App\Nova\Actions\ResendInvitation;
+use App\Services\Agencies\AgencyRosterChanges;
 use App\Services\Certificates\CertificateGeneratorService;
 use App\Support\UsStates;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -34,6 +35,7 @@ use Laravel\Nova\Fields\Field;
 use Laravel\Nova\Fields\ID;
 use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\Text;
+use Laravel\Nova\Filters\Filter;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Panel;
 
@@ -180,6 +182,8 @@ class MemberProfile extends Resource
                 ->labels(collect(AgencyStatus::cases())->mapWithKeys(fn ($status) => [$status->value => $status->label()])->all()),
             // Agency people's access follows the agency's paid period (Agency spec 6).
             Text::make('Access Until', fn () => $profile->agency?->paid_through_at?->toFormattedDateString() ?? '—'),
+            // Leaving at the agency's next renewal (G4), with the principal's reason.
+            Text::make('Removal', fn () => self::removalText($profile)),
         ];
     }
 
@@ -347,6 +351,9 @@ class MemberProfile extends Resource
                 ->exceptOnForms()
                 ->hideFromIndex(),
 
+            Text::make('Removal', fn () => self::removalText($this->resource))
+                ->exceptOnForms(),
+
             Select::make('Membership Status', 'status')
                 ->options(self::enumOptions(MemberStatus::cases()))
                 ->displayUsingLabels()
@@ -356,6 +363,25 @@ class MemberProfile extends Resource
                 ->hideFromIndex()
                 ->filterable(),
         ];
+    }
+
+    private static function removalText(\App\Models\MemberProfile $profile): string
+    {
+        if (! $profile->leavesAgency()) {
+            return '—';
+        }
+
+        $reason = AgencyRosterChanges::REASONS[$profile->removal_reason] ?? null;
+
+        return 'Leaves '.$profile->removal_effective_at->toFormattedDateString().($reason ? " ({$reason})" : '');
+    }
+
+    /**
+     * @return array<int, Filter>
+     */
+    public function filters(NovaRequest $request): array
+    {
+        return [new Filters\MemberRemovalScheduled];
     }
 
     /**

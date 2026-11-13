@@ -341,6 +341,13 @@ return [
     'renewals' => [
         'reminder_days' => array_values(array_unique(array_filter(array_map('intval', explode(',', (string) env('AGENCY_RENEWAL_REMINDER_DAYS', '14,7,1')))))),
         'grace_reminder_days' => array_values(array_unique(array_filter(array_map('intval', explode(',', (string) env('MEMBERSHIP_GRACE_REMINDER_DAYS', '7,1')))))),
+        // Overdue reminders, "expired" and "your agency's membership ended" are emailed only when
+        // switched on (off by default, so a deployment never mails people long past due), and only
+        // for memberships whose grace period or subscription ended after this moment: the date
+        // below, or else the moment app:expire-memberships first ran with emails on (app_markers).
+        // Older cases only get their status.
+        'expiry_emails_enabled' => (bool) env('MEMBERSHIP_EXPIRY_EMAILS_ENABLED', false),
+        'expiry_emails_since' => env('MEMBERSHIP_EXPIRY_EMAILS_SINCE'),
     ],
 
     /*

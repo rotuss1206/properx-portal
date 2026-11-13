@@ -5,16 +5,20 @@ namespace App\Http\Controllers\Member;
 use App\Enums\AgencyType;
 use App\Http\Controllers\Controller;
 use App\Jobs\SyncAgencyStripeCustomer;
+use App\Livewire\AgencyRegistration\PeopleCsv;
 use App\Member\AgencyDetailsRules;
 use App\Member\AgencyPage;
 use App\Member\MemberMenu;
 use App\Models\MemberProfile;
 use App\Policies\AgencyPolicy;
 use App\Services\Agencies\AgencyInvitations;
+use App\Services\Agencies\AgencyRosterChanges;
+use App\Services\Agencies\RosterChangeException;
 use App\Support\AgencyAddress;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
@@ -48,6 +52,10 @@ class AgencyController extends Controller
             'agencyTypes' => collect(AgencyType::cases())->mapWithKeys(fn (AgencyType $type) => [$type->value => $type->label()])->all(),
             'feinHint' => AgencyPolicy::FEIN_HINT,
             'supportUrl' => config('portal.brand.support_url'),
+            // "Remove" opens its confirmation in the row (?remove=id).
+            'removing' => $everyone->firstWhere('id', (int) $request->query('remove')),
+            'removalReasons' => AgencyRosterChanges::REASONS,
+            'removalDate' => AgencyRosterChanges::effectiveDate($agency),
         ]);
     }
 
@@ -119,6 +127,67 @@ class AgencyController extends Controller
         $invitations->resend($person);
 
         return back()->with('status', 'A new invitation was sent to '.$person->fullName().'. Earlier links no longer work.');
+    }
+
+    public function add(Request $request): View
+    {
+        $this->page($request);
+
+        return view('member.agency-add', ['page' => 'agency', 'title' => 'Add people']);
+    }
+
+    /**
+     * The enrollment's CSV template, for the principal (the public one closes with enrollment).
+     */
+    public function template(Request $request): Response
+    {
+        $this->page($request);
+
+        return response(PeopleCsv::template(), 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="properx-agency-people.csv"',
+            'Cache-Control' => 'no-store',
+        ]);
+    }
+
+    /**
+     * "Remove": the person leaves at the next renewal (AgencyRosterChanges::scheduleRemoval).
+     */
+    public function remove(Request $request, MemberProfile $person, AgencyRosterChanges $roster): RedirectResponse
+    {
+        $page = $this->page($request);
+        abort_unless($person->agency_id === $page->agency->getKey(), 404);
+
+        $reason = (string) $request->input('reason');
+
+        if (! array_key_exists($reason, AgencyRosterChanges::REASONS)) {
+            return redirect()->route('member.agency', ['remove' => $person->getKey()])->withErrors(['reason' => 'Choose why this person leaves.']);
+        }
+
+        try {
+            $roster->scheduleRemoval($page->agency, $person, $reason, $request->user());
+        } catch (RosterChangeException $e) {
+            return redirect()->route('member.agency')->with('agency_error', $e->getMessage());
+        }
+
+        return redirect()->route('member.agency')->with('status', $person->fullName().' leaves the agency on '.$person->fresh()->removal_effective_at->format('F j, Y').'. Until then nothing changes for them.');
+    }
+
+    /**
+     * "Keep": a scheduled removal is canceled before it takes effect.
+     */
+    public function keep(Request $request, MemberProfile $person, AgencyRosterChanges $roster): RedirectResponse
+    {
+        $page = $this->page($request);
+        abort_unless($person->agency_id === $page->agency->getKey(), 404);
+
+        try {
+            $roster->cancelRemoval($page->agency, $person, $request->user());
+        } catch (RosterChangeException $e) {
+            return redirect()->route('member.agency')->with('agency_error', $e->getMessage());
+        }
+
+        return redirect()->route('member.agency')->with('status', $person->fullName().' stays in the agency.');
     }
 
     private function page(Request $request): AgencyPage

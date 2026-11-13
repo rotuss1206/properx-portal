@@ -6,8 +6,10 @@ use App\Enums\VerificationStatus;
 use App\Models\LicenseDocument;
 use App\Models\MemberProfile;
 use App\Models\User;
+use App\Notifications\Member\AgencyEndingAtRenewal;
 use App\Notifications\Member\AgencyInvitationNotice;
 use App\Notifications\Member\AgencyMembershipEnded;
+use App\Notifications\Member\AgencyRemovalScheduled;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\LicenseNeedsAttention;
 use App\Notifications\Member\MembershipExpired;
@@ -119,6 +121,8 @@ final class NotificationFeed
             PaymentOverdueReminder::class => 'Payment overdue: access ends '.Carbon::parse($data['access_ends_on'] ?? now())->format('j M Y'),
             MembershipExpired::class => 'Your membership has expired',
             AgencyMembershipEnded::class => 'Your agency’s membership has ended',
+            AgencyRemovalScheduled::class => 'Your membership through your agency ends '.Carbon::parse($data['ends_on'] ?? now())->format('j M Y'),
+            AgencyEndingAtRenewal::class => 'Your agency’s membership ends '.Carbon::parse($data['ends_on'] ?? now())->format('j M Y').' and will not renew',
             AgencyInvitationNotice::class => self::invitationTitle($notification),
             LicenseNeedsAttention::class => self::licenseTitle($notification),
             default => null,

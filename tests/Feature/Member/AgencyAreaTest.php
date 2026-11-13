@@ -127,7 +127,7 @@ class AgencyAreaTest extends TestCase
         $response->assertSeeInOrder(['Dana Whitfield', 'Principal (you)', 'Producer', 'Account active']);
         $response->assertSeeInOrder(['Marcus Reyes', 'Producer', 'Invitation sent', 'Needs attention', 'The NPN does not match the state.', 'Active', 'Resend invitation']);
         $response->assertSeeInOrder(['Priya Nair', 'Employee', 'Account active', 'Not applicable', 'Inactive']);
-        $response->assertSee('Add people — coming soon');
+        $response->assertSee(route('member.agency.add'), false)->assertDontSee('coming soon');
 
         // Filters by status.
         $this->get(route('member.agency', ['filter' => 'not_accepted']))->assertSee('Marcus Reyes')->assertDontSee('Priya Nair');

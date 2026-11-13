@@ -267,6 +267,21 @@ class Agency extends Model
     }
 
     /**
+     * The people who stay after the next renewal (no removal scheduled), the principal included.
+     *
+     * @return HasMany<MemberProfile, $this>
+     */
+    public function continuingMembers(): HasMany
+    {
+        return $this->members()->whereNull('removal_effective_at');
+    }
+
+    public function continuingHeadcount(): int
+    {
+        return $this->continuingMembers()->count();
+    }
+
+    /**
      * How many people the subscription bills: Stripe's quantity once known, the roster before.
      */
     public function billingHeadcount(): int

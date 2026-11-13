@@ -35,6 +35,7 @@ use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Textarea;
 use Laravel\Nova\Fields\URL;
+use Laravel\Nova\Filters\Filter;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Nova;
 use Laravel\Nova\Panel;
@@ -75,6 +76,19 @@ class Agency extends Resource
                 $query->orWhere(fn (Builder $query) => $query->whereBlindIndex($attribute, $search));
             }
         });
+    }
+
+    public static function indexQuery(NovaRequest $request, Builder $query): Builder
+    {
+        return $query->withCount(['members as scheduled_removals_count' => fn ($members) => $members->whereNotNull('removal_effective_at')]);
+    }
+
+    /**
+     * @return array<int, Filter>
+     */
+    public function filters(NovaRequest $request): array
+    {
+        return [new Filters\AgencyDunning, new Filters\AgencyScheduledRemovals];
     }
 
     public function authorizedTo(Request $request, string $ability): bool
@@ -156,6 +170,18 @@ class Agency extends Resource
             Date::make('Paid Through', 'paid_through_at')
                 ->onlyOnIndex()
                 ->sortable(),
+
+            // Dunning (H2): how long a past-due agency keeps access; inactive once expired.
+            Text::make('Dunning', fn () => match (true) {
+                $this->resource->status === AgencyStatus::PastDue => 'Past due since '.$this->resource->past_due_since?->toFormattedDateString().' · access until '.$this->resource->graceEndsAt()?->toFormattedDateString(),
+                $this->resource->status === AgencyStatus::Inactive => 'Expired',
+                default => '—',
+            })->exceptOnForms(),
+
+            // People leaving at the next renewal (G4).
+            Text::make('Scheduled Removals', fn () => ($count = (int) ($this->resource->scheduled_removals_count ?? $this->resource->members()->whereNotNull('removal_effective_at')->count())) > 0
+                ? $count.' on '.$this->resource->paid_through_at?->toFormattedDateString()
+                : '—')->exceptOnForms(),
 
             Select::make('Status')
                 ->options(self::enumOptions(AgencyStatus::cases()))

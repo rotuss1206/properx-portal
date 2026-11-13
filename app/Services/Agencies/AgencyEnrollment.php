@@ -104,7 +104,7 @@ class AgencyEnrollment
         $skipped = 0;
 
         foreach ($people as $person) {
-            $user = $this->person($agency, $person);
+            $user = $this->createPerson($agency, $person);
 
             if ($user === null) {
                 $skipped++;
@@ -145,9 +145,12 @@ class AgencyEnrollment
     }
 
     /**
+     * Also used when a principal adds people later (AgencyRosterChanges). Null when the email or
+     * the NPN was taken in the meantime.
+     *
      * @param  array<string, mixed>  $person
      */
-    private function person(Agency $agency, array $person): ?User
+    public function createPerson(Agency $agency, array $person): ?User
     {
         $email = Str::lower(trim((string) $person['email']));
         $isProducer = $person['type'] === PersonType::LicensedProducer->value;

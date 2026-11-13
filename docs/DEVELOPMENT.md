@@ -294,7 +294,13 @@ see the bell count again, run `php artisan tinker --execute "DB::table('notifica
 Renewal reminders: `php artisan app:send-renewal-reminders` (scheduled 07:00-09:00; 14, 7 and 1 day before, email and
 the bell). Past due and expiry: `php artisan app:expire-memberships` (hourly; reminders while overdue, then "expired"). To
 try them, move `paid_through_at` (or an agency's `past_due_since`) back in the database; reminders are logged once per
-period in `reminder_logs`.
+period in `reminder_logs`. The "expired" and overdue emails go only with `MEMBERSHIP_EXPIRY_EMAILS_ENABLED=true`, and only
+for grace periods ending after `MEMBERSHIP_EXPIRY_EMAILS_SINCE` (empty: the first run with emails on, kept in
+`app_markers`; delete that row to start again).
+Adding and removing agency people (`/member/agency`, principal): "Add people" previews Stripe's proration
+(`invoices/create_preview`) and charges the agency's saved card at once; in the test sandbox use an agency enrolled with
+4242 4242 4242 4242 (4000 0027 6000 3184 shows the "bank wants to confirm" message). "Remove" schedules the person to leave
+on `paid_through_at`; `php artisan app:apply-agency-removals` (hourly at :25) takes them off once that date has passed.
 Agency invitation reminders: `php artisan app:send-invitation-reminders` (scheduled 09:00-11:00; day 3 and day 7 after
 the invitation). The invitation emails are sent by the queue worker, so `queue:work` must run (restart it after code
 changes: `php artisan queue:restart`). Links land in Mailpit; the pages are `/join/invitation/{token}` and `/join/welcome`.

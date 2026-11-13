@@ -35,6 +35,13 @@ Schedule::command('app:expire-memberships')
     ->withoutOverlapping(5)
     ->onOneServer();
 
+// People removed from an agency leave it on its renewal date (G4). Hourly, idempotent.
+Schedule::command('app:apply-agency-removals')
+    ->hourlyAt(25)
+    ->timezone(config('portal.schedule_timezone'))
+    ->withoutOverlapping(5)
+    ->onOneServer();
+
 // Agency invitation reminders (day 3, day 7). Hourly 09:00-11:00 so a run stopped by the 120-second
 // limit is finished by the next; each reminder is logged first and never sent twice.
 Schedule::command('app:send-invitation-reminders')

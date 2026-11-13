@@ -11,6 +11,7 @@ use App\Services\Memberships\MembershipRenewals;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 /**
  * After a failed renewal payment (H2): reminders while the grace period runs
@@ -29,6 +30,10 @@ class ExpireMemberships extends Command
     {
         $this->startBudget();
         $counts = ['reminded' => 0, 'expired' => 0];
+        // With emails on, the first run records the moment they count from (unless configured).
+        $since = MembershipRenewals::emailsSince();
+        $renewals->silencedOff = 0;
+        $renewals->silencedOld = 0;
 
         $this->within(
             Agency::query()->where('status', AgencyStatus::PastDue)->with('principal'),
@@ -49,6 +54,18 @@ class ExpireMemberships extends Command
         );
 
         $this->info("Overdue reminders: {$counts['reminded']}, expired: {$counts['expired']}, errors: ".count($this->errors).'.');
+
+        // Older cases (or emails off) get their status only; the run says how many, never who.
+        if ($renewals->silencedOff + $renewals->silencedOld > 0) {
+            $summary = sprintf(
+                'Membership emails kept back: %d (emails off), %d (ended before %s).',
+                $renewals->silencedOff,
+                $renewals->silencedOld,
+                $since?->toIso8601String() ?? 'the switch-on',
+            );
+            $this->line($summary);
+            Log::info('app:expire-memberships: '.$summary);
+        }
 
         return $this->finishBudget();
     }

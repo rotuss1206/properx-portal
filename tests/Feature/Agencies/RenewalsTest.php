@@ -11,6 +11,7 @@ use App\Enums\ReminderType;
 use App\Enums\Role;
 use App\Member\NotificationFeed;
 use App\Models\Agency;
+use App\Models\AppMarker;
 use App\Models\ReminderLog;
 use App\Models\User;
 use App\Notifications\AgencyMembershipCanceled;
@@ -60,6 +61,7 @@ class RenewalsTest extends TestCase
             'portal.payments.grace_days' => 14,
             'portal.renewals.reminder_days' => [14, 7, 1],
             'portal.renewals.grace_reminder_days' => [7, 1],
+            'portal.renewals.expiry_emails_enabled' => true,
         ]);
         $this->travelTo(CarbonImmutable::parse('2027-03-01 08:00', 'America/New_York'));
 
@@ -275,6 +277,60 @@ class RenewalsTest extends TestCase
 
         $this->webhook('invoice.paid', $this->invoice('cus_member'))->assertOk();
         $this->assertFalse($this->individual->memberProfile->fresh()->hasRestrictedMembership());
+    }
+
+    // After a deployment: no emails to old cases
+
+    public function test_with_expiry_emails_off_only_the_status_changes(): void
+    {
+        Notification::fake();
+        config(['portal.renewals.expiry_emails_enabled' => false]);
+        $this->agency->changeStatus(AgencyStatus::PastDue);
+        $this->agency->forceFill(['past_due_since' => now()->subDays(40)])->saveQuietly();
+        $this->individual->memberProfile->forceFill(['payment_status' => PaymentStatus::PastDue, 'payment_status_updated_at' => now()->subDays(40)])->save();
+
+        $this->artisan('app:expire-memberships')->expectsOutputToContain('Membership emails kept back: 4 (emails off), 0 (ended before')->assertSuccessful();
+
+        $this->assertSame(AgencyStatus::Inactive, $this->agency->fresh()->status);
+        $this->assertTrue($this->person->memberProfile->fresh()->hasRestrictedMembership());
+        Notification::assertNothingSent();
+        $this->assertSame(['skipped'], ReminderLog::query()->pluck('delivery_status')->map->value->unique()->values()->all());
+        $this->assertNull(AppMarker::read('membership_expiry_emails_since'));
+    }
+
+    public function test_the_first_run_with_emails_on_mails_only_what_ends_from_then_on(): void
+    {
+        Notification::fake();
+        // Long past due when the emails are switched on: status only.
+        $this->agency->changeStatus(AgencyStatus::PastDue);
+        $this->agency->forceFill(['past_due_since' => now()->subDays(40)])->saveQuietly();
+
+        $this->artisan('app:expire-memberships')->expectsOutputToContain('Membership emails kept back: 0 (emails off), 3 (ended before')->assertSuccessful();
+
+        $this->assertSame(AgencyStatus::Inactive, $this->agency->fresh()->status);
+        $this->assertSame(now()->toIso8601String(), AppMarker::read('membership_expiry_emails_since'));
+        Notification::assertNothingSent();
+
+        // A failure from now on is mailed as usual.
+        $this->webhook('invoice.payment_failed', $this->invoice('cus_member'))->assertOk();
+        $this->travel(15)->days();
+        $this->artisan('app:expire-memberships')->assertSuccessful();
+        Notification::assertSentToTimes($this->individual, MembershipExpired::class, 1);
+    }
+
+    public function test_a_configured_date_decides_what_is_old(): void
+    {
+        Notification::fake();
+        config(['portal.renewals.expiry_emails_since' => now()->subDays(10)->toDateString()]);
+        $this->individual->memberProfile->forceFill(['payment_status' => PaymentStatus::PastDue, 'payment_status_updated_at' => now()->subDays(20)])->save(); // grace ended 6 days ago
+        $this->agency->changeStatus(AgencyStatus::PastDue);
+        $this->agency->forceFill(['past_due_since' => now()->subDays(40)])->saveQuietly(); // ended 26 days ago
+
+        $this->artisan('app:expire-memberships')->assertSuccessful();
+
+        Notification::assertSentToTimes($this->individual, MembershipExpired::class, 1);
+        Notification::assertNotSentTo($this->principal, MembershipExpired::class);
+        $this->assertNull(AppMarker::read('membership_expiry_emails_since'));
     }
 
     // The subscription's end

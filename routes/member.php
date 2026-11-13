@@ -52,6 +52,17 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
             ->whereNumber('person')
             ->middleware('throttle:20,1')
             ->name('agency.resend');
+        // Adding people (Livewire, paid at once) and removing them at the next renewal (G3, G4).
+        Route::get('agency/people/add', [AgencyController::class, 'add'])->name('agency.add');
+        Route::get('agency/people/template.csv', [AgencyController::class, 'template'])->name('agency.people-template');
+        Route::post('agency/people/{person}/removal', [AgencyController::class, 'remove'])
+            ->whereNumber('person')
+            ->middleware('throttle:20,1')
+            ->name('agency.remove');
+        Route::delete('agency/people/{person}/removal', [AgencyController::class, 'keep'])
+            ->whereNumber('person')
+            ->middleware('throttle:20,1')
+            ->name('agency.keep');
 
         // Billing (G5): Stripe read live; the Customer Portal for the payment method.
         Route::get('billing', [BillingController::class, 'show'])->name('billing');

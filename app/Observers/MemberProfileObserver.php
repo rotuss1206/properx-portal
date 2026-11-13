@@ -25,6 +25,8 @@ class MemberProfileObserver
         'license_status', 'updated_at', 'stripe_customer_id', 'stripe_subscription_id', 'payment_status', 'payment_status_updated_at', 'payment_event_at',
         'paid_through_at',
         'invite_status',
+        // Audited as agency_member_removal_scheduled / _canceled.
+        'removal_effective_at', 'removal_reason', 'removal_scheduled_at',
     ];
 
     /**

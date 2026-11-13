@@ -320,6 +320,81 @@ certificate, the compliance library and documents are closed."
 
 ---
 
+## 13. People added (receipt to the principal)
+
+**When:** right after the principal adds people on "My agency" and the prorated payment goes through. Sent once.
+**Class:** `App\Notifications\AgencyPeopleAdded`
+
+**Subject:** People added to your agency's ProPerX Alliance membership
+
+> **Hello,**
+>
+> 2 people have been added to your agency, and the payment has been received. Each of them gets an email
+> invitation to set up their account.
+>
+> | Receipt | |
+> |:--|--:|
+> | People added | 2 |
+> | *Stripe's proration lines, e.g. "Remaining time on 5 × ProPerX Agency Membership after Nov 13, 2026"* | $397.50 |
+> | *"Unused time on 3 × ProPerX Agency Membership after Nov 13, 2026"* | −$238.50 |
+> | Prorated dues until May 13, 2027 | $159.00 |
+> | Credit card surcharge *(credit cards only)* | $4.61 |
+> | **Total paid** | **$163.61** |
+> | Paid with | Visa credit card ending 4242 |
+>
+> *(Only when the agency moved up a tier:)* Your agency has moved up to Agency Plus (10–49): everyone's rate is
+> now $149 a year, prorated above for the rest of the year.
+>
+> **[Open my agency]**
+>
+> Regards,
+> ProPerX Alliance
+
+---
+
+## 14. Your membership through your agency is ending (to a person the principal removed)
+
+**When:** when the principal removes someone; the person keeps full access until the agency's renewal date.
+**Class:** `App\Notifications\Member\AgencyRemovalScheduled` (also in the bell)
+
+**Subject:** Your ProPerX Alliance membership through your agency is ending
+
+> **Hello,**
+>
+> Your agency has removed you from its ProPerX Alliance membership. Your membership through the agency ends on
+> May 13, 2027; until then everything stays as it is.
+>
+> To stay a member after that, you can apply for an individual membership.
+>
+> **[Apply as an individual member]** *(INDIVIDUAL_MEMBERSHIP_URL)*
+>
+> Regards,
+> ProPerX Alliance
+
+---
+
+## 15. Your agency's membership will not renew (to everyone still on the list)
+
+**When:** when removals leave fewer than two people for the next year. Sent once, to each person who stays
+(the principal included). No credits or refunds.
+**Class:** `App\Notifications\Member\AgencyEndingAtRenewal` (also in the bell)
+
+**Subject:** Your agency's ProPerX Alliance membership will not renew
+
+> **Hello,**
+>
+> An agency membership needs at least two people. After the changes on your agency's list, your agency's
+> membership ends on May 13, 2027 and will not renew.
+>
+> Until then everything stays as it is. To stay a member after that, you can apply for an individual membership.
+>
+> **[Apply as an individual member]**
+>
+> Regards,
+> ProPerX Alliance
+
+---
+
 ## Questions for ProPerX
 
 1. Is the day-7 copy to the principal enough, or should staff hear of people who have not accepted as well?

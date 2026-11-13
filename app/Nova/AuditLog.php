@@ -12,6 +12,7 @@ use App\Nova\Actions\CancelAgencyMembership;
 use App\Nova\Actions\ChangeAgencyPricing;
 use App\Nova\Actions\DeactivateAgencyPerson;
 use App\Nova\Filters\AuditResourceType;
+use App\Services\Agencies\AgencyRosterChanges;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -167,6 +168,9 @@ class AuditLog extends Resource
             'billing_portal_opened' => 'Opened Stripe’s payment page for the '.(($details['kind'] ?? '') === 'agency' ? 'agency' : 'member').'’s billing',
             'agency_member_deactivated' => 'Person set inactive on the agency'.(isset($details['reason']) ? ': '.(DeactivateAgencyPerson::REASONS[$details['reason']] ?? $details['reason']) : ''),
             'agency_member_reactivated' => 'Person set active again on the agency',
+            'agency_people_added' => ($details['people'] ?? 0).' people added; paid '.Money::format((int) ($details['amount'] ?? 0)).(($details['surcharge'] ?? 0) > 0 ? ' + surcharge '.Money::format((int) $details['surcharge']) : '').(isset($details['tier_to']) ? '; tier '.($details['tier_from'] ?? '?').' → '.$details['tier_to'] : ''),
+            'agency_member_removal_scheduled' => 'Removal from the agency on '.($details['effective_on'] ?? '?').': '.(AgencyRosterChanges::REASONS[$details['reason'] ?? ''] ?? ($details['reason'] ?? '—')),
+            'agency_member_removal_canceled' => 'Scheduled removal from the agency canceled',
             'agency_membership_canceled' => 'Membership canceled '.(($details['timing'] ?? '') === 'now' ? 'now' : 'at the end of the paid period')
                 .(isset($details['reason']) ? ': '.(CancelAgencyMembership::REASONS[$details['reason']] ?? $details['reason']) : ''),
             'agency_updated', 'profile_updated' => isset($details['fields'])

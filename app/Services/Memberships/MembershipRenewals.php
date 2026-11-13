@@ -7,6 +7,7 @@ use App\Enums\DeliveryStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReminderType;
 use App\Models\Agency;
+use App\Models\AppMarker;
 use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\Member\AgencyMembershipEnded;
@@ -17,6 +18,7 @@ use App\Services\Stripe\BillingReader;
 use App\Services\Stripe\BillingUnavailableException;
 use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -32,7 +34,63 @@ use Illuminate\Support\Facades\DB;
  */
 class MembershipRenewals
 {
+    public const EMAILS_SINCE_MARKER = 'membership_expiry_emails_since';
+
+    /** Expiry messages kept back in this process: emails off, or the case is older than the switch-on. */
+    public int $silencedOff = 0;
+
+    public int $silencedOld = 0;
+
     public function __construct(private BillingReader $stripe) {}
+
+    /**
+     * The moment expiry emails count from: MEMBERSHIP_EXPIRY_EMAILS_SINCE, or the first time they
+     * were on (recorded once in app_markers by the first caller). Null while they are off.
+     */
+    public static function emailsSince(): ?CarbonInterface
+    {
+        if (! config('portal.renewals.expiry_emails_enabled')) {
+            return null;
+        }
+
+        if (filled(config('portal.renewals.expiry_emails_since'))) {
+            return Carbon::parse((string) config('portal.renewals.expiry_emails_since'), config('portal.schedule_timezone'));
+        }
+
+        return Carbon::parse(AppMarker::remember(self::EMAILS_SINCE_MARKER, now()->toIso8601String()));
+    }
+
+    /**
+     * Whether an overdue reminder or an "expired" email goes for something that ends (ended) at
+     * $endsAt: emails on, and not older than the switch-on. Otherwise only the status changes.
+     */
+    /**
+     * Why a message for something ending at $endsAt is kept back ("off", "old"), or null when it goes.
+     */
+    private function withheldBecause(CarbonInterface $endsAt): ?string
+    {
+        $since = self::emailsSince();
+
+        return match (true) {
+            $since === null => 'off',
+            $endsAt->lt($since) => 'old',
+            default => null,
+        };
+    }
+
+    /**
+     * Counts one message kept back (for the command's summary); true when $reason says it is.
+     */
+    private function withhold(?string $reason): bool
+    {
+        match ($reason) {
+            'off' => $this->silencedOff++,
+            'old' => $this->silencedOld++,
+            default => null,
+        };
+
+        return $reason !== null;
+    }
 
     // Before the period ends
 
@@ -135,7 +193,7 @@ class MembershipRenewals
         }
 
         if (! $ends->isFuture()) {
-            $this->expireAgency($agency);
+            $this->expireAgency($agency, endedAt: $ends);
 
             return 'expired';
         }
@@ -147,6 +205,10 @@ class MembershipRenewals
         }
 
         return $this->once($agency->principal, $type, $agency->paid_through_at ?? $agency->past_due_since, function () use ($agency, $ends) {
+            if ($this->withhold($this->withheldBecause($ends))) {
+                return false;
+            }
+
             $agency->principal->notify(new PaymentOverdueReminder(RenewalReminder::AGENCY, $ends->toDateString()));
 
             return true;
@@ -167,7 +229,7 @@ class MembershipRenewals
         }
 
         if (! $ends->isFuture()) {
-            return $this->expireIndividual($profile) ? 'expired' : 'none';
+            return $this->expireIndividual($profile, endedAt: $ends) ? 'expired' : 'none';
         }
 
         $type = self::dueGraceReminder($ends);
@@ -177,6 +239,10 @@ class MembershipRenewals
         }
 
         return $this->once($profile->user, $type, $profile->paid_through_at ?? $profile->payment_status_updated_at, function () use ($profile, $ends) {
+            if ($this->withhold($this->withheldBecause($ends))) {
+                return false;
+            }
+
             $profile->user->notify(new PaymentOverdueReminder(RenewalReminder::INDIVIDUAL, $ends->toDateString()));
 
             return true;
@@ -188,15 +254,16 @@ class MembershipRenewals
      * principal told it expired (unless $principalTold: a staff cancellation already wrote to
      * them), each other person that the agency's membership ended. Once per paid period.
      */
-    public function expireAgency(Agency $agency, bool $principalTold = false): void
+    public function expireAgency(Agency $agency, bool $principalTold = false, ?CarbonInterface $endedAt = null): void
     {
         $agency->changeStatus(AgencyStatus::Inactive);
         $period = $agency->paid_through_at ?? $agency->past_due_since ?? now();
+        $withheld = $this->withheldBecause($endedAt ?? now());
 
         if ($agency->principal !== null) {
-            $this->once($agency->principal, ReminderType::MembershipExpired, $period, function () use ($agency, $principalTold) {
-                if ($principalTold) {
-                    return false; // logged as skipped: the cancellation email said it
+            $this->once($agency->principal, ReminderType::MembershipExpired, $period, function () use ($agency, $principalTold, $withheld) {
+                if ($principalTold || $this->withhold($withheld)) {
+                    return false; // logged as skipped: the cancellation email said it, or emails are off / it is an old case
                 }
 
                 $agency->principal->notify(new MembershipExpired(RenewalReminder::AGENCY));
@@ -205,9 +272,13 @@ class MembershipRenewals
             });
         }
 
-        $agency->members()->with('user')->where('user_id', '!=', (int) $agency->principal_user_id)->each(function (MemberProfile $person) use ($period) {
+        $agency->members()->with('user')->where('user_id', '!=', (int) $agency->principal_user_id)->each(function (MemberProfile $person) use ($period, $withheld) {
             if ($person->user !== null) {
-                $this->once($person->user, ReminderType::AgencyMembershipEnded, $period, function () use ($person) {
+                $this->once($person->user, ReminderType::AgencyMembershipEnded, $period, function () use ($person, $withheld) {
+                    if ($this->withhold($withheld)) {
+                        return false;
+                    }
+
                     $person->user->notify(new AgencyMembershipEnded);
 
                     return true;
@@ -220,13 +291,17 @@ class MembershipRenewals
      * An individual member's membership is over (canceled, or past due beyond the grace period):
      * "Your membership has expired", once per paid period. False when it was sent already.
      */
-    public function expireIndividual(MemberProfile $profile): bool
+    public function expireIndividual(MemberProfile $profile, ?CarbonInterface $endedAt = null): bool
     {
         if ($profile->user === null || $profile->agency_id !== null) {
             return false;
         }
 
-        return $this->once($profile->user, ReminderType::MembershipExpired, $profile->paid_through_at ?? $profile->payment_status_updated_at ?? now(), function () use ($profile) {
+        return $this->once($profile->user, ReminderType::MembershipExpired, $profile->paid_through_at ?? $profile->payment_status_updated_at ?? now(), function () use ($profile, $endedAt) {
+            if ($this->withhold($this->withheldBecause($endedAt ?? now()))) {
+                return false;
+            }
+
             $profile->user->notify(new MembershipExpired(RenewalReminder::INDIVIDUAL));
 
             return true;

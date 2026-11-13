@@ -25,6 +25,7 @@ final class AgencyPage
         'needs_attention' => 'Needs attention',
         'pending_review' => 'Pending review',
         'inactive' => 'Inactive',
+        'leaving' => 'Leaving',
     ];
 
     private function __construct(public readonly User $principal, public readonly Agency $agency) {}
@@ -65,6 +66,8 @@ final class AgencyPage
                 default => 'warning',
             },
             'paid_through' => $agency->paid_through_at,
+            'continuing' => $agency->continuingHeadcount(),
+            'ends_at_renewal' => $agency->continuingHeadcount() < (int) config('agency.minimum_headcount'),
         ];
     }
 
@@ -144,11 +147,15 @@ final class AgencyPage
             'account_variant' => $profile->status === MemberStatus::Inactive ? 'danger' : 'success',
             'can_resend' => $this->mayResend($profile),
             'resend_after' => $resendAfter !== null && $resendAfter->isFuture() ? $resendAfter : null,
+            // Removal at the next renewal (G4): the principal never; anyone else once.
+            'leaves_on' => $profile->removal_effective_at,
+            'can_remove' => $profile->user_id !== $this->principal->getKey() && $profile->removal_effective_at === null,
             'filters' => array_values(array_filter([
                 $invite !== InviteStatus::AccountActive ? 'not_accepted' : null,
                 $verification === LicenseVerification::NeedsAttention ? 'needs_attention' : null,
                 $verification === LicenseVerification::PendingReview ? 'pending_review' : null,
                 $profile->status === MemberStatus::Inactive ? 'inactive' : null,
+                $profile->removal_effective_at !== null ? 'leaving' : null,
             ])),
         ];
     }

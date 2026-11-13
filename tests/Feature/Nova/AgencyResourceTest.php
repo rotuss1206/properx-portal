@@ -55,18 +55,19 @@ class AgencyResourceTest extends TestCase
     {
         $agency = $this->agency(people: 4, attributes: ['tier' => AgencyTier::Agency, 'status' => AgencyStatus::Active]);
 
-        $row = collect($this->actingAs($this->staff(Role::MembershipCoordinator))
+        $fields = collect($this->actingAs($this->staff(Role::MembershipCoordinator))
             ->getJson('/nova-api/agencies')
             ->assertOk()
-            ->json('resources.0.fields'))
-            ->pluck('value', 'attribute');
+            ->json('resources.0.fields'));
+        $row = $fields->pluck('value', 'attribute');
 
         $this->assertSame($agency->legal_name, $row['legal_name']);
         $this->assertSame('agency_2to9', $row['tier']);
         $this->assertSame('founding', $row['rate_type']);
         $this->assertSame(4, $row['headcount']);
         $this->assertSame('active', $row['status']);
-        $this->assertSame('$159 / person', $row['computed_rate'] ?? collect($row)->first(fn ($value) => is_string($value) && str_contains($value, '/ person')));
+        $this->assertSame('$159 / person', $fields->firstWhere('name', 'Rate')['value']);
+        $this->assertSame('—', $fields->firstWhere('name', 'Scheduled Removals')['value']);
     }
 
     public function test_agencies_can_be_filtered_by_tier_and_status(): void
