@@ -169,7 +169,7 @@
                         <div class="ppx-docs__fact"><dt>Credit card surcharge {{ rtrim(rtrim(number_format(config('agency.credit_card_surcharge_basis_points') / 100, 2), '0'), '.') }}%</dt><dd>{{ Money::exact($review['surcharge']) }}</dd></div>
                     @endif
                     <div class="ppx-docs__fact ppx-add__total"><dt>Total today</dt><dd>{{ Money::exact($review['total']) }}</dd></div>
-                    <div class="ppx-docs__fact"><dt>Paid with</dt><dd>{{ $review['method'] }}</dd></div>
+                    <div class="ppx-docs__fact"><dt>Paid with</dt><dd class="ppx-add__method">{{ $review['method'] }}</dd></div>
                 </dl>
                 <p class="ppx-field__hint">The saved payment method is charged at once. If it does not go through, nothing changes. Everyone added gets an email invitation; you get a receipt.</p>
                 <div class="ppx-add__next">

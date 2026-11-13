@@ -395,6 +395,49 @@ certificate, the compliance library and documents are closed."
 
 ---
 
+## 16. Your membership is now through your agency (to a member staff moved into an agency)
+
+**When:** when ProPerX staff move an individual member into an agency (Nova, "Move to an agency"). Sent once.
+**Class:** `App\Notifications\Member\MovedToAgency` (also in the bell)
+
+**Subject:** Your ProPerX Alliance membership is now through your agency
+
+> **Hello,**
+>
+> ProPerX has moved your membership to your agency. From now on your agency pays for it, and you keep your
+> account, documents and settings.
+>
+> If you paid for an individual membership on properx.org, it is not canceled automatically and nothing is
+> refunded. ProPerX will help you cancel it; questions are welcome.
+>
+> **[Open the member portal]**
+>
+> Regards,
+> ProPerX Alliance
+
+---
+
+## 17. A member was moved to your agency (receipt to the principal)
+
+**When:** with email 16. Same receipt as email 13, first row "Members moved to your agency".
+**Class:** `App\Notifications\AgencyPeopleAdded` (`moved: true`)
+
+**Subject:** A member was moved to your agency's ProPerX Alliance membership
+
+> **Hello,**
+>
+> ProPerX has moved an existing ProPerX member to your agency, and the prorated payment has been received with
+> your saved payment method. They keep their account, so no invitation is sent; you can see them under My agency.
+>
+> *(Receipt table as in email 13.)*
+>
+> **[Open my agency]**
+>
+> Regards,
+> ProPerX Alliance
+
+---
+
 ## Questions for ProPerX
 
 1. Is the day-7 copy to the principal enough, or should staff hear of people who have not accepted as well?

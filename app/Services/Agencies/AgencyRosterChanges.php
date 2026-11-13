@@ -2,11 +2,15 @@
 
 namespace App\Services\Agencies;
 
+use App\Enums\AgencyRole;
 use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
+use App\Enums\InviteStatus;
+use App\Enums\LicenseVerification;
 use App\Enums\MemberStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\PersonType;
+use App\Enums\RateType;
 use App\Jobs\SendAgencyInvitation;
 use App\Models\Agency;
 use App\Models\AuditLog;
@@ -15,6 +19,7 @@ use App\Models\User;
 use App\Notifications\AgencyPeopleAdded;
 use App\Notifications\Member\AgencyEndingAtRenewal;
 use App\Notifications\Member\AgencyRemovalScheduled;
+use App\Notifications\Member\MovedToAgency;
 use App\Services\Stripe\AgencyPriceCatalog;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
@@ -45,6 +50,19 @@ class AgencyRosterChanges
         'role_changed' => 'Role changed; no longer needs membership',
         'duplicate' => 'Added twice or by mistake',
         'other' => 'Other',
+    ];
+
+    /** Why staff move an individual member into an agency (fixed list: the audit log has no free text). */
+    public const MOVE_REASONS = [
+        'joined_agency' => 'Joined the agency',
+        'agency_request' => "At the agency's request",
+        'member_request' => "At the member's request",
+        'other' => 'Other',
+    ];
+
+    /** Reasons of rate changes the portal makes itself (audited like staff's "Change rate type"). */
+    public const AUTOMATIC_REASONS = [
+        'membership_lapsed' => 'Membership lapsed; the standard rate applies from the next renewal',
     ];
 
     public function __construct(
@@ -201,6 +219,92 @@ class AgencyRosterChanges
 
             return $created;
         });
+    }
+
+    /**
+     * Staff move an individual member into an agency (the client's answer: staff only). The agency
+     * pays as for one person added (prorated, its saved payment method, a higher tier for everyone
+     * if the headcount reaches it); the person keeps their account, so there is no invitation, only
+     * an email to them and a receipt to the principal. Their individual subscription is NOT canceled
+     * here (it is sold on properx.org): staff cancel it there; nothing is refunded or credited.
+     *
+     * @throws CheckoutException when the payment did not go through (nothing changed)
+     * @throws RosterChangeException when the person or the agency does not qualify
+     */
+    public function moveMember(Agency $agency, MemberProfile $person, PersonType $type, string $reason, User $by, int $expectedTotal, int $prorationDate): void
+    {
+        if (! array_key_exists($reason, self::MOVE_REASONS)) {
+            throw new RosterChangeException('Choose a reason.');
+        }
+
+        if ($problem = self::moveProblem($person, $type)) {
+            throw new RosterChangeException($problem);
+        }
+
+        Cache::lock('agency-roster:'.$agency->getKey(), 60)->block(20, function () use ($agency, $person, $type, $reason, $by, $expectedTotal, $prorationDate) {
+            $agency->refresh();
+            $person->refresh();
+
+            if ($person->agency_id !== null) {
+                throw new RosterChangeException('This member is already on an agency.');
+            }
+
+            $quote = $this->quote($agency, 1, $prorationDate);
+
+            if ($quote->total !== $expectedTotal) {
+                throw new RosterChangeException('The amount is now '.Money::exact($quote->total).'. Please run the action again to confirm it.');
+            }
+
+            $invoiceId = $this->charge($agency, $quote, [['email' => (string) $person->user?->email, 'profile' => $person->getKey()]]);
+            $producer = $type === PersonType::LicensedProducer;
+
+            DB::transaction(function () use ($agency, $person, $type, $producer) {
+                // MemberProfileObserver audits agency_member_added; member_type follows agency_id.
+                $person->forceFill([
+                    'agency_id' => $agency->getKey(),
+                    'agency_role' => AgencyRole::Member,
+                    'person_type' => $type,
+                    // The account exists already: no invitation to accept.
+                    'invite_status' => InviteStatus::AccountActive,
+                    'status' => MemberStatus::Active,
+                    'license_verification' => $producer ? ($person->license_verification ?? LicenseVerification::PendingReview) : null,
+                ])->save();
+
+                $agency->syncHeadcount();
+            });
+
+            $agency->forceFill(['tier' => $quote->tierAfter, 'billed_headcount' => $quote->headcountAfter])->saveQuietly();
+
+            AuditLog::record('member_moved_to_agency', $person, $by, array_filter([
+                'agency_id' => $agency->getKey(),
+                'person_type' => $type->value,
+                'reason' => $reason,
+                'amount' => $quote->subtotal,
+                'surcharge' => $quote->surcharge,
+                'tier_from' => $quote->tierBefore->value,
+                'tier_to' => $quote->tierChanges() ? $quote->tierAfter->value : null,
+                'invoice' => $invoiceId,
+                // Not canceled by the portal: staff cancel it on properx.org.
+                'individual_subscription' => filled($person->stripe_subscription_id) || filled($person->stripe_customer_id) ? 'left_active_cancel_on_properx_org' : 'none',
+            ], fn ($value) => $value !== null));
+
+            $person->user?->notify(new MovedToAgency);
+            $agency->principal?->notify(new AgencyPeopleAdded(1, $quote->tierAfter->value, $quote->tierChanges(), $quote->rate, $quote->lines, $quote->subtotal, $quote->surcharge, $quote->total, $quote->periodEnds->toDateString(), $quote->paymentMethod, moved: true));
+        });
+    }
+
+    /**
+     * Why this member cannot be moved into an agency as this type, or null.
+     */
+    public static function moveProblem(MemberProfile $person, PersonType $type): ?string
+    {
+        return match (true) {
+            $person->agency_id !== null => 'Only individual members can be moved into an agency.',
+            $person->user === null || ! $person->user->isMember() => 'Only member accounts can be moved into an agency.',
+            $type === PersonType::LicensedProducer && preg_match(MemberProfile::AGENCY_NPN_PATTERN, (string) $person->npn) !== 1 => 'A licensed producer in an agency needs an NPN of 7 to 10 digits. Correct the NPN on the profile first, or move them as an agency employee.',
+            $type === PersonType::LicensedProducer && blank($person->license_state) => 'A licensed producer in an agency needs a resident state. Add it on the profile first.',
+            default => null,
+        };
     }
 
     /**
@@ -369,6 +473,22 @@ class AgencyRosterChanges
     }
 
     /**
+     * The founding rate holds only without a break (Agency spec 4): an agency that was inactive and
+     * pays again keeps what it paid for, and is billed the standard rate from the next renewal.
+     */
+    public function endFoundingAfterLapse(Agency $agency): void
+    {
+        if ($agency->rate_type !== RateType::Founding) {
+            return;
+        }
+
+        $agency->forceFill(['rate_type' => RateType::Standard])->saveQuietly();
+        AuditLog::record('agency_rate_type_changed', $agency, details: ['from' => RateType::Founding->value, 'to' => RateType::Standard->value, 'reason' => 'membership_lapsed']);
+
+        $this->syncRenewal($agency);
+    }
+
+    /**
      * Tells Stripe who the next renewal bills: the people who stay, at their tier (which may go
      * down; the rate type stays), with no proration now. Fewer than the minimum: the subscription
      * ends with the period instead (and goes on again if removals are canceled).
@@ -392,9 +512,10 @@ class AgencyRosterChanges
 
             $this->updateSubscription($agency, $continuing, AgencyTier::forHeadcount($continuing), endsWithPeriod: false);
             $agency->forceFill(['cancel_at_period_end' => false])->saveQuietly();
-        } catch (ApiErrorException $e) {
-            // The principal's change stands; staff fix Stripe by hand.
-            Log::error('Agency renewal quantity could not be set in Stripe', ['agency' => $agency->getKey(), 'error' => $e::class, 'code' => $e->getStripeCode()]);
+        } catch (\Throwable $e) {
+            // The change in the portal stands (also inside a webhook, which must not fail for it);
+            // staff fix Stripe by hand.
+            Log::error('Agency renewal quantity could not be set in Stripe', ['agency' => $agency->getKey(), 'error' => $e::class, 'code' => $e instanceof ApiErrorException ? $e->getStripeCode() : null]);
             report($e);
         }
     }

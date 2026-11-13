@@ -16,6 +16,7 @@ use App\Models\NotificationSetting;
 use App\Nova\Actions\DeactivateAgencyPerson;
 use App\Nova\Actions\DownloadMyCertificate;
 use App\Nova\Actions\GenerateCertificate;
+use App\Nova\Actions\MoveToAgency;
 use App\Nova\Actions\ReactivateAgencyPerson;
 use App\Nova\Actions\ResendInvitation;
 use App\Services\Agencies\AgencyRosterChanges;
@@ -180,8 +181,9 @@ class MemberProfile extends Resource
             Badge::make('Agency Payment', fn () => $profile->agency?->status?->value)
                 ->map(['active' => 'success', 'pending' => 'warning', 'past_due' => 'warning', 'inactive' => 'danger'])
                 ->labels(collect(AgencyStatus::cases())->mapWithKeys(fn ($status) => [$status->value => $status->label()])->all()),
-            // Agency people's access follows the agency's paid period (Agency spec 6).
-            Text::make('Access Until', fn () => $profile->agency?->paid_through_at?->toFormattedDateString() ?? '—'),
+            // Agency people's access follows the agency's paid period (Agency spec 6); while past due, the end of the grace period.
+            Text::make('Access Until', fn () => ($profile->agency?->graceEndsAt() ?? $profile->agency?->paid_through_at)?->toFormattedDateString() ?? '—'),
+            Text::make('Dunning', fn () => self::dunningText($profile)),
             // Leaving at the agency's next renewal (G4), with the principal's reason.
             Text::make('Removal', fn () => self::removalText($profile)),
         ];
@@ -354,6 +356,10 @@ class MemberProfile extends Resource
             Text::make('Removal', fn () => self::removalText($this->resource))
                 ->exceptOnForms(),
 
+            // A failed payment (H2): in the grace period until a date, or expired.
+            Text::make('Dunning', fn () => self::dunningText($this->resource))
+                ->exceptOnForms(),
+
             Select::make('Membership Status', 'status')
                 ->options(self::enumOptions(MemberStatus::cases()))
                 ->displayUsingLabels()
@@ -363,6 +369,17 @@ class MemberProfile extends Resource
                 ->hideFromIndex()
                 ->filterable(),
         ];
+    }
+
+    private static function dunningText(\App\Models\MemberProfile $profile): string
+    {
+        $dunning = $profile->dunning();
+
+        return match ($dunning['state'] ?? null) {
+            'grace' => 'Grace until '.($dunning['until']?->toFormattedDateString() ?? '—'),
+            'expired' => 'Expired',
+            default => '—',
+        };
     }
 
     private static function removalText(\App\Models\MemberProfile $profile): string
@@ -381,7 +398,7 @@ class MemberProfile extends Resource
      */
     public function filters(NovaRequest $request): array
     {
-        return [new Filters\MemberRemovalScheduled];
+        return [new Filters\MemberDunning, new Filters\MemberRemovalScheduled];
     }
 
     /**
@@ -486,6 +503,12 @@ class MemberProfile extends Resource
                 ->showInline()
                 ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
                 ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => ResendInvitation::applies($profile)
+                    && Gate::forUser($request->user())->check('update', $profile)),
+
+            MoveToAgency::make()
+                ->sole()
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
+                ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => MoveToAgency::applies($profile)
                     && Gate::forUser($request->user())->check('update', $profile)),
 
             DeactivateAgencyPerson::make()

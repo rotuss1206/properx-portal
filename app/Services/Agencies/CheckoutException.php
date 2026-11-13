@@ -25,8 +25,9 @@ final class CheckoutException extends RuntimeException
     public static function forCode(string $code, string $declineCode = ''): string
     {
         return match (true) {
-            // A saved card charged without the cardholder at hand (adding people) and the bank wants 3D Secure.
-            $code === 'authentication_required' || $declineCode === 'authentication_required' => 'Your bank wants to confirm this payment, which cannot be done while you are away from the card. Nothing was charged. Update the payment method under Billing, or contact ProPerX.',
+            // A saved card charged without the cardholder at hand (adding people) and the bank wants 3D Secure:
+            // Stripe answers a subscription update (error_if_incomplete) with subscription_payment_intent_requires_action.
+            in_array($code, ['authentication_required', 'subscription_payment_intent_requires_action'], true) || $declineCode === 'authentication_required' => 'Your bank wants to confirm this payment, which cannot be done while you are away from the card. Nothing was charged. Update the payment method under Billing, or contact ProPerX.',
             $code === 'payment_intent_authentication_failure' => "Your card's verification was not completed, so nothing was charged. Please try again, or use another card or a bank account.",
             in_array($declineCode, ['insufficient_funds'], true) => 'Your card was declined for insufficient funds. Nothing was charged. Please use another card or a bank account.',
             $code === 'expired_card' || $declineCode === 'expired_card' => 'Your card has expired. Nothing was charged. Please use another card.',

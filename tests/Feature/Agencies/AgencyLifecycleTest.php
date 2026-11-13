@@ -386,4 +386,49 @@ class AgencyLifecycleTest extends TestCase
 
         $this->assertSame($before, $profile->fresh()->only(['payment_status', 'paid_through_at', 'payment_status_updated_at', 'stripe_customer_id']));
     }
+
+    // Founding rate and breaks (Agency spec 4)
+
+    private function stripePrices(): void
+    {
+        config(['services.stripe.secret' => 'sk_test_fake']);
+        $prices = array_map(fn (string $key) => ['id' => 'price_'.$key, 'object' => 'price', 'active' => true, 'currency' => 'usd', 'lookup_key' => $key, 'product' => 'prod_agency', 'recurring' => ['interval' => 'year'], 'unit_amount' => 15900],
+            ['agency_founding_2to9', 'agency_standard_2to9', 'agency_founding_10to49', 'agency_standard_10to49', 'agency_founding_50plus', 'agency_standard_50plus']);
+        $this->stripe
+            ->on('GET', '/v1/prices', ['object' => 'list', 'data' => $prices, 'has_more' => false, 'url' => '/v1/prices'])
+            ->on('GET', '/v1/subscriptions/sub_agency', $this->subscription('active'))
+            ->on('POST', '/v1/subscriptions/sub_agency', $this->subscription('active'));
+    }
+
+    public function test_paying_again_after_a_break_ends_the_founding_rate_from_the_next_renewal(): void
+    {
+        $this->stripePrices();
+        $this->agency->changeStatus(AgencyStatus::Inactive);
+
+        $this->webhook('invoice.paid', $this->invoice())->assertJson(['outcome' => 'agency_paid']);
+
+        $agency = $this->agency->fresh();
+        $this->assertSame(AgencyStatus::Active, $agency->status);
+        $this->assertSame(RateType::Standard, $agency->rate_type);
+
+        // Stripe bills the standard price from the next renewal; nothing is prorated now.
+        $update = $this->stripe->sent('POST', '/v1/subscriptions/sub_agency')[0]['params'];
+        $this->assertSame([['id' => 'si_1', 'quantity' => 3, 'price' => 'price_agency_standard_2to9']], $update['items']);
+        $this->assertSame('none', $update['proration_behavior']);
+
+        $this->assertSame(['from' => 'founding', 'to' => 'standard', 'reason' => 'membership_lapsed'], AuditLog::query()->where('action', 'agency_rate_type_changed')->sole()->details);
+    }
+
+    public function test_paying_while_past_due_keeps_the_founding_rate(): void
+    {
+        $this->stripePrices();
+        $this->agency->changeStatus(AgencyStatus::PastDue);
+
+        $this->webhook('invoice.paid', $this->invoice())->assertJson(['outcome' => 'agency_paid']);
+
+        $this->assertSame(AgencyStatus::Active, $this->agency->fresh()->status);
+        $this->assertSame(RateType::Founding, $this->agency->fresh()->rate_type);
+        $this->assertSame([], $this->stripe->sent('POST', '/v1/subscriptions/sub_agency'));
+        $this->assertFalse(AuditLog::query()->where('action', 'agency_rate_type_changed')->exists());
+    }
 }

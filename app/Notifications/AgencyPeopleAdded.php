@@ -34,6 +34,8 @@ class AgencyPeopleAdded extends Notification implements ShouldQueue
         public readonly int $total,
         public readonly string $periodEnds,
         public readonly string $paymentMethod,
+        /** An existing member moved in by ProPerX staff: no invitation, they already have an account. */
+        public readonly bool $moved = false,
     ) {
         $this->afterCommit();
     }
@@ -50,7 +52,7 @@ class AgencyPeopleAdded extends Notification implements ShouldQueue
     {
         $ends = CarbonImmutable::parse($this->periodEnds)->format('F j, Y');
         $rows = [
-            ['People added', (string) $this->people],
+            [$this->moved ? 'Members moved to your agency' : 'People added', (string) $this->people],
         ];
 
         foreach ($this->lines as $line) {
@@ -70,9 +72,11 @@ class AgencyPeopleAdded extends Notification implements ShouldQueue
         $tier = AgencyTier::tryFrom($this->tier)?->label() ?? $this->tier;
 
         $mail = (new MailMessage)
-            ->subject('People added to your agency’s ProPerX Alliance membership')
+            ->subject($this->moved ? 'A member was moved to your agency’s ProPerX Alliance membership' : 'People added to your agency’s ProPerX Alliance membership')
             ->greeting('Hello,')
-            ->line(($this->people === 1 ? 'One person has' : "{$this->people} people have").' been added to your agency, and the payment has been received. Each of them gets an email invitation to set up their account.')
+            ->line($this->moved
+                ? 'ProPerX has moved an existing ProPerX member to your agency, and the prorated payment has been received with your saved payment method. They keep their account, so no invitation is sent; you can see them under My agency.'
+                : ($this->people === 1 ? 'One person has' : "{$this->people} people have").' been added to your agency, and the payment has been received. Each of them gets an email invitation to set up their account.')
             ->line(new HtmlString($table));
 
         if ($this->tierChanged) {

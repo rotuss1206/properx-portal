@@ -333,7 +333,7 @@ class AgencyPeopleChangesTest extends TestCase
 
     public function test_a_payment_that_needs_the_bank_s_confirmation_is_explained(): void
     {
-        $this->stripe->on('POST', '/v1/subscriptions/sub_agency', ['error' => ['type' => 'card_error', 'code' => 'authentication_required', 'message' => 'This payment requires authentication.']], 402);
+        $this->stripe->on('POST', '/v1/subscriptions/sub_agency', ['error' => ['type' => 'card_error', 'code' => 'subscription_payment_intent_requires_action', 'message' => 'Payment for this subscription requires additional user action before it can be completed successfully.']], 402);
 
         $this->review()->call('pay')->assertNoRedirect()->assertSee('Your bank wants to confirm this payment');
         $this->assertFalse(User::query()->where('email', 'elena@lonestar.example')->exists());
@@ -496,6 +496,31 @@ class AgencyPeopleChangesTest extends TestCase
     }
 
     // Nova (I2)
+
+    public function test_nova_shows_people_s_dunning_and_filters_by_it(): void
+    {
+        config(['portal.payments.grace_days' => 14]);
+        $this->agency->changeStatus(AgencyStatus::PastDue);
+        $this->agency->forceFill(['past_due_since' => now()->subDays(4)])->saveQuietly();
+        $graceEnds = now()->addDays(10)->toFormattedDateString();
+
+        $late = MemberProfile::factory()->for(User::factory()->create()->assignRole(Role::Member->value))->create(['payment_status' => PaymentStatus::PastDue, 'payment_status_updated_at' => now()->subDays(20)]);
+        $paying = MemberProfile::factory()->for(User::factory()->create()->assignRole(Role::Member->value))->create(['payment_status' => PaymentStatus::PastDue, 'payment_status_updated_at' => now()->subDays(2)]);
+        $this->actingAs($this->staff(Role::MembershipCoordinator));
+
+        // The agency's roster: access until the end of the grace period.
+        $roster = collect($this->getJson("/nova-api/member-profiles?viaResource=agencies&viaResourceId={$this->agency->id}&viaRelationship=members")->assertOk()->json('resources.0.fields'))->pluck('value', 'name');
+        $this->assertSame($graceEnds, $roster['Access Until']);
+        $this->assertSame('Grace until '.$graceEnds, $roster['Dunning']);
+
+        $dunning = fn (MemberProfile $profile) => collect($this->getJson("/nova-api/member-profiles/{$profile->id}")->assertOk()->json('resource.fields'))->firstWhere('name', 'Dunning')['value'];
+        $this->assertSame('Expired', $dunning($late));
+        $this->assertSame('Grace until '.now()->addDays(12)->toFormattedDateString(), $dunning($paying));
+
+        $filtered = fn (string $value) => collect($this->getJson('/nova-api/member-profiles?perPage=100&filters='.base64_encode(json_encode([['member-dunning' => $value]])))->assertOk()->json('resources'))->pluck('id.value')->sort()->values()->all();
+        $this->assertSame(collect([$this->principal->memberProfile->id, $this->people[0]->id, $this->people[1]->id, $paying->id])->sort()->values()->all(), $filtered('grace'));
+        $this->assertSame([$late->id], $filtered('expired'));
+    }
 
     public function test_nova_shows_scheduled_removals_and_dunning_with_filters(): void
     {

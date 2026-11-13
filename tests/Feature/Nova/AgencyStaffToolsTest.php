@@ -93,7 +93,7 @@ class AgencyStaffToolsTest extends TestCase
         $rows = $this->rosterRows($agency);
 
         $this->assertCount(3, $rows);
-        $this->assertSame(['ID', 'Name', 'Email', 'Person Type', 'Agency Role', 'NPN', 'Resident State', 'Invite Status', 'Status', 'Agency Payment', 'Access Until', 'Removal'], array_keys($rows[0]));
+        $this->assertSame(['ID', 'Name', 'Email', 'Person Type', 'Agency Role', 'NPN', 'Resident State', 'Invite Status', 'Status', 'Agency Payment', 'Access Until', 'Dunning', 'Removal'], array_keys($rows[0]));
         $this->assertSame($principal->email, $rows[0]['Email']);
         $this->assertSame('principal', $rows[0]['Agency Role']);
         $this->assertSame($principal->memberProfile->fresh()->npn, $rows[0]['NPN']);

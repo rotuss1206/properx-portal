@@ -5,6 +5,7 @@ namespace App\Nova;
 use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
 use App\Enums\LicenseVerification;
+use App\Enums\PersonType;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Models\User;
@@ -170,6 +171,7 @@ class AuditLog extends Resource
             'agency_member_reactivated' => 'Person set active again on the agency',
             'agency_people_added' => ($details['people'] ?? 0).' people added; paid '.Money::format((int) ($details['amount'] ?? 0)).(($details['surcharge'] ?? 0) > 0 ? ' + surcharge '.Money::format((int) $details['surcharge']) : '').(isset($details['tier_to']) ? '; tier '.($details['tier_from'] ?? '?').' → '.$details['tier_to'] : ''),
             'agency_member_removal_scheduled' => 'Removal from the agency on '.($details['effective_on'] ?? '?').': '.(AgencyRosterChanges::REASONS[$details['reason'] ?? ''] ?? ($details['reason'] ?? '—')),
+            'member_moved_to_agency' => 'Moved from individual membership into agency #'.($details['agency_id'] ?? '?').' as '.(PersonType::tryFrom((string) ($details['person_type'] ?? ''))?->label() ?? '—').': '.(AgencyRosterChanges::MOVE_REASONS[$details['reason'] ?? ''] ?? ($details['reason'] ?? '—')).'; the agency paid '.Money::format((int) ($details['amount'] ?? 0)).(($details['surcharge'] ?? 0) > 0 ? ' + surcharge '.Money::format((int) $details['surcharge']) : '').(($details['individual_subscription'] ?? '') === 'left_active_cancel_on_properx_org' ? '. Individual subscription NOT canceled by the portal: cancel it on properx.org' : ''),
             'agency_member_removal_canceled' => 'Scheduled removal from the agency canceled',
             'agency_membership_canceled' => 'Membership canceled '.(($details['timing'] ?? '') === 'now' ? 'now' : 'at the end of the paid period')
                 .(isset($details['reason']) ? ': '.(CancelAgencyMembership::REASONS[$details['reason']] ?? $details['reason']) : ''),
@@ -191,7 +193,7 @@ class AuditLog extends Resource
 
     private static function fromTo(string $what, ?string $from, ?string $to, ?string $reason): string
     {
-        $reason = $reason === null ? null : (ChangeAgencyPricing::REASONS[$reason] ?? $reason);
+        $reason = $reason === null ? null : (ChangeAgencyPricing::REASONS[$reason] ?? AgencyRosterChanges::AUTOMATIC_REASONS[$reason] ?? $reason);
 
         return "{$what}: ".($from ?? '—').' → '.($to ?? '—').($reason ? ". Reason: {$reason}" : '');
     }

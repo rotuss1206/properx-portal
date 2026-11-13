@@ -267,6 +267,29 @@ class MemberProfile extends Model
         };
     }
 
+    /**
+     * Where a failed payment has got to (H2, Nova's "Dunning"): in the grace period until a date,
+     * expired, or null while paid. Agency people follow their agency.
+     *
+     * @return array{state: 'grace'|'expired', until: ?CarbonInterface}|null
+     */
+    public function dunning(): ?array
+    {
+        if ($this->agency_id !== null) {
+            return match ($this->agency?->status) {
+                AgencyStatus::PastDue => ['state' => 'grace', 'until' => $this->agency->graceEndsAt()],
+                AgencyStatus::Inactive => ['state' => 'expired', 'until' => null],
+                default => null,
+            };
+        }
+
+        return match (true) {
+            $this->payment_status === PaymentStatus::Canceled, $this->payment_status === PaymentStatus::PastDue && $this->hasRestrictedMembership() => ['state' => 'expired', 'until' => null],
+            $this->payment_status === PaymentStatus::PastDue => ['state' => 'grace', 'until' => $this->paymentGraceEndsAt()],
+            default => null,
+        };
+    }
+
     public function isInPaymentGracePeriod(): bool
     {
         if ($this->agency_id !== null) {

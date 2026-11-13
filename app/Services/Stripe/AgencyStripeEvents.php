@@ -13,6 +13,7 @@ use App\Notifications\AgencyBankPaymentFailed;
 use App\Notifications\AgencyPaymentFailed;
 use App\Services\Agencies\AgencyCheckout;
 use App\Services\Agencies\AgencyEnrollment;
+use App\Services\Agencies\AgencyRosterChanges;
 use App\Services\Memberships\MembershipRenewals;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -213,7 +214,15 @@ class AgencyStripeEvents
      */
     private function setStatus(Agency $agency, AgencyStatus $to): bool
     {
-        return $agency->changeStatus($to);
+        $from = $agency->status;
+        $changed = $agency->changeStatus($to);
+
+        // Paid again after a break: the founding rate ends with this period.
+        if ($changed && $from === AgencyStatus::Inactive && $to === AgencyStatus::Active) {
+            app(AgencyRosterChanges::class)->endFoundingAfterLapse($agency);
+        }
+
+        return $changed;
     }
 
     private function extend(Agency $agency, ?CarbonInterface $paidThrough): void

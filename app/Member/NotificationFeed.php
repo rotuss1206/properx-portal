@@ -13,6 +13,7 @@ use App\Notifications\Member\AgencyRemovalScheduled;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\LicenseNeedsAttention;
 use App\Notifications\Member\MembershipExpired;
+use App\Notifications\Member\MovedToAgency;
 use App\Notifications\Member\PaymentOverdueReminder;
 use App\Notifications\Member\RenewalDue;
 use App\Notifications\Member\RenewalReminder;
@@ -122,6 +123,7 @@ final class NotificationFeed
             MembershipExpired::class => 'Your membership has expired',
             AgencyMembershipEnded::class => 'Your agency’s membership has ended',
             AgencyRemovalScheduled::class => 'Your membership through your agency ends '.Carbon::parse($data['ends_on'] ?? now())->format('j M Y'),
+            MovedToAgency::class => 'Your membership is now through your agency',
             AgencyEndingAtRenewal::class => 'Your agency’s membership ends '.Carbon::parse($data['ends_on'] ?? now())->format('j M Y').' and will not renew',
             AgencyInvitationNotice::class => self::invitationTitle($notification),
             LicenseNeedsAttention::class => self::licenseTitle($notification),

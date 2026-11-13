@@ -73,6 +73,7 @@ class AuditLog extends Model
         'agency_people_added',
         'agency_member_removal_scheduled',
         'agency_member_removal_canceled',
+        'member_moved_to_agency',
         'partner_code_created',
         'partner_code_updated',
         'partner_code_deleted',
