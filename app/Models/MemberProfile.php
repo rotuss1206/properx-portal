@@ -258,7 +258,8 @@ class MemberProfile extends Model
 
         return match ($this->payment_status) {
             PaymentStatus::Canceled => true,
-            PaymentStatus::PastDue => $this->paymentGraceEndsAt()?->isPast() ?? false,
+            // Not "isPast": with no grace period (0 days) access closes the moment it is past due.
+            PaymentStatus::PastDue => $this->paymentGraceEndsAt() !== null && ! $this->paymentGraceEndsAt()->isFuture(),
             default => false,
         };
     }

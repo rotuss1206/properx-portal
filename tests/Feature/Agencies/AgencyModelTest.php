@@ -4,6 +4,7 @@ namespace Tests\Feature\Agencies;
 
 use App\Enums\AgencyRole;
 use App\Enums\MemberType;
+use App\Enums\PaymentStatus;
 use App\Enums\PersonType;
 use App\Enums\Role;
 use App\Models\Agency;
@@ -137,9 +138,39 @@ class AgencyModelTest extends TestCase
         $this->assertSame(MemberType::Individual, $profile->fresh()->member_type);
         $this->assertSame(2, $other->fresh()->headcount);
 
+        // Leaving an agency is the way out; a profile on an agency is never deleted.
         $profile->update(['agency_id' => $other->id]);
+        $this->assertSame(3, $other->fresh()->headcount);
+        $this->assertThrows(fn () => $profile->delete(), LogicException::class, 'Deactivate them instead');
+        $this->assertSame(3, $other->fresh()->headcount);
+
+        $profile->update(['agency_id' => null]);
         $profile->delete();
         $this->assertSame(2, $other->fresh()->headcount);
+    }
+
+    public function test_agency_people_and_paid_members_are_never_deleted_by_any_code_path(): void
+    {
+        $agency = $this->agency(people: 2);
+        $person = $agency->members()->where('agency_role', AgencyRole::Member)->first();
+
+        $this->assertThrows(fn () => $person->delete(), LogicException::class, 'belongs to an agency');
+        $this->assertThrows(fn () => $person->user->delete(), LogicException::class, 'belongs to an agency');
+
+        $paid = MemberProfile::factory()->create(['stripe_subscription_id' => 'sub_paid']);
+        $this->assertThrows(fn () => $paid->delete(), LogicException::class, 'paid membership');
+        $this->assertThrows(fn () => $paid->user->delete(), LogicException::class, 'paid membership');
+
+        $pastDue = MemberProfile::factory()->create(['payment_status' => PaymentStatus::PastDue]);
+        $this->assertThrows(fn () => $pastDue->user->delete(), LogicException::class);
+
+        $this->assertNotNull($person->fresh());
+        $this->assertNotNull($paid->user->fresh());
+
+        // A member on no agency with nothing paid may still be removed (e.g. a duplicate).
+        $unpaid = MemberProfile::factory()->create();
+        $unpaid->user->delete();
+        $this->assertNull($unpaid->user->fresh());
     }
 
     public function test_employees_have_no_npn(): void

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Models\StripeEvent;
 use App\Models\User;
+use App\Services\Memberships\MembershipRenewals;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -134,6 +135,12 @@ class StripeWebhookHandler
         $profile->save();
 
         AuditLog::record('payment_status_changed', $profile, $serviceAccount, ['from' => $from?->value, 'to' => $status->value]);
+
+        // The membership is over: the subscription ended, or a failed renewal with no grace period
+        // (portal.payments.grace_days = 0). Past due with grace: app:expire-memberships, later.
+        if ($status === PaymentStatus::Canceled || ($status === PaymentStatus::PastDue && (int) config('portal.payments.grace_days') === 0)) {
+            app(MembershipRenewals::class)->expireIndividual($profile);
+        }
 
         return ['updated', $profile];
     }

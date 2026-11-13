@@ -14,9 +14,7 @@ use App\Models\AuditLog;
 use App\Models\LicenseDocument;
 use App\Models\StripeEvent;
 use App\Models\TaxDocument;
-use App\Models\User;
 use App\Notifications\Member\LicenseDocumentReviewed;
-use App\Notifications\Member\RenewalDue;
 use App\Notifications\Member\TaxDocumentAvailable;
 use App\Services\Certificates\CertificateGeneratorService;
 use Database\Seeders\Support\DemoFile;
@@ -270,28 +268,6 @@ class DashboardTest extends TestCase
         $notification = $member->notifications()->sole();
         $this->assertSame(TaxDocumentAvailable::class, $notification->type);
         $this->assertSame(['document_id' => $document->id], $notification->data);
-    }
-
-    public function test_renewal_notices_go_out_once_per_period_within_30_days(): void
-    {
-        $soon = $this->member();
-        $soon->memberProfile->forceFill(['paid_through_at' => today()->addDays(20)])->save();
-        $later = $this->member();
-        $later->memberProfile->forceFill(['paid_through_at' => today()->addDays(45)])->save();
-        $agency = $this->agency(2, ['paid_through_at' => today()->addDays(10)]);
-
-        $this->artisan('app:send-renewal-notices')->assertSuccessful();
-        $this->artisan('app:send-renewal-notices')->assertSuccessful();
-
-        $this->assertSame(1, $soon->notifications()->where('type', RenewalDue::class)->count());
-        $this->assertSame(['paid_through' => today()->addDays(20)->toDateString()], $soon->notifications()->first()->data);
-        $this->assertSame(0, $later->notifications()->count());
-        $this->assertSame(1, User::find($agency->principal_user_id)->notifications()->where('type', RenewalDue::class)->count());
-
-        // A new period gets its own notice.
-        $soon->memberProfile->forceFill(['paid_through_at' => today()->addDays(25)])->save();
-        $this->artisan('app:send-renewal-notices');
-        $this->assertSame(2, $soon->notifications()->count());
     }
 
     // Upload

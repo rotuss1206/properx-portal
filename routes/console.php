@@ -18,9 +18,19 @@ Schedule::command('app:check-license-expirations')
     ->withoutOverlapping(5)
     ->onOneServer();
 
-// In-app "renewal due" notices for the member area, once per paid period (<= 30 days ahead).
-Schedule::command('app:send-renewal-notices')
-    ->dailyAt('07:00')
+// Renewal reminders (portal.renewals.reminder_days before the period ends), email and the bell.
+// Hourly 07:00-09:00 so a run stopped by the 120-second limit is finished by the next; each
+// reminder is logged first and never sent twice.
+Schedule::command('app:send-renewal-reminders')
+    ->cron('0 7-9 * * *')
+    ->timezone(config('portal.schedule_timezone'))
+    ->withoutOverlapping(5)
+    ->onOneServer();
+
+// After a failed renewal: overdue reminders, then the end of the grace period (inactive, the
+// "expired" emails). Hourly, so access closes within the hour the grace period ends.
+Schedule::command('app:expire-memberships')
+    ->hourlyAt(20)
     ->timezone(config('portal.schedule_timezone'))
     ->withoutOverlapping(5)
     ->onOneServer();

@@ -44,7 +44,7 @@
         <ul class="next-steps">
             <li>Everyone on the list gets an email invitation to set a password, turn on two-factor sign-in and complete their profile.</li>
             <li>ProPerX checks each licensed producer's NPN and state.</li>
-            <li>Your membership renews in a year at the same rate type; we'll remind you 30 days before.</li>
+            <li>Your membership renews in a year at the same rate type; we'll remind you {{ \App\Support\RenewalDays::phrase() }} before.</li>
         </ul>
     </div>
 </div>

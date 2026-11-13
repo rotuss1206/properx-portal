@@ -321,7 +321,26 @@ return [
     'payments' => [
         // Where members settle their dues (e.g. the Stripe customer portal or the application site).
         'payment_url' => env('PAYMENT_PORTAL_URL'),
-        'grace_days' => (int) env('PAYMENT_GRACE_DAYS', 14),
+        // After a failed renewal payment: days of past due with full access, then inactive and the
+        // "expired" email (individuals and agencies alike). 0 closes access at once. The older
+        // PAYMENT_GRACE_DAYS still counts when MEMBERSHIP_GRACE_DAYS is not set.
+        'grace_days' => max(0, (int) env('MEMBERSHIP_GRACE_DAYS', env('PAYMENT_GRACE_DAYS', 14))),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Renewals (H1-H3)
+    |--------------------------------------------------------------------------
+    |
+    | Reminders before an agency's or an individual member's paid period ends, by email and in the
+    | bell (app:send-renewal-reminders), and while a renewal payment is overdue. Days must be among
+    | App\Enums\ReminderType's cases: renewal 30, 14, 7, 3, 1; grace 7, 3, 1.
+    |
+    */
+
+    'renewals' => [
+        'reminder_days' => array_values(array_unique(array_filter(array_map('intval', explode(',', (string) env('AGENCY_RENEWAL_REMINDER_DAYS', '14,7,1')))))),
+        'grace_reminder_days' => array_values(array_unique(array_filter(array_map('intval', explode(',', (string) env('MEMBERSHIP_GRACE_REMINDER_DAYS', '7,1')))))),
     ],
 
     /*

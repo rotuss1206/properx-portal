@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Enums\AgencyTier;
 use App\Enums\RateType;
 use App\Support\Money;
+use App\Support\RenewalDays;
 use Carbon\CarbonInterface;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -43,6 +44,7 @@ class AgencyWelcome extends Notification
             ->greeting('Welcome to ProPerX Alliance')
             ->line('Thank you: your agency is enrolled and your payment has been received.')
             ->line(new HtmlString($this->receiptTable()))
+            ->line('Your membership renews automatically each year; we will email you '.RenewalDays::phrase().' before.')
             ->line('Everyone else on your list gets their own email invitation to set up their member account. We remind those who have not done so after 3 and 7 days, and copy you on the second reminder.')
             ->line('Your own account is ready too. Choose your password, then turn on two-factor sign-in with an authenticator app.')
             ->action('Set up my account', route('join.invitation', $this->token))

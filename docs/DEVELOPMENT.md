@@ -219,7 +219,7 @@ HTTP `400` means an invalid or expired signature; `503` means `STRIPE_WEBHOOK_SE
 
 ### Access rules
 
-- `past_due`: full access plus a banner with the payment link (`PAYMENT_PORTAL_URL`) for `PAYMENT_GRACE_DAYS` (14) days.
+- `past_due`: full access plus a banner with the payment link (`PAYMENT_PORTAL_URL`) for `MEMBERSHIP_GRACE_DAYS` (14) days; then `app:expire-memberships` sends "Your membership has expired" (agencies also become inactive).
 - `canceled`, or past due after the grace period: login still works, but only the profile, notification settings and tax documents are available. Certificate, library and license documents are closed with an explanation, and the public verification page shows the membership as not active.
 
 ## Nova sidebar
@@ -291,7 +291,10 @@ Demo data for the dashboard (DemoSeeder, member01-member05, filled in for existi
 (member01 verified, member03 needs attention), in-app notifications, sign-ins, a certificate and downloads in the
 activity, and two paid invoices per year with amounts. Notifications stay unread until opened or "Mark all read"; to
 see the bell count again, run `php artisan tinker --execute "DB::table('notifications')->update(['read_at' => null]);"`.
-Renewal notices: `php artisan app:send-renewal-notices` (scheduled daily).
+Renewal reminders: `php artisan app:send-renewal-reminders` (scheduled 07:00-09:00; 14, 7 and 1 day before, email and
+the bell). Past due and expiry: `php artisan app:expire-memberships` (hourly; reminders while overdue, then "expired"). To
+try them, move `paid_through_at` (or an agency's `past_due_since`) back in the database; reminders are logged once per
+period in `reminder_logs`.
 Agency invitation reminders: `php artisan app:send-invitation-reminders` (scheduled 09:00-11:00; day 3 and day 7 after
 the invitation). The invitation emails are sent by the queue worker, so `queue:work` must run (restart it after code
 changes: `php artisan queue:restart`). Links land in Mailpit; the pages are `/join/invitation/{token}` and `/join/welcome`.

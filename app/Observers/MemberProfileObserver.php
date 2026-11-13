@@ -90,6 +90,19 @@ class MemberProfileObserver
         }
     }
 
+    /**
+     * Agency people and members with a paid subscription are deactivated, never deleted
+     * (MemberProfile::deletionBlocker), whoever asks and however, not only in Nova.
+     */
+    public function deleting(MemberProfile $profile): void
+    {
+        $blocker = $profile->deletionBlocker();
+
+        if ($blocker !== null) {
+            throw new \LogicException($blocker);
+        }
+    }
+
     public function deleted(MemberProfile $profile): void
     {
         $this->certificates->forget($profile);

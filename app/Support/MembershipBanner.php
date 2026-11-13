@@ -74,10 +74,14 @@ final class MembershipBanner
         }
 
         if ($profile->isInPaymentGracePeriod()) {
+            $until = $agency?->graceEndsAt()?->toFormattedDateString();
+
             return [
                 'level' => 'warning',
                 'message' => "Your agency's membership payment is overdue."
-                    .($principal ? ' Please pay to keep everyone\'s access.' : ' Your agency\'s principal has been asked to pay; your access continues for now.'),
+                    .($principal
+                        ? ' Please pay by '.($until ?? 'the due date').' to keep everyone\'s access.'
+                        : ' Your agency\'s principal has been asked to pay; your access continues'.($until ? " until {$until}." : ' for now.')),
                 'paymentUrl' => $paymentUrl,
             ];
         }

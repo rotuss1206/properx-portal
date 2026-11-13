@@ -6,6 +6,7 @@ use App\Enums\AgencyStatus;
 use App\Models\Agency;
 use App\Models\AuditLog;
 use App\Notifications\AgencyMembershipCanceled;
+use App\Services\Memberships\MembershipRenewals;
 use App\Services\Stripe\AgencyPriceCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -97,7 +98,10 @@ class CancelAgencyMembership extends Action
 
             if ($timing === AgencyMembershipCanceled::NOW) {
                 $agency->forceFill(['cancel_at_period_end' => false, 'payment_url' => null])->saveQuietly();
-                $agency->changeStatus(AgencyStatus::Inactive);
+                // Inactive now; the people are told their agency's membership ended. The principal
+                // gets the cancellation email below instead of "expired" (also when Stripe's
+                // subscription.deleted arrives later).
+                app(MembershipRenewals::class)->expireAgency($agency, principalTold: true);
             } else {
                 $agency->forceFill(['cancel_at_period_end' => true])->saveQuietly();
             }

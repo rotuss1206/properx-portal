@@ -155,7 +155,9 @@ class IntakeStripeOrderTest extends TestCase
         $this->intake('101')->assertOk();
         Queue::assertNotPushed(SyncStripeSubscription::class);
 
-        User::where('email', 'order.test@example.test')->first()->delete();
+        // A paid member is never deleted through the model (MemberProfile::deletionBlocker); the
+        // test starts over with a plain table delete.
+        User::where('email', 'order.test@example.test')->delete();
         config(['services.stripe.secret' => 'sk_test_x']);
 
         $this->intake('102')->assertOk();

@@ -11,6 +11,19 @@ use App\Models\User;
  */
 class UserObserver
 {
+    /**
+     * A member's account goes with its profile: agency people and members with a paid
+     * subscription are deactivated, never deleted (MemberProfile::deletionBlocker), on every path.
+     */
+    public function deleting(User $user): void
+    {
+        $blocker = $user->memberProfile?->deletionBlocker();
+
+        if ($blocker !== null) {
+            throw new \LogicException($blocker);
+        }
+    }
+
     public function updated(User $user): void
     {
         if ($user->wasChanged('password')) {

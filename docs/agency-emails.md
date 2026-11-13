@@ -40,6 +40,8 @@ under each email.
 > | **Total paid** | **$490.83** |
 > | Renews on | November 11, 2027 |
 >
+> Your membership renews automatically each year; we will email you 14, 7 and 1 day before.
+>
 > Everyone else on your list gets their own email invitation to set up their member account. We remind those
 > who have not done so after 3 and 7 days, and copy you on the second reminder.
 >
@@ -214,6 +216,107 @@ The email names nobody; the bell shows "Marcus Reyes: license needs attention" w
 > ProPerX Alliance Membership Team
 
 When the person corrects their NPN or state, the license goes back to "Pending review" in the staff queue.
+
+## 9. Renewal reminder (to the principal, or to an individual member)
+
+**When:** 14, 7 and 1 day before the membership renews (the days are a setting). Sent to an agency's
+principal about the agency, and to an individual member who pays through Stripe about their own
+membership. The same reminder appears in the member portal's notifications. Not sent if the membership is
+set to end instead of renewing.
+**Class:** `App\Notifications\Member\RenewalReminder`
+
+**Subject:** Your agency's ProPerX Alliance membership renews in 14 days
+*(individual member: "Your ProPerX Alliance membership renews in 14 days"; one day before: "… renews tomorrow")*
+
+> **Hello,**
+>
+> Your agency's membership renews automatically in 14 days. Here is what will be charged:
+>
+> | Renewal | |
+> |:--|--:|
+> | Renews on | March 15, 2027 |
+> | People | 3 |
+> | Tier | Agency |
+> | Amount | $477.00 a year |
+> | Payment method | Visa ending 4242 |
+>
+> To change the payment method or see your invoices, open Billing in the member portal.
+>
+> **[Review billing]**
+>
+> Regards,
+> ProPerX Alliance
+
+An individual member's reminder has no People or Tier rows. The welcome email and the enrollment's
+confirmation screen say: "we will email you 14, 7 and 1 day before".
+
+## 10. Renewal payment overdue (to the principal, or to an individual member)
+
+**When:** after a renewal payment fails, 7 days and 1 day before access ends (the grace period is 14
+days; both are settings). Also in the portal's notifications. Until then everyone keeps full access and
+the portal shows a banner with the date.
+**Class:** `App\Notifications\Member\PaymentOverdueReminder`
+
+**Subject:** Reminder: your ProPerX Alliance renewal payment is overdue
+
+> **Hello,**
+>
+> We could not collect your agency's renewal payment. Everyone keeps access until March 29, 2027.
+>
+> Please pay before then, or the membership expires and your people lose access to their certificates,
+> the library and documents.
+>
+> **[Pay now]**
+>
+> Regards,
+> ProPerX Alliance
+
+## 11. Your membership has expired (to the principal, or to an individual member)
+
+**When:** the grace period after a failed renewal is over (at once if the grace period is set to 0), or
+the subscription has ended. Sent once. When ProPerX staff cancel an agency's membership "now", the
+principal gets the cancellation email instead of this one.
+**Class:** `App\Notifications\Member\MembershipExpired`
+
+**Subject:** Your membership has expired
+
+> **Hello,**
+>
+> Your agency's ProPerX Alliance membership has expired, so your people's memberships are inactive.
+>
+> Everyone can still sign in, but certificates, the compliance library and documents are closed. Each
+> person has been told.
+>
+> Renew to restore access: as soon as the payment goes through, everything opens again.
+>
+> **[Renew my membership]**
+>
+> Regards,
+> ProPerX Alliance
+
+For an individual member: "Your ProPerX Alliance membership has expired. You can still sign in, but your
+certificate, the compliance library and documents are closed."
+
+## 12. Your agency's membership has ended (to each person of the agency)
+
+**When:** with email 11, to everyone on the agency's list except the principal. Sent once.
+**Class:** `App\Notifications\Member\AgencyMembershipEnded`
+
+**Subject:** Your agency's ProPerX Alliance membership has ended
+
+> **Hello,**
+>
+> Your agency's ProPerX Alliance membership has ended, so your membership is inactive.
+>
+> You can still sign in, but your certificate, the compliance library and documents are closed. If your
+> agency renews, your access returns automatically.
+>
+> Questions about it? Please ask your agency or contact ProPerX.
+>
+> **[Open the member portal]**
+>
+> Regards,
+> ProPerX Alliance
 
 ---
 

@@ -7,9 +7,13 @@ use App\Models\LicenseDocument;
 use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\Member\AgencyInvitationNotice;
+use App\Notifications\Member\AgencyMembershipEnded;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\LicenseNeedsAttention;
+use App\Notifications\Member\MembershipExpired;
+use App\Notifications\Member\PaymentOverdueReminder;
 use App\Notifications\Member\RenewalDue;
+use App\Notifications\Member\RenewalReminder;
 use App\Notifications\Member\TaxDocumentAvailable;
 use Carbon\CarbonInterface;
 use Illuminate\Notifications\DatabaseNotification;
@@ -70,6 +74,8 @@ final class NotificationFeed
             TaxDocumentAvailable::class => route('member.dashboard', ['tab' => 'documents', 'filter' => 'tax']),
             LicenseDocumentReviewed::class => self::licenseDocumentTarget($notification),
             RenewalDue::class => route('member.dashboard'),
+            RenewalReminder::class, PaymentOverdueReminder::class, MembershipExpired::class => route('member.billing'),
+            AgencyMembershipEnded::class => route('member.dashboard'),
             AgencyInvitationNotice::class => route('member.dashboard'),
             LicenseNeedsAttention::class => ($notification->data['kind'] ?? null) === LicenseNeedsAttention::OWN
                 ? route('member.profile', ['edit' => 'business'])
@@ -109,7 +115,10 @@ final class NotificationFeed
                 ? 'License document approved'
                 : 'License document rejected',
             TaxDocumentAvailable::class => 'New tax document available',
-            RenewalDue::class => self::renewalTitle($data['paid_through'] ?? null),
+            RenewalDue::class, RenewalReminder::class => self::renewalTitle($data['paid_through'] ?? null),
+            PaymentOverdueReminder::class => 'Payment overdue: access ends '.Carbon::parse($data['access_ends_on'] ?? now())->format('j M Y'),
+            MembershipExpired::class => 'Your membership has expired',
+            AgencyMembershipEnded::class => 'Your agency’s membership has ended',
             AgencyInvitationNotice::class => self::invitationTitle($notification),
             LicenseNeedsAttention::class => self::licenseTitle($notification),
             default => null,

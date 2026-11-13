@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['reminder_type', 'license_expires_at', 'agency_invitation_id', 'sent_at', 'delivery_status'])]
+#[Fillable(['reminder_type', 'license_expires_at', 'period_ends_at', 'agency_invitation_id', 'sent_at', 'delivery_status'])]
 class ReminderLog extends Model
 {
     /** @use HasFactory<ReminderLogFactory> */
@@ -21,6 +21,8 @@ class ReminderLog extends Model
         return [
             'reminder_type' => ReminderType::class,
             'license_expires_at' => 'date',
+            // The paid period a renewal reminder or an "expired" email belongs to (once per period).
+            'period_ends_at' => 'date',
             'sent_at' => 'datetime',
             'delivery_status' => DeliveryStatus::class,
         ];

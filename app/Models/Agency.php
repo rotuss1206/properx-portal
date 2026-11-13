@@ -13,6 +13,7 @@ use App\Exceptions\IneligiblePrincipalException;
 use App\Models\Concerns\HasBlindIndexes;
 use App\Observers\AgencyObserver;
 use App\Services\Agencies\AgencyPricingService;
+use Carbon\CarbonInterface;
 use Database\Factories\AgencyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -143,6 +144,7 @@ class Agency extends Model
             'paid_through_at' => 'datetime',
             'payment_event_at' => 'datetime',
             'paid_event_at' => 'datetime',
+            'past_due_since' => 'datetime',
             'billed_headcount' => 'integer',
             'cancel_at_period_end' => 'boolean',
             // Stripe's hosted page of the overdue invoice: whoever has it can see and pay the invoice.
@@ -201,7 +203,11 @@ class Agency extends Model
             return false;
         }
 
-        $this->forceFill(['status' => $to])->saveQuietly();
+        // The grace period counts from the moment it became past due (portal.payments.grace_days).
+        $this->forceFill([
+            'status' => $to,
+            'past_due_since' => $to === AgencyStatus::PastDue ? ($this->past_due_since ?? now()) : null,
+        ])->saveQuietly();
         AuditLog::record('agency_payment_status_changed', $this, details: ['from' => $from?->value, 'to' => $to->value]);
 
         if ($to === AgencyStatus::Inactive) {
@@ -211,6 +217,19 @@ class Agency extends Model
         }
 
         return true;
+    }
+
+    /**
+     * End of the grace period of a past-due agency, null otherwise: everyone keeps access until
+     * then; app:expire-memberships makes the agency inactive afterwards.
+     */
+    public function graceEndsAt(): ?CarbonInterface
+    {
+        if ($this->status !== AgencyStatus::PastDue) {
+            return null;
+        }
+
+        return ($this->past_due_since ?? $this->payment_event_at ?? now())->copy()->addDays((int) config('portal.payments.grace_days'));
     }
 
     /**

@@ -143,7 +143,10 @@ Production values are App Service settings and Key Vault references (root `READM
 | `BLIND_INDEX_KEY` | HMAC key for blind indexes of encrypted fields (separate from `APP_KEY`) |
 | `DOCUMENTS_ENCRYPTION_KEY` | App-level encryption of license and tax documents (falls back to `APP_KEY`) |
 | `API_SERVICE_KEY` | API key for external callers of `/api/service/*` (later `/api/intake/*`); `php artisan app:api-key:rotate`, quarterly. Not needed by the Stripe webhook |
-| `STRIPE_WEBHOOK_SECRET`, `PAYMENT_PORTAL_URL`, `PAYMENT_GRACE_DAYS` | Stripe membership payment status |
+| `STRIPE_WEBHOOK_SECRET`, `PAYMENT_PORTAL_URL` | Stripe membership payment status |
+| `MEMBERSHIP_GRACE_DAYS` | Days a member or an agency keeps full access after a failed renewal payment (14); then the membership expires and the "expired" emails go. `0` closes access at once. The older `PAYMENT_GRACE_DAYS` still counts when this is not set |
+| `AGENCY_RENEWAL_REMINDER_DAYS` | Renewal reminders before the paid period ends, for agencies and individual members with a Stripe subscription (`14,7,1`; allowed 30, 14, 7, 3, 1). Scheduled: `app:send-renewal-reminders`, hourly 07:00-09:00 |
+| `MEMBERSHIP_GRACE_REMINDER_DAYS` | Reminders while a renewal payment is overdue, days before access ends (`7,1`; allowed 7, 3, 1). Scheduled with the expiry: `app:expire-memberships`, hourly |
 | `STRIPE_SECRET` | Stripe secret (or restricted) key. Reads a new member's subscription; with agency enrollment on, also creates the agency's customer and subscription (Customers and Subscriptions write; Prices, Products, Invoices, PaymentIntents and ConfirmationTokens read) |
 | `STRIPE_KEY` | Stripe publishable key of the same account: the payment form on `/join/agency` |
 | `STRIPE_PORTAL_CONFIGURATION` | Optional Stripe Customer Portal configuration (`bpc_…`) for "Manage payment method" on `/member/billing`; empty uses the account's default (payment method and invoices only, no cancelling or plan changes). The restricted key also needs Customer portal write and PaymentMethods read |

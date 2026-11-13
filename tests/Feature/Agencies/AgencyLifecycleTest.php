@@ -11,6 +11,7 @@ use App\Models\Agency;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AgencyPaymentFailed;
+use App\Notifications\Member\MembershipExpired;
 use App\Support\MembershipBanner;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -308,9 +309,11 @@ class AgencyLifecycleTest extends TestCase
         $this->webhook('invoice.payment_failed', $this->invoice(), $failedAt)->assertJson(['outcome' => 'agency_past_due']);
         $this->webhook('customer.subscription.updated', $this->subscription('active'), $failedAt)->assertJson(['outcome' => 'agency_stale']);
 
-        // The ended membership stays ended; nobody is asked to pay an invoice of it.
+        // The ended membership stays ended; nobody is asked to pay an invoice of it. The principal
+        // hears once that it expired.
         $this->assertSame(AgencyStatus::Inactive, $this->agency->fresh()->status);
-        Notification::assertNothingSentTo($this->principal);
+        Notification::assertNotSentTo($this->principal, AgencyPaymentFailed::class);
+        Notification::assertSentToTimes($this->principal, MembershipExpired::class, 1);
     }
 
     public function test_a_failure_reported_just_before_the_subscriptions_update_still_brings_the_invoice_link(): void

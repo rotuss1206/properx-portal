@@ -13,6 +13,7 @@ use App\Notifications\AgencyBankPaymentFailed;
 use App\Notifications\AgencyPaymentFailed;
 use App\Services\Agencies\AgencyCheckout;
 use App\Services\Agencies\AgencyEnrollment;
+use App\Services\Memberships\MembershipRenewals;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -133,6 +134,13 @@ class AgencyStripeEvents
             $this->tellAboutOverdue($agency);
         }
 
+        // No grace period configured (portal.payments.grace_days = 0): the membership expires now.
+        if ($agency->status === AgencyStatus::PastDue && (int) config('portal.payments.grace_days') === 0) {
+            app(MembershipRenewals::class)->expireAgency($agency);
+
+            return 'agency_inactive';
+        }
+
         return 'agency_past_due';
     }
 
@@ -172,6 +180,12 @@ class AgencyStripeEvents
         // No paid period from here: Stripe starts the next period (still "active") before its invoice
         // is paid. invoice.paid and the enrollment set paid_through_at.
 
+        // Stripe keeps a subscription "past_due" after the grace period made the agency inactive:
+        // only a payment (invoice.paid, or "active") opens access again.
+        if ($status === AgencyStatus::PastDue && $agency->status === AgencyStatus::Inactive) {
+            $status = null;
+        }
+
         // The principal and staff hear about it from invoice.payment_failed, which brings the invoice's link.
         if ($status !== null) {
             $this->setStatus($agency, $status);
@@ -186,7 +200,9 @@ class AgencyStripeEvents
     private function ended(Agency $agency, Carbon $at): string
     {
         $agency->forceFill(['payment_event_at' => $at, 'cancel_at_period_end' => false, 'payment_url' => null])->saveQuietly();
-        $this->setStatus($agency, AgencyStatus::Inactive);
+        // Inactive with its people, and the "expired" emails (each once; a staff cancellation
+        // that already wrote to the principal is not repeated).
+        app(MembershipRenewals::class)->expireAgency($agency);
 
         return 'agency_inactive';
     }
