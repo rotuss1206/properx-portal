@@ -6,6 +6,7 @@ use App\Models\MemberProfile;
 use App\Models\User;
 use App\Rules\UniqueBlindIndex;
 use App\Rules\UsPhone;
+use App\Services\Memberships\RejoinRule;
 use App\Support\UsStates;
 use Closure;
 use Illuminate\Support\Str;
@@ -58,12 +59,18 @@ class PrincipalForm extends StepForm
             'title' => ['required', Rule::in(array_keys(self::TITLES))],
             'email' => ['required', 'email', 'max:255', function (string $attribute, mixed $value, Closure $fail) {
                 if (User::query()->where('email', $value)->exists()) {
+                    // The 24-month rule: staff are told of a recently canceled member trying again.
+                    RejoinRule::refuse(RejoinRule::profileFor((string) $value), 'agency_enrollment');
                     $fail('This email is already registered in the portal. Please contact ProPerX.');
                 }
             }],
             'mobile_phone' => ['required', new UsPhone],
             'sms_consent' => ['boolean'],
-            'npn' => ['required', MemberProfile::AGENCY_NPN_RULE, new UniqueBlindIndex(MemberProfile::class, 'npn')],
+            'npn' => ['required', MemberProfile::AGENCY_NPN_RULE, function (string $attribute, mixed $value, Closure $fail) {
+                if (RejoinRule::refuse(RejoinRule::profileFor(null, (string) $value), 'agency_enrollment')) {
+                    $fail(RejoinRule::MESSAGE);
+                }
+            }, new UniqueBlindIndex(MemberProfile::class, 'npn')],
             'license_state' => ['required', Rule::in(array_keys(UsStates::ALL))],
             'authority_confirmed' => ['accepted'],
         ];

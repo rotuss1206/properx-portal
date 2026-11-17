@@ -16,11 +16,13 @@ use App\Models\NotificationSetting;
 use App\Nova\Actions\DeactivateAgencyPerson;
 use App\Nova\Actions\DownloadMyCertificate;
 use App\Nova\Actions\GenerateCertificate;
+use App\Nova\Actions\LiftRejoinWait;
 use App\Nova\Actions\MoveToAgency;
 use App\Nova\Actions\ReactivateAgencyPerson;
 use App\Nova\Actions\ResendInvitation;
 use App\Services\Agencies\AgencyRosterChanges;
 use App\Services\Certificates\CertificateGeneratorService;
+use App\Services\Memberships\RejoinRule;
 use App\Support\UsStates;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -442,6 +444,15 @@ class MemberProfile extends Resource
             Text::make('Paid Through', fn () => $this->resource->paid_through_at?->toFormattedDateString())
                 ->onlyOnDetail(),
 
+            // The 24-month rule: when properx.org reported the cancellation, and when they may apply again.
+            Text::make('Canceled On', fn () => $this->resource->membership_canceled_at?->toFormattedDateString())
+                ->onlyOnDetail()
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request)),
+
+            Text::make('Rejoin', fn () => RejoinRule::summary($this->resource))
+                ->onlyOnDetail()
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request)),
+
             Text::make('Stripe Customer ID', 'stripe_customer_id')
                 ->onlyOnDetail()
                 ->canSee(fn (Request $request) => static::viewerIsStaff($request)),
@@ -503,6 +514,12 @@ class MemberProfile extends Resource
                 ->showInline()
                 ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
                 ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => ResendInvitation::applies($profile)
+                    && Gate::forUser($request->user())->check('update', $profile)),
+
+            LiftRejoinWait::make()
+                ->sole()
+                ->canSee(fn (Request $request) => static::viewerIsStaff($request) && $request->user()->can('members.update'))
+                ->canRun(fn (NovaRequest $request, \App\Models\MemberProfile $profile) => RejoinRule::blockedUntil($profile) !== null
                     && Gate::forUser($request->user())->check('update', $profile)),
 
             MoveToAgency::make()

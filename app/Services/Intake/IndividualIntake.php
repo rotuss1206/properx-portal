@@ -9,6 +9,7 @@ use App\Models\IntakeSubmission;
 use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\MemberInvited;
+use App\Services\Memberships\RejoinRule;
 use App\Services\Stripe\StripeWebhookHandler;
 use App\Services\Stripe\SubscriptionReader;
 use App\Support\UsStates;
@@ -63,7 +64,7 @@ class IndividualIntake
 
         $profileId = $result['member_profile_id'];
 
-        if ($profileId !== null && $result['outcome'] !== 'conflict' && SubscriptionReader::isConfigured()
+        if ($profileId !== null && ! in_array($result['outcome'], ['conflict', 'blocked'], true) && SubscriptionReader::isConfigured()
             && filled(MemberProfile::find($profileId)?->stripe_subscription_id)) {
             SyncStripeSubscription::dispatch($profileId);
         }
@@ -88,6 +89,16 @@ class IndividualIntake
     {
         $email = Str::lower(trim($data['email']));
         $values = $this->profileValues($data);
+
+        // The 24-month rule: by the email, or the NPN under another email. Staff see the attempt.
+        $earlier = RejoinRule::profileFor($email, $values['npn'] ?? null);
+
+        if ($earlier !== null && RejoinRule::refuse($earlier, 'intake')) {
+            AuditLog::record('member_intake_conflict', $earlier, $serviceAccount, ['source' => self::SOURCE, 'entry_id' => $entryId, 'conflicts' => ['rejoin_wait']]);
+
+            return [['outcome' => 'blocked', 'member_profile_id' => $earlier->getKey(), 'conflicts' => ['rejoin_wait'], 'eligible_on' => RejoinRule::blockedUntil($earlier)->toDateString()], null];
+        }
+
         $user = User::query()->whereRaw('lower(email) = ?', [$email])->first();
 
         if ($user === null) {

@@ -139,6 +139,39 @@ function wp_remote_retrieve_response_code( $response ) {
 	return $response['code'];
 }
 
+function wp_remote_retrieve_body( $response ) {
+	return $response['body'] ?? '';
+}
+
+function wp_json_encode( $value ) {
+	return json_encode( $value );
+}
+
+function wp_schedule_single_event( $timestamp, $hook, $args = array() ) {
+	$GLOBALS['wp_scheduled'][] = array( $timestamp, $hook, $args );
+
+	return true;
+}
+
+class GFAPI {
+	public static function get_entry( $entry_id ) {
+		return $GLOBALS['gf_entries'][ $entry_id ] ?? new WP_Error( 'not found' );
+	}
+
+	public static function add_note( $entry_id, $user_id, $user_name, $note, $type = '', $sub_type = '' ) {
+		$GLOBALS['gf_notes'][ $entry_id ][] = array( $note, $sub_type );
+	}
+
+	// The checklist asks for the form and its Stripe feed; these tests have neither.
+	public static function get_form( $form_id ) {
+		return false;
+	}
+
+	public static function get_feeds( $feed_ids = null, $form_id = null, $addon_slug = null ) {
+		return array();
+	}
+}
+
 function rgar( $array, $key, $default = null ) {
 	return is_array( $array ) && isset( $array[ $key ] ) ? $array[ $key ] : $default;
 }
@@ -158,5 +191,6 @@ define( 'PROPERX_PORTAL_PLUGIN_FILE', $plugin . '/properx-portal.php' );
 require_once $plugin . '/includes/settings.php';
 require_once $plugin . '/includes/checklist.php';
 require_once $plugin . '/includes/connector.php';
+require_once $plugin . '/includes/cancellation.php';
 require_once $plugin . '/includes/approval-email.php';
 require_once $plugin . '/includes/admin-page.php';

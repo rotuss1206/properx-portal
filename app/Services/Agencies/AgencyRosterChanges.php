@@ -20,6 +20,7 @@ use App\Notifications\AgencyPeopleAdded;
 use App\Notifications\Member\AgencyEndingAtRenewal;
 use App\Notifications\Member\AgencyRemovalScheduled;
 use App\Notifications\Member\MovedToAgency;
+use App\Services\Memberships\RejoinRule;
 use App\Services\Stripe\AgencyPriceCatalog;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
@@ -238,6 +239,8 @@ class AgencyRosterChanges
         }
 
         if ($problem = self::moveProblem($person, $type)) {
+            RejoinRule::refuse($person, 'move_to_agency');
+
             throw new RosterChangeException($problem);
         }
 
@@ -303,6 +306,7 @@ class AgencyRosterChanges
             $person->user === null || ! $person->user->isMember() => 'Only member accounts can be moved into an agency.',
             $type === PersonType::LicensedProducer && preg_match(MemberProfile::AGENCY_NPN_PATTERN, (string) $person->npn) !== 1 => 'A licensed producer in an agency needs an NPN of 7 to 10 digits. Correct the NPN on the profile first, or move them as an agency employee.',
             $type === PersonType::LicensedProducer && blank($person->license_state) => 'A licensed producer in an agency needs a resident state. Add it on the profile first.',
+            ($until = RejoinRule::blockedUntil($person)) !== null => 'This member canceled their individual membership on '.$person->membership_canceled_at->toFormattedDateString().' and may join again on '.$until->toFormattedDateString().' (24-month rule). If ProPerX approves, lift the wait first (action "Lift rejoin wait").',
             default => null,
         };
     }

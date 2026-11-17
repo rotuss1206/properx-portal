@@ -222,6 +222,8 @@ class MemberProfile extends Model
             // Removal from the agency at its next renewal (G4); access stays until then.
             'removal_effective_at' => 'datetime',
             'removal_scheduled_at' => 'datetime',
+            'membership_canceled_at' => 'datetime',
+            'rejoin_block_lifted_at' => 'datetime',
             // Staff's words for the person (may name what is wrong with their NPN or state).
             'license_verification_note' => 'encrypted',
             // Contact details of members and agency principals.
@@ -260,7 +262,8 @@ class MemberProfile extends Model
         }
 
         return match ($this->payment_status) {
-            PaymentStatus::Canceled => true,
+            // Canceled on properx.org: access until the end of the period already paid for.
+            PaymentStatus::Canceled => $this->paid_through_at === null || ! $this->paid_through_at->isFuture(),
             // Not "isPast": with no grace period (0 days) access closes the moment it is past due.
             PaymentStatus::PastDue => $this->paymentGraceEndsAt() !== null && ! $this->paymentGraceEndsAt()->isFuture(),
             default => false,
@@ -284,7 +287,7 @@ class MemberProfile extends Model
         }
 
         return match (true) {
-            $this->payment_status === PaymentStatus::Canceled, $this->payment_status === PaymentStatus::PastDue && $this->hasRestrictedMembership() => ['state' => 'expired', 'until' => null],
+            in_array($this->payment_status, [PaymentStatus::Canceled, PaymentStatus::PastDue], true) && $this->hasRestrictedMembership() => ['state' => 'expired', 'until' => null],
             $this->payment_status === PaymentStatus::PastDue => ['state' => 'grace', 'until' => $this->paymentGraceEndsAt()],
             default => null,
         };

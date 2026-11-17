@@ -27,6 +27,8 @@ class MemberProfileObserver
         'invite_status',
         // Audited as agency_member_removal_scheduled / _canceled.
         'removal_effective_at', 'removal_reason', 'removal_scheduled_at',
+        // Audited as member_membership_canceled / member_rejoin_block_lifted.
+        'membership_canceled_at', 'rejoin_block_lifted_at', 'rejoin_block_lifted_reason',
     ];
 
     /**

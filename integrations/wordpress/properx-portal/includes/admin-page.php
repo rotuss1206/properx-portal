@@ -242,6 +242,10 @@ function properx_portal_settings_page() {
 		checked( $settings['send_enabled'], true, false )
 	);
 	printf(
+		'<label class="ppx-switch"><input type="checkbox" name="cancel_send_enabled" value="1" %s> Send cancellations to the portal</label><p class="ppx-hint">On: when a membership subscription is canceled or ends in Stripe, the portal marks the member canceled (access until the paid period ends) and starts the 24-month wait before a new application. Off: nothing is sent; the moment is kept on the entry and "Resend cancellation to portal" sends it later.</p>',
+		checked( $settings['cancel_send_enabled'], true, false )
+	);
+	printf(
 		'<label class="ppx-switch"><input type="checkbox" name="approval_email_enabled" value="1" %s> Approval email</label><p class="ppx-hint">On: "Approve &amp; Activate" sends one email with next steps. Off: the two existing emails go out as before. Keep it off until the client approves the text.</p>',
 		checked( $settings['approval_email_enabled'], true, false )
 	);

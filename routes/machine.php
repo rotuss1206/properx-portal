@@ -25,6 +25,12 @@ Route::post('/api/intake/individual', [IntakeController::class, 'individual'])
     ->middleware('throttle:intake')
     ->name('intake.individual');
 
+// An individual subscription canceled on the marketing site (the 24-month rule).
+Route::post('/api/intake/cancellation', [IntakeController::class, 'cancellation'])
+    ->withoutMiddleware('throttle:120,1')
+    ->middleware('throttle:intake')
+    ->name('intake.cancellation');
+
 Route::post('/api/intake/ping', [IntakeController::class, 'ping'])
     ->withoutMiddleware('throttle:120,1')
     ->middleware('throttle:intake')

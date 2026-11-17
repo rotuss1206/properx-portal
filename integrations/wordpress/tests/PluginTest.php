@@ -146,7 +146,7 @@ class PluginTest extends TestCase {
 		require dirname( __DIR__ ) . '/properx-portal/uninstall.php';
 
 		$this->assertSame( array( 'somebody_elses' => 1 ), $GLOBALS['wp_options'] );
-		$this->assertSame( array( 'properx_portal_send', 'properx_portal_cron_heartbeat' ), $GLOBALS['unscheduled'] );
+		$this->assertSame( array( 'properx_portal_send', 'properx_portal_send_cancellation', 'properx_portal_cron_heartbeat' ), $GLOBALS['unscheduled'] );
 	}
 
 	public function test_the_settings_page_leaves_the_header_and_tab_menu_to_gravity_forms(): void {
@@ -526,6 +526,130 @@ class PluginTest extends TestCase {
 		}
 
 		$this->assertTrue( properx_portal_send_start_notification_once( true, array( 'id' => 'abc', 'event' => 'create_subscription' ), $form, array( 'id' => 5 ) ) );
+	}
+
+	// Cancellations (the 24-month rule)
+
+	private function canceledEntry(): array {
+		$entry = array(
+			'id'             => 42,
+			'form_id'        => 1,
+			'5.3'            => 'Avery',
+			'5.6'            => 'Stone',
+			'7'              => 'avery@example.test',
+			'14'             => '12345678',
+			'15'             => '2027-06-30',
+			'transaction_id' => 'sub_Avery',
+			'status'         => 'active',
+			'payment_status' => 'Cancelled',
+		);
+
+		$GLOBALS['gf_entries'][42]                         = $entry;
+		$GLOBALS['entry_meta'][42]['stripe_customer_id'] = 'cus_Avery';
+
+		return $entry;
+	}
+
+	private function configureWith( array $extra ): void {
+		properx_portal_apply_settings_form( array( 'url' => 'https://portal.test', 'form_id' => '1', 'secret' => self::SECRET ) + $extra );
+	}
+
+	public function test_sending_cancellations_is_off_by_default_and_has_its_own_switch(): void {
+		$this->configureWith( array( 'send_enabled' => '1' ) );
+		$this->assertFalse( properx_portal_can_send_cancellations() );
+
+		$this->configureWith( array( 'cancel_send_enabled' => '1' ) );
+		$this->assertTrue( properx_portal_can_send_cancellations() );
+		$this->assertFalse( properx_portal_can_send(), 'the applications switch is separate' );
+
+		$_POST = array();
+		ob_start();
+		properx_portal_settings_page();
+		$page = ob_get_clean();
+		$this->assertStringContainsString( 'name="cancel_send_enabled" value="1" checked', $page );
+		$this->assertStringContainsString( 'Send cancellations to the portal', $page );
+	}
+
+	public function test_a_cancellation_keeps_its_moment_and_is_queued_only_when_switched_on(): void {
+		$GLOBALS['wp_scheduled'] = array();
+		$this->configure();
+		$entry = $this->canceledEntry();
+
+		properx_portal_on_canceled( $entry, array(), 'sub_Avery' );
+		$this->assertIsInt( $GLOBALS['entry_meta'][42][ PROPERX_PORTAL_META_CANCELED_AT ] );
+		$this->assertSame( array(), $GLOBALS['wp_scheduled'] );
+
+		$first = $GLOBALS['entry_meta'][42][ PROPERX_PORTAL_META_CANCELED_AT ] = 1700000000;
+		$this->configureWith( array( 'cancel_send_enabled' => '1' ) );
+		properx_portal_on_canceled( $entry, array(), 'sub_Avery' );
+
+		$this->assertSame( $first, $GLOBALS['entry_meta'][42][ PROPERX_PORTAL_META_CANCELED_AT ], 'the first moment stays' );
+		$this->assertSame( PROPERX_PORTAL_CANCEL_HOOK, $GLOBALS['wp_scheduled'][0][1] );
+		$this->assertSame( 42, $GLOBALS['wp_scheduled'][0][2][0] );
+
+		// Another form is left alone.
+		$GLOBALS['wp_scheduled'] = array();
+		properx_portal_on_canceled( array( 'id' => 7, 'form_id' => 2 ) );
+		$this->assertSame( array(), $GLOBALS['wp_scheduled'] );
+	}
+
+	public function test_the_cancellation_sends_only_the_email_the_moment_and_the_stripe_ids_signed(): void {
+		$this->configureWith( array( 'cancel_send_enabled' => '1' ) );
+		$this->canceledEntry();
+		$GLOBALS['entry_meta'][42][ PROPERX_PORTAL_META_CANCELED_AT ] = 1700000000;
+		$GLOBALS['wp_response'] = array( 'code' => 200, 'body' => '{"outcome":"canceled","member_profile_id":5}' );
+
+		properx_portal_deliver_cancellation( 42 );
+
+		[ $url, $args ] = $GLOBALS['wp_requests'][0];
+		$this->assertSame( 'https://portal.test/api/intake/cancellation', $url );
+		$this->assertSame(
+			array( 'entry_id' => '42', 'email' => 'avery@example.test', 'canceled_at' => '2023-11-14T22:13:20+00:00', 'stripe_customer_id' => 'cus_Avery', 'stripe_subscription_id' => 'sub_Avery' ),
+			json_decode( $args['body'], true )
+		);
+		$this->assertSame( hash_hmac( 'sha256', $args['headers']['X-Timestamp'] . '.' . $args['body'], self::SECRET ), $args['headers']['X-Signature'] );
+		$this->assertStringNotContainsString( 'Stone', $args['body'] );
+		$this->assertStringNotContainsString( '12345678', $args['body'] );
+
+		$this->assertSame( 'sent', $GLOBALS['entry_meta'][42][ PROPERX_PORTAL_META_CANCEL_STATUS ] );
+		$this->assertSame( array( 'Cancellation sent to portal: OK (the member is marked canceled; access until the paid period ends)', 'success' ), end( $GLOBALS['gf_notes'][42] ) );
+	}
+
+	public function test_a_failed_cancellation_retries_with_a_note_and_bad_fields_do_not(): void {
+		$this->configureWith( array( 'cancel_send_enabled' => '1' ) );
+		$this->canceledEntry();
+		$GLOBALS['entry_meta'][42][ PROPERX_PORTAL_META_CANCELED_AT ] = 1700000000;
+		$GLOBALS['wp_scheduled'] = array();
+
+		$GLOBALS['wp_response'] = array( 'code' => 503, 'body' => '' );
+		properx_portal_deliver_cancellation( 42 );
+		$this->assertSame( 'failed', $GLOBALS['entry_meta'][42][ PROPERX_PORTAL_META_CANCEL_STATUS ] );
+		$this->assertSame( 1, $GLOBALS['wp_scheduled'][0][2][1] );
+		$this->assertStringContainsString( 'Retry 1 of 6 in 5 minutes', end( $GLOBALS['gf_notes'][42] )[0] );
+
+		$GLOBALS['wp_scheduled'] = array();
+		$GLOBALS['wp_response']  = array( 'code' => 422, 'body' => '{"fields":["canceled_at"]}' );
+		properx_portal_deliver_cancellation( 42, 1 );
+		$this->assertSame( array(), $GLOBALS['wp_scheduled'] );
+		$this->assertStringContainsString( 'invalid fields: canceled_at. No more retries', end( $GLOBALS['gf_notes'][42] )[0] );
+
+		// Switched off meanwhile: a note, nothing sent.
+		$GLOBALS['wp_requests'] = array();
+		$this->configure();
+		properx_portal_deliver_cancellation( 42 );
+		$this->assertSame( array(), $GLOBALS['wp_requests'] );
+		$this->assertSame( 'Cancellation not sent to portal: sending cancellations is off.', end( $GLOBALS['gf_notes'][42] )[0] );
+	}
+
+	public function test_an_application_the_portal_blocks_is_noted_with_the_date(): void {
+		$this->configureWith( array( 'send_enabled' => '1' ) );
+		$entry                  = $this->canceledEntry();
+		$GLOBALS['wp_response'] = array( 'code' => 200, 'body' => '{"outcome":"blocked","member_profile_id":5,"conflicts":["rejoin_wait"],"eligible_on":"2028-11-17"}' );
+
+		$this->assertSame(
+			array( 'status' => 'ok', 'reason' => 'not added: canceled less than 24 months ago, eligible again on 2028-11-17; ProPerX staff were told' ),
+			properx_portal_post( $entry )
+		);
 	}
 
 	// Package

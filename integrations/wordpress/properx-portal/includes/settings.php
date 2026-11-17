@@ -19,7 +19,7 @@ const PROPERX_PORTAL_HEARTBEAT       = 'properx_portal_cron_heartbeat';
 const PROPERX_PORTAL_SECRET_MIN_SIZE = 32;
 
 /**
- * @return array{url: string, form_id: int, secret: string, secret_changed_at: int, send_enabled: bool, approval_email_enabled: bool}
+ * @return array{url: string, form_id: int, secret: string, secret_changed_at: int, send_enabled: bool, approval_email_enabled: bool, cancel_send_enabled: bool}
  */
 function properx_portal_stored_settings() {
 	$stored = get_option( PROPERX_PORTAL_OPTION, array() );
@@ -32,6 +32,7 @@ function properx_portal_stored_settings() {
 			'secret_changed_at'      => 0,
 			'send_enabled'           => false,
 			'approval_email_enabled' => false,
+			'cancel_send_enabled'    => false,
 		),
 		is_array( $stored ) ? $stored : array()
 	);
@@ -175,6 +176,7 @@ function properx_portal_apply_settings_form( array $input ) {
 	$changes = array(
 		'send_enabled'           => ! empty( $input['send_enabled'] ),
 		'approval_email_enabled' => ! empty( $input['approval_email_enabled'] ),
+		'cancel_send_enabled'    => ! empty( $input['cancel_send_enabled'] ),
 	);
 
 	if ( ! properx_portal_url_is_constant() ) {
@@ -214,7 +216,7 @@ function properx_portal_url_is_acceptable( $url ) {
 // Life cycle.
 
 function properx_portal_activate() {
-	add_option( PROPERX_PORTAL_OPTION, array( 'send_enabled' => false, 'approval_email_enabled' => false ) );
+	add_option( PROPERX_PORTAL_OPTION, array( 'send_enabled' => false, 'approval_email_enabled' => false, 'cancel_send_enabled' => false ) );
 	properx_portal_schedule_heartbeat();
 }
 

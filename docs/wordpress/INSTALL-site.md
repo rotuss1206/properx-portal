@@ -53,6 +53,12 @@ Look at the **Setup checklist** at the top of the page. Red lines come first. Wh
 
 Leave **Approval email** off until the client has approved the text ([emails.md](emails.md)). While it is off, members get the two old emails, as they do today.
 
+### Send cancellations (plugin 2.1.0 or later)
+
+Tick **Send cancellations to the portal** and press **Save settings**, but only once Kevin confirms that the portal release with `/api/intake/cancellation` is live (before that the portal answers 404 and the plugin keeps retrying for about a day).
+
+From then on, when a membership subscription is canceled (in the entry, or in Stripe, or it simply ends), the portal marks the member canceled, keeps their access until the paid period ends, and starts the client's 24-month wait: a new application from the same email or NPN is not added, the entry gets a note "not added: canceled less than 24 months ago, eligible again on <date>", and ProPerX staff see it in the portal, where they can lift the wait. While the switch is off nothing is sent, but the moment of the cancellation is kept on the entry; the entry's side panel then offers **Resend cancellation to portal**.
+
 ### What to do about a red line
 
 | Red line | What to do |
@@ -82,11 +88,13 @@ Leave **Approval email** off until the client has approved the text ([emails.md]
    > If the logo is missing, the site's Gravity SMTP uses an API connection rather than SMTP. Tell the developer; the email still works.
 
 4. Clean up:
-   1. In Stripe, refund the payment and cancel the subscription.
+   1. In Stripe, refund the payment and cancel the subscription. With "Send cancellations to the portal" on, the entry then gets a note "Cancellation sent to portal: OK (the member is marked canceled; access until the paid period ends)": that checks the cancellation too.
    2. Kevin deletes the test member in the portal.
    3. Trash the entry in Forms > Entries, and delete the WordPress user.
 
 **If an entry has no note:** the payment is still Processing, or WP-Cron is not running. A note saying `failed` names the cause, and the plugin retries by itself. The full list is in [deploy.md](deploy.md), "Troubleshooting". To send by hand, use the entry's side panel: **Resend to portal**.
+
+**Cancellations:** an entry whose subscription was canceled gets "Cancellation sent to portal: ..." notes the same way; **Resend cancellation to portal** in the side panel sends it again.
 
 **To undo:** untick the switches. Deactivating the plugin removes nothing. Deleting it removes its settings and leaves the notes on the entries.
 

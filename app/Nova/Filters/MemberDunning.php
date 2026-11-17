@@ -27,7 +27,9 @@ class MemberDunning extends Filter
             'expired' => $query->where(fn ($q) => $q
                 ->where(fn ($agency) => $agency->whereNotNull('agency_id')->whereHas('agency', fn ($a) => $a->where('status', AgencyStatus::Inactive->value)))
                 ->orWhere(fn ($own) => $own->whereNull('agency_id')->where(fn ($s) => $s
-                    ->where('payment_status', PaymentStatus::Canceled->value)
+                    ->where(fn ($canceled) => $canceled->where('payment_status', PaymentStatus::Canceled->value)
+                        // Canceled keeps access until the paid period ends.
+                        ->where(fn ($ended) => $ended->whereNull('paid_through_at')->orWhere('paid_through_at', '<=', now())))
                     ->orWhere(fn ($late) => $late->where('payment_status', PaymentStatus::PastDue->value)->where('payment_status_updated_at', '<=', $graceStart))))),
             default => $query,
         };

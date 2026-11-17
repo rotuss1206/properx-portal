@@ -12,4 +12,5 @@ delete_option( 'properx_portal_last_test' );
 delete_option( 'properx_portal_cron_seen' );
 
 wp_unschedule_hook( 'properx_portal_send' );
+wp_unschedule_hook( 'properx_portal_send_cancellation' );
 wp_unschedule_hook( 'properx_portal_cron_heartbeat' );

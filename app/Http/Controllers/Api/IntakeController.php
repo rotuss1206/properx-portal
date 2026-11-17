@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Intake\IndividualCancellation;
 use App\Services\Intake\IndividualIntake;
 use App\Services\ServiceAccount;
 use Illuminate\Http\JsonResponse;
@@ -72,6 +73,45 @@ class IntakeController extends Controller
         Auth::setUser($serviceAccount);
 
         return response()->json($intake->handle($validator->validated(), $serviceAccount));
+    }
+
+    /**
+     * An individual subscription canceled on properx.org (the plugin's "Send cancellations"): the
+     * member is marked canceled with the date and the 24-month rule starts. Same signature and
+     * idempotency as an application; an unknown member is answered 200 "not_found" (nothing to retry).
+     */
+    public function cancellation(Request $request, IndividualCancellation $cancellation, ServiceAccount $serviceAccounts): JsonResponse
+    {
+        abort_unless(config('portal.intake.enabled'), Response::HTTP_NOT_FOUND);
+
+        if (! $this->signatureIsValid($request)) {
+            return response()->json(['error' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $validator = Validator::make(is_array($data) ? $data : [], [
+            'entry_id' => ['required', 'regex:/^[0-9]{1,20}$/'],
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'canceled_at' => ['required', 'date'],
+            'stripe_customer_id' => ['nullable', 'string', 'regex:/^cus_[A-Za-z0-9]{1,60}$/'],
+            'stripe_subscription_id' => ['nullable', 'string', 'regex:/^sub_[A-Za-z0-9]{1,60}$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed.', 'fields' => $validator->errors()->keys()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $serviceAccount = $serviceAccounts->user();
+
+        if ($serviceAccount === null || ! $serviceAccount->checkPermissionTo('members.intake.create')) {
+            Log::critical('Member cancellation cannot run: no API Service account with the intake permission.');
+
+            return response()->json(['error' => 'Service account unavailable.'], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
+        Auth::setUser($serviceAccount);
+
+        return response()->json($cancellation->handle($validator->validated(), $serviceAccount));
     }
 
     /**

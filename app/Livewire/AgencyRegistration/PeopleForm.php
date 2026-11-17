@@ -6,6 +6,7 @@ use App\Enums\PersonType;
 use App\Models\MemberProfile;
 use App\Models\User;
 use App\Rules\UniqueBlindIndex;
+use App\Services\Memberships\RejoinRule;
 use App\Support\UsStates;
 use Closure;
 use Illuminate\Support\Facades\Validator;
@@ -228,6 +229,8 @@ class PeopleForm extends StepForm
                 } elseif ($this->listedElsewhere('email', $value, $ownIndex($attribute))) {
                     $fail('This email is already on your list.');
                 } elseif (in_array($value, $registered, true) || ($attribute === 'entry.email' && User::query()->where('email', $value)->exists())) {
+                    // The 24-month rule: staff are told of a recently canceled member trying again.
+                    RejoinRule::refuse(RejoinRule::profileFor($value), 'agency_enrollment');
                     $fail('This email is already registered in the portal. Please contact ProPerX.');
                 }
             }],
@@ -236,6 +239,8 @@ class PeopleForm extends StepForm
                     $fail("This is the principal's NPN. Each person needs their own NPN.");
                 } elseif ($this->listedElsewhere('npn', (string) $value, $ownIndex($attribute))) {
                     $fail('This NPN is already on your list.');
+                } elseif (RejoinRule::refuse(RejoinRule::profileFor(null, (string) $value), 'agency_enrollment')) {
+                    $fail(RejoinRule::MESSAGE);
                 }
             }, new UniqueBlindIndex(MemberProfile::class, 'npn')],
             "{$prefix}.license_state" => [$producer, 'required', Rule::in(array_keys(UsStates::ALL))],

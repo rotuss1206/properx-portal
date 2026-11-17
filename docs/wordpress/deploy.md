@@ -91,6 +91,9 @@ Everything is in the entry's notes (Forms > Entries > the entry). They hold no p
 | `OK (linked)` | The email already belongs to a member; only blank fields were filled | Nothing; differences are named in the note and in `member_intake_linked` |
 | `OK (conflict)` | The email belongs to staff or to an agency's person; nothing was changed | Handle by hand |
 | `Not sent to portal: sending is off` | The switch was turned off while this was queued | Turn it on, then "Resend to portal" |
+| `OK (not added: canceled less than 24 months ago, eligible again on <date>; ...)` | The client's 24-month rule: this email or NPN canceled an individual membership recently. Nobody was added; staff got a Nova notification and an audit entry (`member_rejoin_blocked`) | Staff decide. To let them in: Nova > the member profile > **Lift rejoin wait** (reason required), then "Resend to portal". Otherwise refund the payment in Stripe |
+| `Cancellation sent to portal: OK (the member is marked canceled; ...)` | Plugin 2.1.0+, "Send cancellations to the portal" on: the subscription was canceled or ended. Access lasts until the paid period ends; the 24-month wait starts (Nova: "Canceled On", "Rejoin") | Nothing |
+| `Cancellation sent to portal: OK (no member with this email or subscription in the portal)` | The application never reached the portal | Nothing, or check the entry's own "Sent to portal" notes |
 | No note at all | Payment still "Processing", WP-Cron is not running, or sending was off when it was paid | Check the Setup checklist; "Resend to portal" sends what was paid while it was off |
 
 Retries: 5 min, 15 min, 1 h, 3 h, 6 h, 12 h (about 22 hours). After that, resend by hand:

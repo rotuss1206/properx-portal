@@ -46,8 +46,25 @@ STRIPE_SECRET=<rk_live-restricted-key>
 STRIPE_KEY=<pk_live-key>
 # "Renew now" in the member's sidebar: Stripe Customer Portal address.
 PAYMENT_PORTAL_URL=<https-address>
-# Days a past-due member keeps full access. Default 14.
-PAYMENT_GRACE_DAYS=14
+# Optional Customer Portal configuration (bpc_...) for "Manage payment method" on /member/billing.
+STRIPE_PORTAL_CONFIGURATION=
+# Days a past-due member or agency keeps full access. Default 14. Replaces PAYMENT_GRACE_DAYS.
+MEMBERSHIP_GRACE_DAYS=14
+
+# --- Renewals and expiry ----------------------------------------------------------------
+# Renewal reminders before the paid period ends (allowed 30, 14, 7, 3, 1). Default 14,7,1.
+AGENCY_RENEWAL_REMINDER_DAYS=14,7,1
+# Reminders while a renewal payment is overdue (allowed 7, 3, 1). Default 7,1.
+MEMBERSHIP_GRACE_REMINDER_DAYS=7,1
+# true: renewal reminders to individual members too. Keep off while properx.org / Stripe send their own.
+RENEWAL_REMINDERS_INDIVIDUAL_ENABLED=
+# true: overdue and "expired" emails. Keep off until the texts are approved; statuses change regardless.
+MEMBERSHIP_EXPIRY_EMAILS_ENABLED=
+# Optional date: only memberships ending after it get those emails. Empty: the first run with emails on.
+MEMBERSHIP_EXPIRY_EMAILS_SINCE=
+# Months a member whose individual subscription was canceled on properx.org waits before applying again.
+# Default 24 (the client's rule). Staff can lift it per member in Nova.
+MEMBERSHIP_REJOIN_WAIT_MONTHS=
 
 # --- Certificate -----------------------------------------------------------------------
 # Second signature. Empty: the date of issue stands in its place.
@@ -69,6 +86,13 @@ STRIPE_PRICE_AGENCY_FOUNDING_10TO49=
 STRIPE_PRICE_AGENCY_STANDARD_10TO49=
 STRIPE_PRICE_AGENCY_FOUNDING_50PLUS=
 STRIPE_PRICE_AGENCY_STANDARD_50PLUS=
+# Comma-separated states whose agencies pay no 2.9% credit card surcharge. Empty: none.
+AGENCY_SURCHARGE_EXEMPT_STATES=
+# Optional address that gets "New agency enrolled". Empty: staff see a Nova notification only.
+AGENCY_STAFF_NOTIFICATION_EMAIL=
+# Terms and privacy pages linked from the enrollment's consents. Empty: properx.org's pages.
+PORTAL_TERMS_URL=
+PORTAL_PRIVACY_URL=
 
 # --- External callers of /api/service/* ------------------------------------------------------
 # Only for external automation; the Stripe webhook and the intake do not use it.

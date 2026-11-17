@@ -236,6 +236,12 @@ return [
         'requests_per_minute' => 60,
     ],
 
+    // The 24-month rule (client's answer): an individual membership canceled on properx.org may not
+    // apply again, as an individual or through an agency, for this many months (staff can lift it).
+    'rejoin' => [
+        'wait_months' => max(0, (int) (env('MEMBERSHIP_REJOIN_WAIT_MONTHS') ?: 24)),
+    ],
+
     'registration' => [
         // Off (404) unless enabled: the payment on screen 6 is still a placeholder.
         'enabled' => (bool) env('AGENCY_ENROLLMENT_ENABLED', false),

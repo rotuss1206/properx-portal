@@ -271,6 +271,12 @@ function properx_portal_post( $entry ) {
 
 	if ( $code >= 200 && $code < 300 ) {
 		$outcome   = is_array( $json ) ? (string) rgar( $json, 'outcome' ) : '';
+
+		// The 24-month rule: the portal kept the person out and told ProPerX staff.
+		if ( 'blocked' === $outcome ) {
+			return array( 'status' => 'ok', 'reason' => 'not added: canceled less than 24 months ago, eligible again on ' . (string) rgar( $json, 'eligible_on' ) . '; ProPerX staff were told' );
+		}
+
 		$conflicts = is_array( $json ) && ! empty( $json['conflicts'] ) ? '; differs in portal: ' . implode( ', ', (array) $json['conflicts'] ) : '';
 
 		return array( 'status' => 'ok', 'reason' => $outcome . $conflicts );
@@ -353,6 +359,10 @@ function properx_portal_entry_box( $args ) {
 	$status = gform_get_meta( $entry['id'], PROPERX_PORTAL_META_STATUS );
 
 	echo '<p>Status: ' . esc_html( $status ? $status : 'not sent' ) . '</p>';
+
+	if ( function_exists( 'properx_portal_entry_cancellation_box' ) ) {
+		properx_portal_entry_cancellation_box( $entry );
+	}
 
 	if ( ! properx_portal_can_send() ) {
 		echo '<p>Sending is off: Forms &gt; Settings &gt; ProPerX Portal.</p>';
