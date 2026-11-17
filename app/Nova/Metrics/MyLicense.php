@@ -47,7 +47,7 @@ class MyLicense extends Table
 
         [$icon, $class] = match ($profile->license_status) {
             LicenseStatus::Active => ['check-circle', 'text-green-500'],
-            LicenseStatus::Expiring => ['exclamation-circle', 'text-amber-500'],
+            LicenseStatus::Expiring => ['exclamation-circle', 'text-yellow-500'],
             default => ['x-circle', 'text-red-500'],
         };
 
@@ -85,7 +85,7 @@ class MyLicense extends Table
                 'Certificate, library and license documents are unavailable until dues are paid.',
             ],
             $profile->isInPaymentGracePeriod() => [
-                'exclamation-circle', 'text-amber-500', 'Membership: Payment past due',
+                'exclamation-circle', 'text-yellow-500', 'Membership: Payment past due',
                 'Full access until '.$profile->paymentGraceEndsAt()->toFormattedDateString().'. Please update your payment.',
             ],
             $profile->payment_status === PaymentStatus::Active => [

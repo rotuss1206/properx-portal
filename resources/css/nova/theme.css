@@ -335,6 +335,66 @@ html.ppx-nova-theme .min-h-40.rounded-lg.shadow .text-3xl {
     font-weight: 600;
 }
 
+/* Table cards ("Upcoming License Expirations"): a card title with the green marker, quiet rows. Nova's
+   TableMetric is the only card whose title row carries px-6. */
+
+html.ppx-nova-theme .h-6.flex.items-center.px-6.mb-4 > h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+html.ppx-nova-theme .h-6.flex.items-center.px-6.mb-4 > h3::before {
+    flex: none;
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--ppx-card-marker);
+    content: '';
+}
+
+html.ppx-nova-theme table.table-default.table-fixed tbody {
+    border-color: var(--ppx-line);
+}
+
+html.ppx-nova-theme table.table-default.table-fixed tbody > tr + tr {
+    border-color: var(--ppx-line);
+}
+
+html.ppx-nova-theme table.table-default.table-fixed tbody tr:hover td {
+    background: var(--ppx-hover);
+}
+
+html.ppx-nova-theme table.table-default.table-fixed tbody h2 {
+    color: var(--ppx-ink);
+    font-family: var(--ppx-body);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+html.ppx-nova-theme table.table-default.table-fixed tbody h2 + p {
+    color: var(--ppx-muted);
+    font-size: 12px;
+}
+
+html.ppx-nova-theme table.table-default.table-fixed .text-red-500 { color: var(--ppx-badge-danger-fg); }
+
+html.ppx-nova-theme table.table-default.table-fixed .text-yellow-500 { color: var(--ppx-badge-warning-fg); }
+
+/* The last row's line is the card's edge. */
+html.ppx-nova-theme .h-6.flex.items-center.px-6.mb-4 + .mb-5.pb-4 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+html.ppx-nova-theme .h-6.flex.items-center.px-6.mb-4 + .mb-5.pb-4 tbody {
+    border-bottom: 0;
+}
+
 /* Links in the content */
 
 html.ppx-nova-theme .link-default {

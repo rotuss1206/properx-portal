@@ -31,7 +31,7 @@ class UpcomingExpirations extends Table
 
                 return MetricTableRow::make()
                     ->icon($daysLeft <= 7 ? 'exclamation-circle' : 'clock')
-                    ->iconClass($daysLeft <= 30 ? 'text-red-500' : 'text-amber-500')
+                    ->iconClass($daysLeft <= 30 ? 'text-red-500' : 'text-yellow-500')
                     ->title($profile->fullName())
                     ->subtitle(sprintf(
                         '%s · %s · expires %s (%s)',
