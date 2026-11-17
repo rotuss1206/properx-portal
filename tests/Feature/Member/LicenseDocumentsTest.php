@@ -804,6 +804,8 @@ class LicenseDocumentsTest extends TestCase
 
     public function test_members_cannot_read_internal_notes_through_novas_api(): void
     {
+        // While the member area is off, members still use Nova (with it on, Nova is closed to them).
+        config(['portal.member_area.enabled' => false]);
         $member = $this->member();
         $document = $this->document($member, VerificationStatus::Rejected, ['rejection_reason' => 'Please re-upload.', 'admin_notes' => 'Internal remark.']);
 

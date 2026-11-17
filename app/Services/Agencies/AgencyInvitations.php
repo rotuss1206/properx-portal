@@ -14,10 +14,9 @@ use App\Notifications\AgencyEnrolledStaff;
 use App\Notifications\AgencyInvitationEmail;
 use App\Notifications\AgencyWelcome;
 use App\Notifications\Member\AgencyInvitationNotice;
+use App\Services\StaffAlerts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Nova\Notifications\NovaNotification;
-use Laravel\Nova\URL;
 
 /**
  * Invitations of an enrolled agency's people (Agency spec 7, E1-E3).
@@ -210,44 +209,20 @@ class AgencyInvitations
             $principal->notify(new AgencyInvitationNotice(AgencyInvitationNotice::REQUESTED, [$profile->getKey()]));
         }
 
-        $this->notifyStaff(
-            "A person on agency #{$profile->agency_id} asked for a new invitation (member profile #{$profile->getKey()}). Use \"Resend invitation\" on their profile.",
-            '/resources/member-profiles/'.$profile->getKey(),
-            'Open the profile',
-            'mail',
-        );
+        StaffAlerts::raise('invitation_requested', $profile, "A person on agency #{$profile->agency_id} asked for a new invitation (member profile #{$profile->getKey()}). Use \"Resend invitation\" on their profile.", '/resources/member-profiles/'.$profile->getKey());
 
         return true;
     }
 
     /**
-     * After the enrollment (Agency spec 7): staff hear of the new agency in Nova, and by email
-     * when portal.invitations.staff_email is set.
+     * After the enrollment (Agency spec 7): staff hear of the new agency by email when
+     * portal.invitations.staff_email is set. Not in the bell, which holds only what needs doing
+     * (App\Services\StaffAlerts).
      */
     public function announceEnrollment(Agency $agency): void
     {
-        $this->notifyStaff(
-            "New agency enrolled (agency #{$agency->getKey()}): {$agency->tier?->label()}, {$agency->headcount} people. Invitations are on their way.",
-            '/resources/agencies/'.$agency->getKey(),
-            'Open the agency',
-            'user-group',
-        );
-
         if (filled(config('portal.invitations.staff_email'))) {
             Notification::route('mail', (string) config('portal.invitations.staff_email'))->notify(new AgencyEnrolledStaff($agency->getKey()));
-        }
-    }
-
-    private function notifyStaff(string $message, string $path, string $action, string $icon): void
-    {
-        $staff = User::permission('agencies.view')->get()->reject(fn (User $user) => $user->isMember());
-
-        foreach ($staff as $user) {
-            $user->notify(NovaNotification::make()
-                ->message($message)
-                ->action($action, URL::make($path))
-                ->icon($icon)
-                ->type('info'));
         }
     }
 }

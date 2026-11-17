@@ -14,6 +14,7 @@ use App\Notifications\Member\AgencyMembershipEnded;
 use App\Notifications\Member\MembershipExpired;
 use App\Notifications\Member\PaymentOverdueReminder;
 use App\Notifications\Member\RenewalReminder;
+use App\Services\StaffAlerts;
 use App\Services\Stripe\BillingReader;
 use App\Services\Stripe\BillingUnavailableException;
 use Carbon\CarbonInterface;
@@ -260,7 +261,10 @@ class MembershipRenewals
      */
     public function expireAgency(Agency $agency, bool $principalTold = false, ?CarbonInterface $endedAt = null): void
     {
-        $agency->changeStatus(AgencyStatus::Inactive);
+        if ($agency->changeStatus(AgencyStatus::Inactive)) {
+            StaffAlerts::raise('membership_ended', $agency, "An agency's membership has ended (agency #{$agency->getKey()}); it and its people are inactive.", '/resources/agencies/'.$agency->getKey());
+        }
+
         $period = $agency->paid_through_at ?? $agency->past_due_since ?? now();
         $withheld = $this->withheldBecause($endedAt ?? now());
 
@@ -302,6 +306,8 @@ class MembershipRenewals
         }
 
         return $this->once($profile->user, ReminderType::MembershipExpired, $profile->paid_through_at ?? $profile->payment_status_updated_at ?? now(), function () use ($profile, $endedAt) {
+            StaffAlerts::raise('membership_ended', $profile, "An individual member's membership has ended (member profile #{$profile->getKey()}).", '/resources/member-profiles/'.$profile->getKey());
+
             if ($this->withhold($this->withheldBecause($endedAt ?? now()))) {
                 return false;
             }

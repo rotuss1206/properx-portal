@@ -77,6 +77,7 @@ class AuditLog extends Model
         'member_membership_canceled',
         'member_rejoin_blocked',
         'member_rejoin_block_lifted',
+        'integration_refused',
         'partner_code_created',
         'partner_code_updated',
         'partner_code_deleted',

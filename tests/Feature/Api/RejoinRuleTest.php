@@ -10,13 +10,13 @@ use App\Models\AuditLog;
 use App\Models\IntakeSubmission;
 use App\Models\MemberProfile;
 use App\Models\User;
+use App\Notifications\Staff\StaffAlert;
 use App\Services\Agencies\AgencyRosterChanges;
 use App\Services\Memberships\RejoinRule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
-use Laravel\Nova\Notifications\NovaNotification;
 use Livewire\Livewire;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
@@ -160,7 +160,7 @@ class RejoinRuleTest extends TestCase
         $this->assertFalse(User::query()->where('email', 'avery.new@example.test')->exists());
         $this->assertSame('sub_Avery', $this->member->fresh()->stripe_subscription_id);
         $this->assertSame(['context' => 'intake', 'canceled_on' => now()->toDateString(), 'eligible_on' => now()->addMonths(24)->toDateString()], AuditLog::query()->where('action', 'member_rejoin_blocked')->sole()->details);
-        Notification::assertSentTo($coordinator, NovaNotification::class);
+        Notification::assertSentTo($coordinator, StaffAlert::class, fn (StaffAlert $alert) => $alert->alertKind === 'rejoin_blocked');
 
         // After 24 months the same application goes through.
         $this->travelTo(now()->addMonths(24)->addDay());

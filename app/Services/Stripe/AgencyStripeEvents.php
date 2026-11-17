@@ -8,19 +8,17 @@ use App\Enums\RateType;
 use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\AuditLog;
-use App\Models\User;
 use App\Notifications\AgencyBankPaymentFailed;
 use App\Notifications\AgencyPaymentFailed;
 use App\Services\Agencies\AgencyCheckout;
 use App\Services\Agencies\AgencyEnrollment;
 use App\Services\Agencies\AgencyRosterChanges;
 use App\Services\Memberships\MembershipRenewals;
+use App\Services\StaffAlerts;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Nova\Notifications\NovaNotification;
-use Laravel\Nova\URL;
 use Stripe\Event;
 use Stripe\StripeObject;
 use Stripe\Subscription;
@@ -250,15 +248,7 @@ class AgencyStripeEvents
             }
         }
 
-        $staff = User::permission('agencies.view')->get()->reject(fn (User $user) => $user->isMember());
-
-        foreach ($staff as $user) {
-            $user->notify(NovaNotification::make()
-                ->message("An agency's membership payment failed (agency #{$agency->getKey()}). It is past due.")
-                ->action('Open the agency', URL::make('/resources/agencies/'.$agency->getKey()))
-                ->icon('exclamation-circle')
-                ->type('warning'));
-        }
+        StaffAlerts::raise('payment_failed', $agency, "An agency's membership payment failed (agency #{$agency->getKey()}). It is past due.", '/resources/agencies/'.$agency->getKey());
     }
 
     /**

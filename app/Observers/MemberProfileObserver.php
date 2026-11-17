@@ -6,6 +6,7 @@ use App\Enums\LicenseVerification;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Services\Certificates\CertificateGeneratorService;
+use App\Services\StaffAlerts;
 
 /**
  * Drops the cached certificate PDF when data printed on it changes and audits
@@ -91,6 +92,11 @@ class MemberProfileObserver
                 'to' => $profile->license_verification?->value,
                 'reason_given' => filled($profile->license_verification_note) ? true : null,
             ], fn ($value) => $value !== null));
+
+            // The person fixed what staff asked for: the Membership Coordinator checks it again.
+            if ($from === LicenseVerification::NeedsAttention && $profile->license_verification === LicenseVerification::PendingReview) {
+                StaffAlerts::raise('license_fixed', $profile, "A license that needed attention was updated and waits for review again (member profile #{$profile->getKey()}).", '/resources/license-verification/'.$profile->getKey());
+            }
         }
     }
 

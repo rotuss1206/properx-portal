@@ -5,11 +5,10 @@ namespace App\Services\Memberships;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
 use App\Models\User;
+use App\Services\StaffAlerts;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use Laravel\Nova\Notifications\NovaNotification;
-use Laravel\Nova\URL;
 
 /**
  * The 24-month rule (client's answer): someone whose individual membership was canceled on
@@ -99,13 +98,7 @@ class RejoinRule
             $message = 'A member canceled on '.$profile->membership_canceled_at->toFormattedDateString().' tried to join again through '
                 .(self::CONTEXTS[$context] ?? $context).' (member profile #'.$profile->getKey().'). Eligible again on '.$until->toFormattedDateString().'.';
 
-            User::permission('members.update')->get()->reject(fn (User $user) => $user->isMember())->each(fn (User $user) => $user->notify(
-                NovaNotification::make()
-                    ->message($message)
-                    ->action('Open the member', URL::make('/resources/member-profiles/'.$profile->getKey()))
-                    ->icon('exclamation-circle')
-                    ->type('warning')
-            ));
+            StaffAlerts::raise('rejoin_blocked', $profile, $message, '/resources/member-profiles/'.$profile->getKey());
         }
 
         return true;

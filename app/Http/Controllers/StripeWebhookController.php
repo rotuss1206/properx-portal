@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\ServiceAccount;
+use App\Services\StaffAlerts;
 use App\Services\Stripe\StripeWebhookHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,8 @@ class StripeWebhookController extends Controller
                 config('services.stripe.webhook_tolerance'),
             );
         } catch (SignatureVerificationException|UnexpectedValueException) {
+            StaffAlerts::integrationRefused('stripe_webhook', 'signature');
+
             return response()->json(['error' => 'Invalid signature.'], Response::HTTP_BAD_REQUEST);
         }
 

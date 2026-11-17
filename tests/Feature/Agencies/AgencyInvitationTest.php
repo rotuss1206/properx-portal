@@ -19,6 +19,7 @@ use App\Notifications\AgencyEnrolledStaff;
 use App\Notifications\AgencyInvitationEmail;
 use App\Notifications\AgencyWelcome;
 use App\Notifications\Member\AgencyInvitationNotice;
+use App\Notifications\Staff\StaffAlert;
 use App\Services\Agencies\AgencyInvitations;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -161,13 +162,14 @@ class AgencyInvitationTest extends TestCase
         }
     }
 
-    public function test_staff_hear_of_a_new_agency_in_nova_and_by_email_when_an_address_is_set(): void
+    public function test_staff_hear_of_a_new_agency_by_email_when_an_address_is_set_and_not_in_the_bell(): void
     {
         Notification::fake();
         $director = $this->staff(Role::ExecutiveDirector);
 
         $this->invitations()->announceEnrollment($this->agency);
-        Notification::assertSentTo($director, NovaNotification::class, fn (NovaNotification $notification) => str_contains($notification->toArray($director)['message'], 'New agency enrolled'));
+        // The bell holds only what needs doing (App\Services\StaffAlerts).
+        Notification::assertNotSentTo($director, NovaNotification::class);
         Notification::assertNotSentTo(new AnonymousNotifiable, AgencyEnrolledStaff::class);
 
         config(['portal.invitations.staff_email' => 'staff@properx.test']);
@@ -282,7 +284,7 @@ class AgencyInvitationTest extends TestCase
     public function test_an_expired_link_asks_for_a_new_invitation_once(): void
     {
         Notification::fake();
-        $director = $this->staff(Role::ExecutiveDirector);
+        $coordinator = $this->staff(Role::MembershipCoordinator);
         $this->inviteEveryone();
         $token = $this->tokenFor($this->producer->user);
         $this->travel(15)->days();
@@ -295,7 +297,7 @@ class AgencyInvitationTest extends TestCase
 
         Notification::assertSentToTimes($this->principal, AgencyInvitationNotice::class, 1);
         Notification::assertSentTo($this->principal, AgencyInvitationNotice::class, fn (AgencyInvitationNotice $notice) => $notice->kind === AgencyInvitationNotice::REQUESTED && $notice->profileIds === [$this->producer->id]);
-        Notification::assertSentToTimes($director, NovaNotification::class, 1);
+        Notification::assertSentToTimes($coordinator, StaffAlert::class, 1);
         $this->assertSame(1, AuditLog::query()->where('action', 'agency_invitation_requested')->count());
     }
 

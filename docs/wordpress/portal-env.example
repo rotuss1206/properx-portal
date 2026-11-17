@@ -65,6 +65,8 @@ MEMBERSHIP_EXPIRY_EMAILS_SINCE=
 # Months a member whose individual subscription was canceled on properx.org waits before applying again.
 # Default 24 (the client's rule). Staff can lift it per member in Nova.
 MEMBERSHIP_REJOIN_WAIT_MONTHS=
+# true: the staff's morning email at 08:00 (what waits for each of them, counts only). Off by default.
+STAFF_SUMMARY_ENABLED=
 
 # --- Certificate -----------------------------------------------------------------------
 # Second signature. Empty: the date of issue stands in its place.

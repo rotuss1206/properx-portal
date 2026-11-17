@@ -370,6 +370,8 @@ class MemberLinksTest extends TestCase
 
     public function test_novas_api_still_only_withdraws_pending_license_documents(): void
     {
+        // While the member area is off, members still use Nova (with it on, Nova is closed to them).
+        config(['portal.member_area.enabled' => false]);
         $member = $this->member();
         $pending = LicenseDocument::factory()->for($member)->create(['verification_status' => VerificationStatus::Pending]);
         $approved = LicenseDocument::factory()->for($member)->create(['verification_status' => VerificationStatus::Approved]);

@@ -11,22 +11,21 @@ use Laravel\Nova\Nova;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * With the member area on (MEMBER_AREA_ENABLED), members opening a Nova page land on
- * /member instead; right after sign-in App\Auth\SignInResponse sends them there directly.
- * Two-factor setup and the password stay on Nova's User Security page, and signing out is
- * Nova's. Nova's profile pages lead to /member/profile, their certificate block to
- * /member/certificate, its license documents to /member/license-documents, its library to
- * /member/library (the last two for those who may see them). Staff and Nova's API requests are
- * not touched. Part of nova.api_middleware, after RequireTwoFactor.
+ * With the member area on (MEMBER_AREA_ENABLED), Nova is closed to members (individual members,
+ * principals and agency people): a Nova page leads to its place in /member (right after sign-in
+ * App\Auth\SignInResponse sends them there directly), and anything else, Nova's API included, is
+ * a 403. Only signing out stays Nova's (the member area's header posts to nova.logout). Nova's profile
+ * pages lead to /member/profile, User Security to its security section, the certificate block to
+ * /member/certificate, license documents to /member/license-documents, the library to
+ * /member/library (the last two for those who may see them). Staff are not touched. Part of
+ * nova.api_middleware (Nova's pages and API), after RequireTwoFactor.
  */
 class SendMembersToMemberArea
 {
     /**
-     * Nova pages members keep using (relative to the Nova path).
+     * What members may still reach (relative to the Nova path): signing out.
      */
     private const KEPT_NOVA_PATHS = [
-        'user-security',
-        'user-security/*',
         'logout',
     ];
 
@@ -34,6 +33,13 @@ class SendMembersToMemberArea
     {
         if (! $this->applies($request)) {
             return $next($request);
+        }
+
+        $novaPath = trim(Nova::path(), '/');
+
+        // Nova's API, its tools' routes and any form post: closed.
+        if (! $request->isMethod('GET') || ! $request->is($novaPath, "{$novaPath}/*")) {
+            abort(Response::HTTP_FORBIDDEN, 'Members use the member area.');
         }
 
         $target = $this->target($request);
@@ -54,6 +60,7 @@ class SendMembersToMemberArea
             $request->query(SidebarMenu::SECTION) === 'notifications' && $this->isProfilePage($request, $novaPath) => MemberMenu::movedUrl($request->user(), 'notifications'),
             $request->query(SidebarMenu::SECTION) === 'certificate' && $this->isProfilePage($request, $novaPath) => route('member.certificate'),
             $this->isProfilePage($request, $novaPath) => route('member.profile'),
+            $request->is("{$novaPath}/user-security", "{$novaPath}/user-security/*") => route('member.profile', ['edit' => 'security']),
             $request->is("{$novaPath}/resources/license-documents", "{$novaPath}/resources/license-documents/*") && MemberMenu::visible($request->user(), 'license-documents') => route('member.license-documents'),
             $request->is("{$novaPath}/resources/library-documents", "{$novaPath}/resources/library-documents/*") && MemberMenu::visible($request->user(), 'library') => route('member.library'),
             default => route('member.dashboard'),
@@ -71,11 +78,9 @@ class SendMembersToMemberArea
         $novaPath = trim(Nova::path(), '/');
 
         return config('portal.member_area.enabled')
-            && $request->isMethod('GET')
             && $user !== null
             && $user->isMember()
             && ! $user->isStaff()
-            && $request->is($novaPath, "{$novaPath}/*")
             && ! $request->is(...array_map(fn (string $path) => "{$novaPath}/{$path}", self::KEPT_NOVA_PATHS));
     }
 }

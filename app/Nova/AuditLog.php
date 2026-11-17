@@ -15,6 +15,7 @@ use App\Nova\Actions\DeactivateAgencyPerson;
 use App\Nova\Filters\AuditResourceType;
 use App\Services\Agencies\AgencyRosterChanges;
 use App\Services\Memberships\RejoinRule;
+use App\Services\StaffAlerts;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -174,6 +175,7 @@ class AuditLog extends Resource
             'agency_member_removal_scheduled' => 'Removal from the agency on '.($details['effective_on'] ?? '?').': '.(AgencyRosterChanges::REASONS[$details['reason'] ?? ''] ?? ($details['reason'] ?? '—')),
             'member_membership_canceled' => 'Individual membership canceled on properx.org on '.($details['canceled_on'] ?? '?').(isset($details['access_until']) ? '; access until '.$details['access_until'] : '').'; eligible to apply again on '.($details['eligible_on'] ?? '?'),
             'member_rejoin_blocked' => 'Refused to join again through '.(RejoinRule::CONTEXTS[$details['context'] ?? ''] ?? ($details['context'] ?? '?')).': canceled on '.($details['canceled_on'] ?? '?').', eligible again on '.($details['eligible_on'] ?? '?'),
+            'integration_refused' => 'Refused '.(StaffAlerts::SOURCES[$details['source'] ?? ''] ?? ($details['source'] ?? 'a call')).': '.(($details['reason'] ?? '') === 'signature' ? 'the signature did not match' : 'invalid fields '.implode(', ', $details['fields'] ?? [])),
             'member_rejoin_block_lifted' => 'Waiting period after the cancellation of '.($details['canceled_on'] ?? '?').' lifted: '.(RejoinRule::LIFT_REASONS[$details['reason'] ?? ''] ?? ($details['reason'] ?? '—')),
             'member_moved_to_agency' => 'Moved from individual membership into agency #'.($details['agency_id'] ?? '?').' as '.(PersonType::tryFrom((string) ($details['person_type'] ?? ''))?->label() ?? '—').': '.(AgencyRosterChanges::MOVE_REASONS[$details['reason'] ?? ''] ?? ($details['reason'] ?? '—')).'; the agency paid '.Money::format((int) ($details['amount'] ?? 0)).(($details['surcharge'] ?? 0) > 0 ? ' + surcharge '.Money::format((int) $details['surcharge']) : '').(($details['individual_subscription'] ?? '') === 'left_active_cancel_on_properx_org' ? '. Individual subscription NOT canceled by the portal: cancel it on properx.org' : ''),
             'agency_member_removal_canceled' => 'Scheduled removal from the agency canceled',

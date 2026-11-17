@@ -8,6 +8,7 @@ use App\Models\MemberProfile;
 use App\Models\StripeEvent;
 use App\Models\User;
 use App\Services\Memberships\MembershipRenewals;
+use App\Services\StaffAlerts;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -135,6 +136,10 @@ class StripeWebhookHandler
         $profile->save();
 
         AuditLog::record('payment_status_changed', $profile, $serviceAccount, ['from' => $from?->value, 'to' => $status->value]);
+
+        if ($status === PaymentStatus::PastDue) {
+            StaffAlerts::raise('payment_failed', $profile, "An individual member's membership payment failed (member profile #{$profile->getKey()}). It is past due.", '/resources/member-profiles/'.$profile->getKey());
+        }
 
         // The membership is over: the subscription ended, or a failed renewal with no grace period
         // (portal.payments.grace_days = 0). Past due with grace: app:expire-memberships, later.

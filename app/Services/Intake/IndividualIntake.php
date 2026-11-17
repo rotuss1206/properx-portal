@@ -10,6 +10,7 @@ use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\MemberInvited;
 use App\Services\Memberships\RejoinRule;
+use App\Services\StaffAlerts;
 use App\Services\Stripe\StripeWebhookHandler;
 use App\Services\Stripe\SubscriptionReader;
 use App\Support\UsStates;
@@ -67,6 +68,10 @@ class IndividualIntake
         if ($profileId !== null && ! in_array($result['outcome'], ['conflict', 'blocked'], true) && SubscriptionReader::isConfigured()
             && filled(MemberProfile::find($profileId)?->stripe_subscription_id)) {
             SyncStripeSubscription::dispatch($profileId);
+        }
+
+        if (in_array($result['outcome'], ['created', 'linked'], true)) {
+            StaffAlerts::raise('member_intake', 'member_profile:'.$profileId, ($result['outcome'] === 'created' ? 'A new member applied on properx.org' : 'A paid application from properx.org was linked to an existing member')." (member profile #{$profileId}).", '/resources/member-profiles/'.$profileId);
         }
 
         if ($invite !== null && config('portal.intake.send_invite')) {

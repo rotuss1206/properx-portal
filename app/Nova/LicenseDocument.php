@@ -124,7 +124,7 @@ class LicenseDocument extends Resource
 
             Badge::make('Status', 'verification_status')
                 ->map([
-                    VerificationStatus::Pending->value => 'info',
+                    VerificationStatus::Pending->value => 'warning',
                     VerificationStatus::Approved->value => 'success',
                     VerificationStatus::Rejected->value => 'danger',
                 ])

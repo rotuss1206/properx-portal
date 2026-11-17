@@ -12,13 +12,13 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AgencyPaymentFailed;
 use App\Notifications\Member\MembershipExpired;
+use App\Notifications\Staff\StaffAlert;
 use App\Support\MembershipBanner;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
-use Laravel\Nova\Notifications\NovaNotification;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
 
@@ -149,6 +149,7 @@ class AgencyLifecycleTest extends TestCase
     public function test_a_failed_payment_makes_the_agency_past_due_and_tells_the_principal_and_staff(): void
     {
         Notification::fake();
+        $director = $this->staff(Role::ExecutiveDirector);
         $coordinator = $this->staff(Role::MembershipCoordinator);
 
         $this->webhook('invoice.payment_failed', $this->invoice())->assertOk()->assertJson(['outcome' => 'agency_past_due']);
@@ -160,7 +161,9 @@ class AgencyLifecycleTest extends TestCase
 
         Notification::assertSentTo($this->principal, AgencyPaymentFailed::class, fn (AgencyPaymentFailed $notification) => $notification->payUrl === 'https://invoice.stripe.test/i/renewal');
         Notification::assertNotSentTo($this->person, AgencyPaymentFailed::class);
-        Notification::assertSentTo($coordinator, NovaNotification::class);
+        // Money is the Executive Director's (App\Services\StaffAlerts).
+        Notification::assertSentTo($director, StaffAlert::class, fn (StaffAlert $alert) => $alert->alertKind === 'payment_failed');
+        Notification::assertNotSentTo($coordinator, StaffAlert::class);
 
         $this->assertDatabaseHas('audit_logs', ['action' => 'agency_payment_failed', 'resource_id' => $agency->id]);
         $change = AuditLog::query()->where('action', 'agency_payment_status_changed')->sole();

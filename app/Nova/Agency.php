@@ -158,7 +158,7 @@ class Agency extends Resource
             Badge::make('Payment Status', 'status')
                 ->map([
                     AgencyStatus::Active->value => 'success',
-                    AgencyStatus::Pending->value => 'info',
+                    AgencyStatus::Pending->value => 'warning',
                     AgencyStatus::PastDue->value => 'warning',
                     AgencyStatus::Inactive->value => 'danger',
                 ])

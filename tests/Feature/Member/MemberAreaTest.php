@@ -116,12 +116,12 @@ class MemberAreaTest extends TestCase
             ->assertHeader('X-Inertia-Location', $target);
     }
 
-    public function test_security_and_signing_out_stay_in_nova(): void
+    public function test_only_signing_out_stays_in_nova(): void
     {
         $member = $this->member();
 
-        $this->actingAs($member)->get('/nova/user-security')->assertOk();
-        $this->getJson('/nova-api/license-documents')->assertOk(); // Nova's API is not redirected (stage 8)
+        $this->actingAs($member)->get('/nova/user-security')->assertRedirect(route('member.profile', ['edit' => 'security']));
+        $this->getJson('/nova-api/license-documents')->assertForbidden();
 
         $this->post('/nova/logout')->assertRedirect();
         $this->assertGuest();

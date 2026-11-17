@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Intake\IndividualCancellation;
 use App\Services\Intake\IndividualIntake;
 use App\Services\ServiceAccount;
+use App\Services\StaffAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +27,8 @@ class IntakeController extends Controller
         abort_unless(config('portal.intake.enabled'), Response::HTTP_NOT_FOUND);
 
         if (! $this->signatureIsValid($request)) {
+            StaffAlerts::integrationRefused($this->source($request), 'signature');
+
             return response()->json(['error' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -57,6 +60,8 @@ class IntakeController extends Controller
         ]);
 
         if ($validator->fails()) {
+            StaffAlerts::integrationRefused($this->source($request), 'validation', $validator->errors()->keys());
+
             return response()->json(['message' => 'Validation failed.', 'fields' => $validator->errors()->keys()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -85,6 +90,8 @@ class IntakeController extends Controller
         abort_unless(config('portal.intake.enabled'), Response::HTTP_NOT_FOUND);
 
         if (! $this->signatureIsValid($request)) {
+            StaffAlerts::integrationRefused($this->source($request), 'signature');
+
             return response()->json(['error' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -98,6 +105,8 @@ class IntakeController extends Controller
         ]);
 
         if ($validator->fails()) {
+            StaffAlerts::integrationRefused($this->source($request), 'validation', $validator->errors()->keys());
+
             return response()->json(['message' => 'Validation failed.', 'fields' => $validator->errors()->keys()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -122,10 +131,17 @@ class IntakeController extends Controller
         abort_unless(config('portal.intake.enabled'), Response::HTTP_NOT_FOUND);
 
         if (! $this->signatureIsValid($request)) {
+            StaffAlerts::integrationRefused($this->source($request), 'signature');
+
             return response()->json(['error' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    private function source(Request $request): string
+    {
+        return $request->routeIs('intake.cancellation') ? 'wordpress_cancellation' : 'wordpress_intake';
     }
 
     private function signatureIsValid(Request $request): bool

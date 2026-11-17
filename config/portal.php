@@ -342,6 +342,12 @@ return [
     |
     */
 
+    // The staff's morning email at 08:00 (app:send-staff-summary): counts of what waits for each
+    // person in the roles the Nova bell serves. Off until switched on.
+    'staff_summary' => [
+        'enabled' => (bool) env('STAFF_SUMMARY_ENABLED', false),
+    ],
+
     'renewals' => [
         'reminder_days' => array_values(array_unique(array_filter(array_map('intval', explode(',', (string) env('AGENCY_RENEWAL_REMINDER_DAYS', '14,7,1')))))),
         // Renewal reminders to individual members (properx.org / Stripe may send their own): off until

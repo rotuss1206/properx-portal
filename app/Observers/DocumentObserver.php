@@ -9,6 +9,7 @@ use App\Models\TaxDocument;
 use App\Notifications\Member\LicenseDocumentDecision;
 use App\Notifications\Member\LicenseDocumentReviewed;
 use App\Notifications\Member\TaxDocumentAvailable;
+use App\Services\StaffAlerts;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -24,6 +25,11 @@ class DocumentObserver
 
         if ($document instanceof TaxDocument) {
             $document->user?->notify(new TaxDocumentAvailable($document->getKey()));
+        }
+
+        // A member's own upload waits for staff's review (staff's uploads for a member do not).
+        if ($document instanceof LicenseDocument && auth()->user()?->isMember() && ! auth()->user()->isStaff()) {
+            StaffAlerts::raise('license_document_uploaded', $document, "A member uploaded a license document for review (document #{$document->getKey()}).", '/resources/license-documents/'.$document->getKey());
         }
     }
 

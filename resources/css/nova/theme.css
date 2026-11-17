@@ -1,0 +1,342 @@
+/*
+ * The member area's look for Nova's staff screens (Dashboard*.jpg, Main.jpg, Documents Management.jpg),
+ * with the shared tokens of public/portal/tokens.css: white cards with rounded corners and the green
+ * 4 x 16 marker at their titles, tables with a light head and row hover, yellow primary and outlined
+ * secondary buttons, the member area's fields and badges, Poppins / Open Sans. Everything sits under
+ * html.ppx-nova-theme (resources/js/nova/theme.js): without that script Nova keeps its own look.
+ * Selectors follow Nova 5's markup (classes and dusk attributes); check them after Nova upgrades.
+ */
+
+/* Type and page */
+
+html.ppx-nova-theme body,
+html.ppx-nova-theme .font-sans {
+    font-family: var(--ppx-body);
+    color: var(--ppx-text);
+}
+
+html.ppx-nova-theme body,
+html.ppx-nova-theme .bg-gray-100 {
+    background-color: var(--ppx-page);
+}
+
+/* A page heading that repeats the header's title (theme.js marks it). */
+html.ppx-nova-theme h1.ppx-nova-duplicate-heading {
+    display: none !important;
+}
+
+/* Section headings: panels, relations, form groups. The green marker of the member area's cards. */
+html.ppx-nova-theme h1[dusk="heading"],
+html.ppx-nova-theme h1[dusk$="-heading"] {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+html.ppx-nova-theme h1[dusk="heading"]::before,
+html.ppx-nova-theme h1[dusk$="-heading"]::before {
+    flex: none;
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--ppx-card-marker);
+    content: '';
+}
+
+/* Cards: detail and form panels, tables, metrics, modals. */
+html.ppx-nova-theme .bg-white.rounded-lg.shadow,
+html.ppx-nova-theme .bg-white.rounded-lg.shadow-lg {
+    border: 1px solid var(--ppx-line);
+    border-radius: var(--ppx-radius-lg);
+    box-shadow: var(--ppx-shadow-card);
+}
+
+/* Detail rows and form rows: the member area's quiet labels and lines. */
+html.ppx-nova-theme .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--ppx-line);
+}
+
+html.ppx-nova-theme [dusk$="-detail-component"] h4,
+html.ppx-nova-theme .bg-white.rounded-lg.shadow label {
+    color: var(--ppx-muted);
+    font-size: 13px;
+    font-weight: 400;
+}
+
+/* Tables */
+
+html.ppx-nova-theme table[dusk="resource-table"] thead th {
+    padding-top: 9px;
+    padding-bottom: 9px;
+    background: var(--ppx-table-head);
+    color: var(--ppx-muted);
+    font-family: var(--ppx-body);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+html.ppx-nova-theme table[dusk="resource-table"] tbody td {
+    padding-top: 11px;
+    padding-bottom: 11px;
+    border-top: 1px solid var(--ppx-line);
+    color: var(--ppx-text);
+    font-size: 13px;
+}
+
+html.ppx-nova-theme table[dusk="resource-table"] tbody tr:hover td {
+    background: var(--ppx-hover);
+}
+
+html.ppx-nova-theme table[dusk="resource-table"] tbody td a.link-default,
+html.ppx-nova-theme table[dusk="resource-table"] tbody td a.font-bold {
+    color: var(--ppx-blue);
+}
+
+/* Pagination under a table */
+
+html.ppx-nova-theme nav.flex.justify-between.items-center {
+    border-top: 1px solid var(--ppx-line);
+    background: var(--ppx-surface);
+}
+
+html.ppx-nova-theme nav.flex.justify-between.items-center button,
+html.ppx-nova-theme nav.flex.justify-between.items-center span {
+    font-family: var(--ppx-heading);
+    font-size: 12px;
+}
+
+html.ppx-nova-theme nav.flex.justify-between.items-center button:not(:disabled) {
+    color: var(--ppx-blue);
+}
+
+/* Buttons: primary yellow, secondary outlined. */
+
+html.ppx-nova-theme a.bg-primary-500,
+html.ppx-nova-theme button.bg-primary-500 {
+    height: 40px;
+    padding: 0 18px;
+    border: 1px solid var(--ppx-yellow);
+    border-radius: var(--ppx-radius);
+    background: var(--ppx-yellow);
+    box-shadow: none;
+    color: var(--ppx-navy);
+    font-family: var(--ppx-heading);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+html.ppx-nova-theme a.bg-primary-500:hover,
+html.ppx-nova-theme button.bg-primary-500:hover:not(:disabled) {
+    border-color: var(--ppx-yellow-hover);
+    background: var(--ppx-yellow-hover);
+}
+
+html.ppx-nova-theme button.bg-primary-500 *,
+html.ppx-nova-theme a.bg-primary-500 * {
+    color: var(--ppx-navy);
+}
+
+/* The second button of a form ("& Continue Editing", "& Add Another") and the danger zone's cancel. */
+html.ppx-nova-theme [dusk="update-and-continue-editing-button"],
+html.ppx-nova-theme [dusk="create-and-add-another-button"] {
+    border-color: var(--ppx-border) !important;
+    background: var(--ppx-surface) !important;
+    color: var(--ppx-ink) !important;
+}
+
+html.ppx-nova-theme [dusk="update-and-continue-editing-button"] *,
+html.ppx-nova-theme [dusk="create-and-add-another-button"] * {
+    color: var(--ppx-ink) !important;
+}
+
+html.ppx-nova-theme [dusk="update-and-continue-editing-button"]:hover,
+html.ppx-nova-theme [dusk="create-and-add-another-button"]:hover {
+    border-color: var(--ppx-border-hover) !important;
+    background: var(--ppx-hover) !important;
+}
+
+html.ppx-nova-theme [dusk="cancel-update-button"],
+html.ppx-nova-theme [dusk="cancel-create-button"],
+html.ppx-nova-theme [dusk="cancel-action-button"] {
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--ppx-border);
+    border-radius: var(--ppx-radius);
+    background: var(--ppx-surface);
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-weight: 600;
+}
+
+/* Fields */
+
+html.ppx-nova-theme .form-control.form-input,
+html.ppx-nova-theme .form-control.form-select {
+    min-height: 40px;
+    border: 1px solid var(--ppx-border);
+    border-radius: var(--ppx-radius);
+    background-color: var(--ppx-surface);
+    box-shadow: none;
+    color: var(--ppx-ink);
+    font-family: var(--ppx-body);
+    font-size: 14px;
+}
+
+html.ppx-nova-theme .form-control.form-input.h-6 {
+    min-height: 0;
+    font-size: 12px;
+}
+
+html.ppx-nova-theme .form-control.form-input:focus,
+html.ppx-nova-theme .form-control.form-select:focus {
+    border-color: var(--ppx-blue-focus);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.18);
+}
+
+html.ppx-nova-theme .form-control.form-input:disabled,
+html.ppx-nova-theme .form-control.form-input[readonly] {
+    background-color: var(--ppx-table-head);
+    color: var(--ppx-muted);
+}
+
+/* The table's search field. */
+html.ppx-nova-theme input[dusk="search-input"] {
+    height: 40px;
+    border: 1px solid var(--ppx-border);
+    border-radius: var(--ppx-radius);
+    box-shadow: none;
+    font-size: 14px;
+}
+
+html.ppx-nova-theme input[dusk="search-input"]:focus {
+    border-color: var(--ppx-blue-focus);
+    box-shadow: 0 0 0 3px rgba(31, 79, 143, 0.18);
+}
+
+/* Filters: the funnel's menu */
+
+html.ppx-nova-theme [dusk="filter-selector-button"] {
+    border-radius: var(--ppx-radius);
+}
+
+html.ppx-nova-theme [id^="nova-ui-dropdown-menu"] {
+    border: 1px solid var(--ppx-line);
+    border-radius: var(--ppx-radius-lg);
+    box-shadow: var(--ppx-shadow-menu);
+}
+
+html.ppx-nova-theme [id^="nova-ui-dropdown-menu"] h3 {
+    color: var(--ppx-muted);
+    font-family: var(--ppx-body);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+/* Action modals */
+
+html.ppx-nova-theme .modal form.bg-white,
+html.ppx-nova-theme .modal .bg-white.rounded-lg {
+    border: 1px solid var(--ppx-line);
+    border-radius: var(--ppx-radius-lg);
+    box-shadow: var(--ppx-shadow-menu);
+}
+
+html.ppx-nova-theme .modal h3[dusk="heading"] {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-color: var(--ppx-line);
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+html.ppx-nova-theme .modal h3[dusk="heading"]::before {
+    flex: none;
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--ppx-card-marker);
+    content: '';
+}
+
+html.ppx-nova-theme .modal .bg-gray-100 {
+    border-top: 1px solid var(--ppx-line);
+    background: var(--ppx-table-head);
+}
+
+/* Badges: the member area's, with its colours and a dot instead of Nova's icon, in sentence case. */
+
+html.ppx-nova-theme span.inline-flex.rounded-full.uppercase {
+    gap: 6px;
+    min-height: 0;
+    padding: 2px 9px;
+    font-family: var(--ppx-body);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    text-transform: none;
+}
+
+html.ppx-nova-theme span.inline-flex.rounded-full.uppercase > span:has(svg),
+html.ppx-nova-theme span.inline-flex.rounded-full.uppercase > svg {
+    display: none;
+}
+
+html.ppx-nova-theme span.inline-flex.rounded-full.uppercase::before {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    content: '';
+}
+
+html.ppx-nova-theme span.rounded-full.bg-green-100 { background: var(--ppx-badge-success-bg); color: var(--ppx-badge-success-fg); }
+
+html.ppx-nova-theme span.rounded-full.bg-yellow-100,
+html.ppx-nova-theme span.rounded-full.bg-orange-100 { background: var(--ppx-badge-warning-bg); color: var(--ppx-badge-warning-fg); }
+
+html.ppx-nova-theme span.rounded-full.bg-red-100 { background: var(--ppx-badge-danger-bg); color: var(--ppx-badge-danger-fg); }
+
+html.ppx-nova-theme span.rounded-full.bg-blue-100,
+html.ppx-nova-theme span.rounded-full.bg-sky-100 { background: var(--ppx-blue-50); color: var(--ppx-navy-700); }
+
+html.ppx-nova-theme span.rounded-full.bg-gray-100 { background: var(--ppx-badge-neutral-bg); color: var(--ppx-badge-neutral-fg); }
+
+/* Dashboard metrics: the member area's stat cards (Dashboard - overview.jpg). */
+
+html.ppx-nova-theme .min-h-40.rounded-lg.shadow {
+    padding: 16px 20px;
+}
+
+html.ppx-nova-theme .min-h-40.rounded-lg.shadow h3 {
+    color: var(--ppx-muted);
+    font-family: var(--ppx-body);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+html.ppx-nova-theme .min-h-40.rounded-lg.shadow .text-4xl,
+html.ppx-nova-theme .min-h-40.rounded-lg.shadow .text-3xl {
+    color: var(--ppx-ink);
+    font-family: var(--ppx-heading);
+    font-weight: 600;
+}
+
+/* Links in the content */
+
+html.ppx-nova-theme .link-default {
+    color: var(--ppx-blue);
+}

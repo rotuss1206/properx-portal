@@ -68,6 +68,10 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             // Dashboard cards of our own (the "Pending verification" counter with its link).
             Nova::script('portal-cards', resource_path('js/nova/cards.js'));
 
+            // The member area's look for the staff screens; without the script Nova keeps its own.
+            Nova::script('portal-theme', resource_path('js/nova/theme.js'));
+            Nova::style('portal-theme', resource_path('css/nova/theme.css'));
+
             // Branded sign-in page (public/portal, loaded by the vendor/nova/partials/meta view).
             Nova::provideToScript(['loginPage' => ['supportUrl' => config('portal.brand.support_url') ?: null]]);
         });
