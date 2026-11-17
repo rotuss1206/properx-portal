@@ -11,25 +11,6 @@
         @font-face { font-family: 'PPX Poppins'; font-style: normal; font-weight: normal; src: url('{{ $fontPath('Poppins-SemiBold.ttf') }}') format('truetype'); }
         body { margin: 0; }
         @include('pdf.certificate-styles')
-        {{-- dompdf multiplies line-height by the font's height ratio (Open Sans 1.498, Poppins 1.65, Lora 1.408).
-             These divide by it, so the page matches the HTML preview; it also sets text a little lower in its box. --}}
-        @php
-            $u = \App\Services\Certificates\CertificateGeneratorService::points(...);
-            $l = \App\Services\Certificates\CertificateGeneratorService::layout();
-        @endphp
-        {{-- dompdf ignores box-sizing here: the same 74 px outside, with the border counted in. --}}
-        .cert-seal { box-sizing: content-box; width: {{ $u(70) }}; height: {{ $u(70) }}; }
-        .cert-title { top: {{ $u($l['title'] - 1) }}; line-height: {{ $u(18 / 1.65) }}; }
-        .cert-lead { line-height: {{ $u(18 / 1.498) }}; }
-        .cert-name { line-height: {{ $u(41.8 / 1.408) }}; }
-        .cert-text { top: {{ $u($l['text'] - 2) }}; line-height: {{ $u(22.1 / 1.498) }}; }
-        .cert-fields-line { top: {{ $u($l['fields'] - 2) }}; }
-        .cert-label { line-height: {{ $u(16 / 1.498) }}; }
-        .cert-value { line-height: {{ $u(24 / 1.65) }}; }
-        .cert-sign { top: {{ $u($l['sign'] - 2) }}; }
-        .cert-sign-name { line-height: {{ $u(32 / 1.408) }}; }
-        .cert-sign-title { line-height: {{ $u(14 / 1.498) }}; }
-        .cert-footer { top: {{ $u($l['footer'] - 2) }}; line-height: {{ $u(19 / 1.498) }}; }
     </style>
 </head>
 <body>

@@ -86,13 +86,17 @@ class CertificateGenerationTest extends TestCase
         $this->assertSame('Longest Serving', $document['signatoryName']);
         $this->assertSame('Executive Director', $document['signatoryTitle']);
         $this->assertNull($document['secondSignatoryName']);
-        $this->assertStringContainsString('Date issued', view('pdf.certificate-body', $document)->render());
+        $this->assertStringContainsString('Date issued', view('member.certificate-preview', $document)->render());
 
         config(['portal.member_area.certificate.signatory' => ['name' => 'D. Whitfield', 'title' => 'President']]);
         $old = $this->service->generate($profile);
-        $html = view('pdf.certificate-body', $this->service->document($profile))->render();
+        $html = view('member.certificate-preview', $this->service->document($profile))->render();
         $this->assertStringContainsString('D. Whitfield', $html);
         $this->assertStringContainsString('President', $html);
+        // The PDF prints the name only, no title (Certificate.jpg).
+        $pdf = view('pdf.certificate-body', $this->service->document($profile))->render();
+        $this->assertStringContainsString('D. Whitfield', $pdf);
+        $this->assertStringNotContainsString('President', $pdf);
 
         // What is printed is part of the cache key.
         config(['portal.member_area.certificate.signatory' => ['name' => 'Someone Else', 'title' => 'President']]);
@@ -116,30 +120,22 @@ class CertificateGenerationTest extends TestCase
         $profile = $this->member()->memberProfile;
         $profile->forceFill(['first_name' => str_repeat('Maximiliana', 3), 'last_name' => str_repeat('Featherstonehaugh', 2)])->saveQuietly();
 
-        $this->assertLessThan((float) CertificateGeneratorService::points(38), $this->service->document($profile->fresh())['nameSize']);
+        $this->assertLessThan((float) CertificateGeneratorService::points(62), $this->service->document($profile->fresh())['nameSize']);
     }
 
-    public function test_the_design_values_are_figmas_on_its_636_px_frame(): void
+    public function test_the_pdf_design_is_certificate_jpg_on_its_816_px_page(): void
     {
-        $this->assertSame('36.538pt', CertificateGeneratorService::points(38));
-        $this->assertSame('612pt', CertificateGeneratorService::points(636.48));
+        $this->assertSame('612pt', CertificateGeneratorService::points(816));
+        $this->assertSame('46.5pt', CertificateGeneratorService::points(62));
 
         $styles = view('pdf.certificate-styles')->render();
 
-        foreach (['#14508c', '#5f7185', '#0a2d4b', '#2a3340', '#9aa7b4', '#1c2b3a', '#f0c846', '#e6ddc4'] as $color) {
+        foreach (['#14508c', '#5f7185', '#0a2d4b', '#2a3340', '#9aa7b4', '#0f2f4f', '#c9a43c'] as $color) {
             $this->assertStringContainsString($color, $styles);
         }
 
-        $this->assertStringContainsString('letter-spacing: '.CertificateGeneratorService::points(2.64), $styles);
-        $this->assertStringContainsString('line-height: '.CertificateGeneratorService::points(22.1), $styles);
-    }
-
-    public function test_only_the_pdf_uses_the_background_image_and_the_preview_uses_real_css(): void
-    {
-        $profile = $this->member()->memberProfile;
-
-        $this->assertStringNotContainsString('cert-background"', view('pdf.certificate-body', $this->service->document($profile))->render());
-        $this->assertFileExists(resource_path('views/pdf/images/certificate-background.png'));
+        // Letter: 816 x 1056 design pixels are 612 x 792 points.
+        $this->assertStringContainsString('height: '.CertificateGeneratorService::points(1056), $styles);
     }
 
     public function test_creates_the_font_cache_directory_when_missing(): void

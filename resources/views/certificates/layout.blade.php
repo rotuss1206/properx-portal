@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title>@yield('title') · ProPerX Alliance</title>
+    @include('partials.favicons')
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}">
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('components.css') }}">
     <style>

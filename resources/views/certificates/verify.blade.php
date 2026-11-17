@@ -24,6 +24,9 @@
             @if ($certificate['valid_through'])
                 <dt>Valid through</dt><dd>{{ $certificate['valid_through'] }}</dd>
             @endif
+            @if ($certificate['issued_on'])
+                <dt>Issued</dt><dd>{{ $certificate['issued_on'] }}</dd>
+            @endif
             <dt>Certificate no.</dt><dd>{{ $certificate['code'] }}</dd>
         </dl>
     @else

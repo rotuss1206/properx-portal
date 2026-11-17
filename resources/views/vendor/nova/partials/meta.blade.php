@@ -8,6 +8,7 @@
 {{-- Before Nova's theme script below in its layout: light theme only (no theme switcher). --}}
 <script src="{{ \App\Support\PortalAsset::url('light-theme.js') }}"{!! $nonce !!}></script>
 <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('tokens.css') }}"{!! $nonce !!}>
+@include('partials.favicons')
 @if (\Laravel\Nova\Nova::user(request()) === null)
     <link rel="stylesheet" href="{{ \App\Support\PortalAsset::url('login-page.css') }}"{!! $nonce !!}>
     <script src="{{ \App\Support\PortalAsset::url('login-page.js') }}" defer{!! $nonce !!}></script>

@@ -20,7 +20,7 @@ final readonly class CertificateOptions
 
     public static function fromRequest(Request $request): self
     {
-        $term = $request->query('term');
+        $term = $request->input('term');
 
         return new self(
             $request->boolean('member_id', true),
@@ -50,14 +50,14 @@ final readonly class CertificateOptions
      *
      * @return array<string, bool|string|null>
      */
-    public function auditDetails(?string $term): array
+    public function auditDetails(?string $term, string $format = 'pdf'): array
     {
         return [
             'member_id' => $this->memberId,
             'join_date' => $this->joinDate,
             'qr' => $this->qr,
             'term' => $term,
-            'format' => 'pdf',
+            'format' => $format,
         ];
     }
 }

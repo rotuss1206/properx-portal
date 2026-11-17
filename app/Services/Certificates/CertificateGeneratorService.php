@@ -6,6 +6,7 @@ use App\Enums\LicenseStatus;
 use App\Enums\Role;
 use App\Exceptions\CertificateUnavailableException;
 use App\Models\AuditLog;
+use App\Models\CertificateIssue;
 use App\Models\MemberProfile;
 use App\Models\StripeEvent;
 use App\Models\User;
@@ -14,6 +15,7 @@ use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -31,19 +33,19 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 11;
+    private const TEMPLATE_VERSION = 12;
 
     /**
-     * The design's frame in Figma is 636.48 px wide (the mockup at 0.78); the page is 612 pt.
+     * The PDF's design (docs/design/Certificate.jpg) draws the Letter page 816 px wide; the page is 612 pt.
      */
-    private const FIGMA_WIDTH = 636.48;
+    private const PDF_WIDTH = 816;
 
     /**
-     * Figma's pixels as points on the page.
+     * The PDF design's pixels as points on the page.
      */
-    public static function points(float $figmaPixels): string
+    public static function points(float $designPixels): string
     {
-        return round($figmaPixels * 612 / self::FIGMA_WIDTH, 3).'pt';
+        return round($designPixels * 612 / self::PDF_WIDTH, 3).'pt';
     }
 
     /**
@@ -122,6 +124,8 @@ class CertificateGeneratorService
         $this->assertEligible($profile);
 
         $options ??= new CertificateOptions;
+        // The first issue of this term fixes the date printed on every copy of it.
+        $this->issue($profile, $options);
         $data = $this->certificateData($profile, $options);
         $auditDetails = $options->auditDetails($data['term']);
         $path = $this->directory($profile).'/'.$this->fingerprint($data).'.pdf';
@@ -135,13 +139,10 @@ class CertificateGeneratorService
         $this->pruneExpired($profile);
         $this->ensureFontCacheDirectory();
 
-        $orientation = self::orientation();
         $pdf = Pdf::loadView('pdf.certificate', $this->viewData($data) + [
             'fontPath' => fn (string $file) => self::chrootPath('fonts/'.$file),
-            // dompdf has no box-shadow or gradients; the preview uses real CSS for them.
-            'backgroundImage' => self::embedded($orientation === 'landscape' ? 'certificate-background-landscape.png' : 'certificate-background.png', 'image/png'),
         ])
-            ->setPaper('letter', $orientation);
+            ->setPaper('letter', 'portrait');
 
         $disk->put($path, $pdf->output());
 
@@ -151,8 +152,76 @@ class CertificateGeneratorService
     }
 
     /**
-     * What resources/views/pdf/certificate-body.blade.php prints, for the HTML preview: the same
-     * data and images as the PDF. Eligibility is the caller's check.
+     * The PNG (/member/certificate draws its preview in the browser): eligibility, the first issue of
+     * the term, and the audit entry, as for a PDF. Returns the file name, the PDF's with .png.
+     *
+     * @throws CertificateUnavailableException
+     */
+    public function issuePng(MemberProfile $profile, CertificateOptions $options): string
+    {
+        $this->assertEligible($profile);
+        $this->issue($profile, $options);
+        $data = $this->certificateData($profile, $options);
+
+        AuditLog::record('certificate_generated', $profile, details: $options->auditDetails($data['term'], 'png'));
+
+        return substr($this->filename($profile), 0, -4).'.png';
+    }
+
+    /**
+     * The day this member's certificate for the chosen term was first issued, recorded now if it never was.
+     */
+    public function issue(MemberProfile $profile, CertificateOptions $options): CarbonInterface
+    {
+        $termEnd = $this->termEnd($profile, $options)?->toDateString();
+
+        if ($issued = self::issuedOn($profile, $termEnd)) {
+            return $issued;
+        }
+
+        try {
+            return CertificateIssue::query()->create([
+                'member_profile_id' => $profile->getKey(),
+                'term_end' => $termEnd,
+                'issued_on' => now(config('portal.schedule_timezone'))->toDateString(),
+            ])->issued_on;
+        } catch (UniqueConstraintViolationException) {
+            // Two downloads at the same moment: the first one's date.
+            return self::issuedOn($profile, $termEnd);
+        }
+    }
+
+    /**
+     * The first issue of a term, or null when it was never issued.
+     */
+    private static function issuedOn(MemberProfile $profile, ?string $termEnd): ?CarbonInterface
+    {
+        return CertificateIssue::query()
+            ->where('member_profile_id', $profile->getKey())
+            ->when($termEnd, fn ($query) => $query->whereDate('term_end', $termEnd), fn ($query) => $query->whereNull('term_end'))
+            ->first()
+            ?->issued_on;
+    }
+
+    /**
+     * The date shown by /verify-certificate: the first issue of the latest term, or null before any.
+     */
+    public static function lastIssuedOn(MemberProfile $profile): ?CarbonInterface
+    {
+        return CertificateIssue::query()->where('member_profile_id', $profile->getKey())->orderByDesc('term_end')->first()?->issued_on;
+    }
+
+    private function termEnd(MemberProfile $profile, CertificateOptions $options): ?CarbonInterface
+    {
+        // Only a term this member really has; anything else in a link means the current one.
+        $chosen = collect($this->terms($profile))->firstWhere('value', $options->termEnd);
+
+        return $chosen ? Carbon::parse($chosen['value']) : self::validThrough($profile);
+    }
+
+    /**
+     * What the certificate prints, for the HTML preview (member/certificate-preview): the same data
+     * and images as the PDF. Eligibility is the caller's check.
      *
      * @return array<string, mixed>
      */
@@ -214,26 +283,6 @@ class CertificateGeneratorService
     }
 
     /**
-     * Portrait unless config says otherwise; landscape exists for comparison.
-     */
-    public static function orientation(): string
-    {
-        return config('portal.member_area.certificate.orientation') === 'landscape' ? 'landscape' : 'portrait';
-    }
-
-    /**
-     * The design's sizes that depend on the orientation, in Figma pixels of its frame.
-     *
-     * @return array<string, float|int>
-     */
-    public static function layout(): array
-    {
-        return self::orientation() === 'landscape'
-            ? ['w' => 823.68, 'h' => 635.2, 'logo' => 60, 'title' => 104, 'rule' => 132, 'lead' => 150, 'name' => 170, 'nameRule' => 218, 'text' => 232, 'textWidth' => 560, 'fields' => 310, 'sign' => 388, 'seal' => 378, 'qr' => 504, 'hr' => 498, 'footer' => 516]
-            : ['w' => 636.48, 'h' => 822.64, 'logo' => 84, 'title' => 149, 'rule' => 184, 'lead' => 220, 'name' => 254, 'nameRule' => 304, 'text' => 322, 'textWidth' => 444, 'fields' => 420, 'sign' => 556, 'seal' => 546, 'qr' => 696, 'hr' => 690, 'footer' => 708];
-    }
-
-    /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
@@ -246,6 +295,9 @@ class CertificateGeneratorService
             'logoImage' => self::embedded('logo-color.png', 'image/png'),
             'sealImage' => self::embedded('seal.svg', 'image/svg+xml'),
             'linkImage' => self::embedded('link.svg', 'image/svg+xml'),
+            'diamondImage' => self::embedded('diamond.svg', 'image/svg+xml'),
+            // The preview sits on a cream gradient: the transparent logo (the PNG has a white ground).
+            'previewLogoImage' => 'data:image/svg+xml;base64,'.base64_encode((string) file_get_contents(public_path('portal/img/logo-color.svg'))),
         ];
     }
 
@@ -302,14 +354,11 @@ class CertificateGeneratorService
         $second = config('portal.member_area.certificate.second_signatory');
         $memberName = $profile->fullName();
 
-        // Only a term this member really has; anything else in a link means the current one.
-        $chosen = collect($this->terms($profile))->firstWhere('value', $options->termEnd);
-        $validThrough = $chosen ? Carbon::parse($chosen['value']) : self::validThrough($profile);
+        $validThrough = $this->termEnd($profile, $options);
 
-        // The day the file is made, in the portal's time zone. Part of the data, so of the cache key:
-        // at most one file a day per combination, a printed date that is always today's, and a
-        // change of data gives a new file dated today. The preview shows the same date.
-        $issuedOn = now(config('portal.schedule_timezone'));
+        // The first issue of this term (certificate_issues), the same on every copy; before any, the
+        // preview shows today, the day it would be issued.
+        $issuedOn = self::issuedOn($profile, $validThrough?->toDateString()) ?? now(config('portal.schedule_timezone'));
 
         return [
             'memberName' => $memberName,
@@ -333,17 +382,17 @@ class CertificateGeneratorService
     }
 
     /**
-     * The name stays on one line: Figma's 38 px for most, smaller for long names. In points.
+     * The name stays on one line: the design's 62 px for most, smaller for long names. In points.
      */
     private static function nameSize(string $name): float
     {
         $length = mb_strlen($name);
 
         return (float) self::points(match (true) {
-            $length <= 30 => 38,
-            $length <= 42 => 28,
-            $length <= 56 => 21,
-            default => 16,
+            $length <= 30 => 62,
+            $length <= 42 => 46,
+            $length <= 56 => 34,
+            default => 26,
         });
     }
 
@@ -371,7 +420,7 @@ class CertificateGeneratorService
      */
     private function fingerprint(array $data): string
     {
-        return sha1(json_encode([self::TEMPLATE_VERSION, self::orientation(), $data, $this->signatureImagePath()]));
+        return sha1(json_encode([self::TEMPLATE_VERSION, $data, $this->signatureImagePath()]));
     }
 
     private function qrCode(string $url): string

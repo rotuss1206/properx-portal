@@ -775,14 +775,16 @@ body.ppx-member {
 
 .ppx-cert__stage-icon { width: 22px; height: 22px; }
 
-.ppx-cert__paper { position: relative; width: 100%; max-width: 514px; aspect-ratio: 612 / 791; margin: 0 auto; overflow: hidden; background: #fff; box-shadow: 0 12px 40px 0 rgba(16, 40, 70, 0.14); }
+.ppx-cert__paper { position: relative; width: 100%; max-width: 514px; aspect-ratio: 659 / 615; margin: 0 auto; overflow: hidden; background: #fff; box-shadow: 0 12px 40px 0 rgba(16, 40, 70, 0.14); }
 
 /* Real size, scaled to the column; values without JavaScript per width below. */
-.ppx-cert__page { position: absolute; top: 0; left: 0; width: 612pt; height: 791pt; transform: scale(var(--ppx-cert-scale, 0.63)); transform-origin: 0 0; }
+.ppx-cert__page { position: absolute; top: 0; left: 0; width: 659px; height: 615px; transform: scale(var(--ppx-cert-scale, 0.78)); transform-origin: 0 0; }
 
-.ppx-cert__paper--landscape { max-width: 660px; aspect-ratio: 792 / 611; }
+.ppx-cert__note { margin: 14px 0 0; color: var(--ppx-navy-700); font-size: 11.5px; text-align: center; opacity: .75; }
 
-.ppx-cert__page--landscape { width: 792pt; height: 611pt; }
+.ppx-cert__message { margin: 10px 0 0; color: var(--ppx-badge-danger-fg); font-size: 13px; }
+
+
 
 /* Upload page. */
 

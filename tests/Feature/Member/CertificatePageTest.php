@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\PersonType;
 use App\Enums\Role;
 use App\Models\AuditLog;
+use App\Models\CertificateIssue;
 use App\Models\StripeEvent;
 use App\Models\User;
 use App\Services\Certificates\CertificateGeneratorService;
@@ -71,7 +72,7 @@ class CertificatePageTest extends TestCase
             ->assertSee('Include verification QR')
             ->assertSee('PDF — Letter, portrait')
             ->assertSee('PNG image')
-            ->assertSee('coming soon')
+            ->assertDontSee('coming soon')
             ->assertDontSee('Certificate details')
             ->assertDontSee('Something not right?')
             ->getContent();
@@ -79,7 +80,6 @@ class CertificatePageTest extends TestCase
         $this->assertMatchesRegularExpression('/name="member_id" value="1"[^>]*checked/', $content);
         $this->assertMatchesRegularExpression('/name="join_date" value="1"[^>]*checked/', $content);
         $this->assertDoesNotMatchRegularExpression('/name="qr" value="1"[^>]*checked/', $content);
-        $this->assertMatchesRegularExpression('/name="format" value="png"\s+disabled/', $content);
 
         // Every part is there for the live preview; the QR starts hidden.
         $this->assertMatchesRegularExpression('/class="cert-qr"\s+data-ppx-cert="qr"\s+hidden/', $content);
@@ -182,27 +182,55 @@ class CertificatePageTest extends TestCase
             ->assertSee('data-date="Mar 14, 2025"', false);
     }
 
-    public function test_without_a_second_signature_the_right_block_is_the_date_issued(): void
-    {
-        $this->travelTo('2026-11-05 15:00:00');
-        $profile = $this->member()->memberProfile;
-        $html = view('pdf.certificate-body', app(CertificateGeneratorService::class)->document($profile))->render();
+    // The two designs: the preview (Certificate Generate.jpg) and the PDF (Certificate.jpg)
 
-        $this->assertMatchesRegularExpression('/cert-sign-right.*?Nov 5, 2026.*?cert-sign-rule.*?Date issued/s', $html);
-        $this->assertStringNotContainsString('Issued Nov', $html);
+    private function pdf(array $config = [], ?CertificateOptions $options = null): string
+    {
+        config($config);
+
+        return view('pdf.certificate-body', app(CertificateGeneratorService::class)->document($this->member()->memberProfile, $options))->render();
     }
 
-    public function test_a_second_signature_takes_the_right_block_and_the_date_moves_to_the_bottom_line(): void
+    private function preview(array $config = []): string
+    {
+        config($config);
+
+        return view('member.certificate-preview', app(CertificateGeneratorService::class)->document($this->member()->memberProfile))->render();
+    }
+
+    public function test_the_pdf_with_one_signature_prints_the_date_issued_on_the_right_in_the_signatures_style(): void
     {
         $this->travelTo('2026-11-05 15:00:00');
-        config(['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']]);
-        $profile = $this->member()->memberProfile;
-        $html = view('pdf.certificate-body', app(CertificateGeneratorService::class)->document($profile))->render();
+        $html = $this->pdf();
 
-        $this->assertMatchesRegularExpression('/cert-sign-right.*?R\. Alvarez.*?cert-sign-rule.*?Membership Secretary/s', $html);
+        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">Nov 5, 2026</', $html);
         $this->assertStringNotContainsString('Date issued', $html);
-        $this->assertStringContainsString('Issued Nov 5, 2026 · ', $html);
-        $this->assertStringContainsString('Verify at', $html);
+        $this->assertStringNotContainsString('cert-sign-rule', $html);
+        $this->assertStringNotContainsString('Issued Nov', $html);
+        $this->assertStringContainsString('Verify authenticity at', strip_tags($html));
+    }
+
+    public function test_the_pdf_with_two_signatures_moves_the_date_to_the_bottom_line(): void
+    {
+        $this->travelTo('2026-11-05 15:00:00');
+        $html = $this->pdf(['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']]);
+
+        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">R\. Alvarez</', $html);
+        $this->assertStringNotContainsString('Membership Secretary', $html);
+        $this->assertStringContainsString('Issued Nov 5, 2026 · Verify authenticity at', strip_tags($html));
+    }
+
+    public function test_the_preview_keeps_lines_and_titles_under_the_signatures(): void
+    {
+        $this->travelTo('2026-11-05 15:00:00');
+        $html = $this->preview();
+        $this->assertMatchesRegularExpression('/cert-sign-right.*?Nov 5, 2026.*?cert-sign-rule.*?Date issued/s', $html);
+        $this->assertStringContainsString('Verify at', strip_tags($html));
+        $this->assertStringContainsString('cert-hr', $html);
+
+        $html = $this->preview(['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']]);
+        $this->assertMatchesRegularExpression('/cert-sign-right.*?R\. Alvarez.*?cert-sign-rule.*?Membership Secretary/s', $html);
+        $this->assertStringContainsString('Issued', strip_tags($html));
     }
 
     public function test_the_second_signature_is_off_by_default(): void
@@ -210,23 +238,42 @@ class CertificatePageTest extends TestCase
         $this->assertNull(config('portal.member_area.certificate.second_signatory'));
     }
 
-    public function test_both_blocks_are_the_same_width_at_the_same_distance_from_the_seal_in_the_middle(): void
+    public function test_the_pdf_has_gold_corners_a_diamond_and_a_round_seal_and_the_preview_does_not(): void
+    {
+        $pdf = $this->pdf();
+        $this->assertStringContainsString('cert-corner-left', $pdf);
+        $this->assertStringContainsString('cert-corner-right', $pdf);
+        $this->assertStringContainsString('cert-diamond', $pdf);
+
+        $styles = view('pdf.certificate-styles')->render();
+        $this->assertMatchesRegularExpression('/\.cert-seal \{[^}]*border-radius: '.preg_quote(CertificateGeneratorService::points(52)).'/', $styles);
+
+        $preview = $this->preview();
+        $this->assertStringNotContainsString('corner', $preview);
+        $this->assertStringNotContainsString('diamond', $preview);
+        $previewStyles = view('member.certificate-preview-styles')->render();
+        $this->assertMatchesRegularExpression('/\.cert-rule \{[^}]*width: 52px; height: 0; border-top: 2px solid #f0c846/', $previewStyles);
+        $this->assertMatchesRegularExpression('/\.cert-seal \{[^}]*width: 74px; height: 74px; border: 2px solid #f0c846; border-radius: 28\.86px; background: #fffdf6/', $previewStyles);
+    }
+
+    public function test_the_pdf_signatures_are_symmetrical_around_the_seal_in_the_middle(): void
     {
         $styles = view('pdf.certificate-styles')->render();
         $points = fn (string $selector, string $property) => preg_match('/'.preg_quote($selector).' \{[^}]*\b'.$property.': ([\d.]+)pt/', $styles, $m) ? (float) $m[1] : null;
 
+        $page = (float) CertificateGeneratorService::points(816);
         $seal = $points('.cert-seal', 'left');
-        $sealOuter = (float) CertificateGeneratorService::points(74);
+        $sealOuter = (float) CertificateGeneratorService::points(104);
         $block = $points('.cert-sign', 'width');
         $left = $points('.cert-sign-left', 'left');
         $right = $points('.cert-sign-right', 'left');
 
-        $this->assertEqualsWithDelta(612, 2 * $seal + $sealOuter, 0.02, 'The seal is in the middle.');
+        $this->assertEqualsWithDelta($page, 2 * $seal + $sealOuter, 0.02, 'The seal is in the middle.');
         $this->assertEqualsWithDelta($seal - ($left + $block), $right - ($seal + $sealOuter), 0.02, 'Same distance from the seal.');
-        $this->assertEqualsWithDelta(612, $left + $right + $block, 0.02, 'Mirrored around the middle.');
+        $this->assertEqualsWithDelta($page, $left + $right + $block, 0.02, 'Mirrored around the middle.');
     }
 
-    public function test_the_issue_date_keeps_one_file_a_day_and_changed_data_gives_todays_date(): void
+    public function test_the_issue_date_is_the_first_issue_of_the_term_not_the_day_of_the_download(): void
     {
         $this->travelTo('2026-11-05 09:00:00');
         $member = $this->member();
@@ -236,73 +283,92 @@ class CertificatePageTest extends TestCase
         $first = $service->generate($profile);
         $this->assertFalse($first->fromCache);
 
-        // Later the same day: the same file.
-        $this->travelTo('2026-11-05 16:00:00');
-        $this->assertTrue($service->generate($profile->fresh())->fromCache);
-
-        // The next day: a new file, because the printed date is new.
+        // The next day: the same date, so the same file.
         $this->travelTo('2026-11-06 09:00:00');
-        $next = $service->generate($profile->fresh());
-        $this->assertFalse($next->fromCache);
-        $this->assertNotSame($first->path, $next->path);
+        $this->assertTrue($service->generate($profile->fresh())->fromCache);
+        $this->assertStringContainsString('Nov 5, 2026', view('pdf.certificate-body', $service->document($profile->fresh()))->render());
 
-        // Changed data the same day: a new file, dated today.
-        $this->travelTo('2026-11-06 10:00:00');
+        // Changed data: a new file, still dated the first issue.
         $profile->fresh()->update(['last_name' => 'Renamed']);
         $this->assertFalse($service->generate($profile->fresh())->fromCache);
-        $this->assertStringContainsString('Nov 6, 2026', view('pdf.certificate-body', $service->document($profile->fresh()))->render());
+        $this->assertStringContainsString('Nov 5, 2026', view('pdf.certificate-body', $service->document($profile->fresh()))->render());
+        $this->assertSame(1, CertificateIssue::query()->count());
 
-        $this->assertSame(3, AuditLog::where('action', 'certificate_generated')->count());
+        // The public check shows it.
+        $this->get(route('certificates.verify', $profile->certificate_code))->assertOk()->assertSee('Issued')->assertSee('Nov 5, 2026');
     }
 
-    public function test_the_qr_sits_in_the_bottom_row_and_leaves_the_signature_row_alone(): void
+    public function test_before_any_issue_the_preview_shows_today_and_records_nothing(): void
     {
-        $profile = $this->member()->memberProfile;
-        $service = app(CertificateGeneratorService::class);
+        $this->travelTo('2026-11-05 09:00:00');
 
-        $with = view('pdf.certificate-body', $service->document($profile, new CertificateOptions(qr: true)))->render();
-        $without = view('pdf.certificate-body', $service->document($profile, new CertificateOptions(qr: false)))->render();
+        $this->assertStringContainsString('Nov 5, 2026', $this->preview());
+        $this->assertSame(0, CertificateIssue::query()->count());
+    }
 
+    public function test_the_qr_sits_small_in_the_bottom_line_of_the_pdf(): void
+    {
+        $with = $this->pdf([], new CertificateOptions(qr: true));
         $this->assertStringContainsString('cert--qr', $with);
-        $this->assertStringNotContainsString('cert--qr', $without);
+        $this->assertStringContainsString('cert-qr-image', $with);
+        $this->assertStringNotContainsString('cert-qr', $this->pdf([], new CertificateOptions(qr: false)));
 
-        $layout = CertificateGeneratorService::layout();
-        $this->assertGreaterThan($layout['hr'], $layout['qr'], 'Below the rule, in the bottom row.');
+        $styles = view('pdf.certificate-styles')->render();
+        $top = fn (string $selector) => preg_match('/'.preg_quote($selector).' \{[^}]*\btop: ([\d.]+)pt/', $styles, $m) ? (float) $m[1] : null;
+        $this->assertGreaterThan($top('.cert-seal') + (float) CertificateGeneratorService::points(104), $top('.cert-qr'), 'Below the signatures, in the bottom line.');
+        $this->assertMatchesRegularExpression('/\.cert-qr \{[^}]*width: '.preg_quote(CertificateGeneratorService::points(60)).'/', $styles);
     }
 
     public function test_a_signature_image_can_be_set_by_file_name(): void
     {
-        $profile = $this->member()->memberProfile;
-
         config(['portal.certificates.signature_image' => resource_path('views/pdf/images/logo-color.png')]);
-        $html = view('pdf.certificate-body', app(CertificateGeneratorService::class)->document($profile))->render();
 
-        $this->assertStringContainsString('cert-sign-image', $html);
+        $this->assertStringContainsString('cert-sign-image', $this->pdf());
+        $this->assertStringContainsString('cert-sign-image', $this->preview());
     }
 
-    public function test_there_are_no_decorative_corners_and_the_seal_is_a_rounded_square(): void
+    public function test_the_pdf_is_one_letter_portrait_page(): void
     {
-        $profile = $this->member()->memberProfile;
+        $certificate = app(CertificateGeneratorService::class)->generate($this->member()->memberProfile);
 
-        $this->assertStringNotContainsString('corner', view('pdf.certificate-body', app(CertificateGeneratorService::class)->document($profile))->render());
-
-        $styles = view('pdf.certificate-styles')->render();
-        $this->assertStringNotContainsString('corner', $styles);
-        $this->assertMatchesRegularExpression('/\.cert-seal \{[^}]*border-radius: '.preg_quote(CertificateGeneratorService::points(28.86)).'/', $styles);
-        $this->assertMatchesRegularExpression('/\.cert-seal \{[^}]*background: #fffdf6/', $styles);
+        $this->assertMatchesRegularExpression('#/MediaBox\s*\[\s*0(\.0+)?\s+0(\.0+)?\s+612(\.0+)?\s+792(\.0+)?\s*\]#', Storage::disk($certificate->disk)->get($certificate->path));
     }
 
-    public function test_landscape_is_available_by_config_and_off_by_default(): void
+    // PNG
+
+    public function test_the_png_is_checked_issued_and_audited_before_the_browser_draws_it(): void
     {
-        $profile = $this->member()->memberProfile;
-        $service = app(CertificateGeneratorService::class);
+        $this->travelTo('2026-11-05 09:00:00');
+        $member = $this->member();
+        $profile = $member->memberProfile;
 
-        $this->assertSame('portrait', CertificateGeneratorService::orientation());
+        $this->actingAs($member)->postJson(route('member.certificate.png'), ['member_id' => '0', 'join_date' => '1', 'qr' => '1'])
+            ->assertOk()
+            ->assertExactJson(['filename' => 'ProPerX-membership-certificate-'.$profile->certificate_code.'.png', 'issued_on' => 'Nov 5, 2026']);
 
-        config(['portal.member_area.certificate.orientation' => 'landscape']);
-        $certificate = $service->generate($profile);
+        $log = AuditLog::where('action', 'certificate_generated')->sole();
+        $this->assertSame(['member_id' => false, 'join_date' => true, 'qr' => true, 'term' => $log->details['term'], 'format' => 'png'], $log->details);
+        $this->assertSame(1, CertificateIssue::query()->count());
 
-        $this->assertMatchesRegularExpression('#/MediaBox\s*\[\s*0(\.0+)?\s+0(\.0+)?\s+792(\.0+)?\s+612(\.0+)?\s*\]#', Storage::disk($certificate->disk)->get($certificate->path));
+        // The PDF of the same term prints the same date later.
+        $this->travelTo('2026-12-01 09:00:00');
+        $this->assertStringContainsString('Nov 5, 2026', view('pdf.certificate-body', app(CertificateGeneratorService::class)->document($profile->fresh()))->render());
+    }
+
+    public function test_a_member_without_a_certificate_gets_no_png(): void
+    {
+        $this->actingAs($this->canceled())->postJson(route('member.certificate.png'))->assertStatus(422)->assertJsonStructure(['message']);
+        $this->assertSame(0, AuditLog::where('action', 'certificate_generated')->count());
+    }
+
+    public function test_the_page_offers_the_png_and_says_the_pdf_is_letter_size(): void
+    {
+        $content = $this->actingAs($this->member())->get(route('member.certificate'))->assertOk()
+            ->assertSee('Downloaded PDF is Letter size, print-ready')
+            ->assertSee('data-png-url="'.route('member.certificate.png').'"', false)
+            ->getContent();
+
+        $this->assertDoesNotMatchRegularExpression('/name="format" value="png"\s+disabled/', $content);
     }
 
     public function test_looking_at_the_page_generates_and_audits_nothing(): void
@@ -464,7 +530,7 @@ class CertificatePageTest extends TestCase
         $this->actingAs($agency->principal()->first())->get(route('member.certificate'))->assertOk()
             ->assertSee('CERTIFICATE OF MEMBERSHIP')
             ->assertDontSee('VALID THROUGH')
-            ->assertSee('requirements of membership');
+            ->assertSee('privileges of membership.');
     }
 
     public function test_guests_and_staff_do_not_reach_it_and_nobody_gets_someone_elses(): void

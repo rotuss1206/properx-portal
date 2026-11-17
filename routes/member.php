@@ -44,6 +44,8 @@ Route::middleware(['web', EnsureMemberArea::class, 'auth', RequireTwoFactor::cla
         }
 
         Route::get('certificate', [CertificateController::class, 'show'])->name('certificate');
+        // The PNG is drawn in the browser from the preview; this records its issue and audits it first.
+        Route::post('certificate/png', [CertificateController::class, 'png'])->middleware('throttle:20,1')->name('certificate.png');
 
         // The principal's agency (Agency spec 8.1); a 404 for anyone else.
         Route::get('agency', [AgencyController::class, 'show'])->name('agency');

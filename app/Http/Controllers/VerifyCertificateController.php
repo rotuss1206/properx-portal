@@ -62,6 +62,8 @@ class VerifyCertificateController extends Controller
                 'name' => $profile->fullName(),
                 'member_since' => $profile->user->created_at->format('F Y'),
                 'valid_through' => $validThrough?->format('M j, Y'),
+                // The date printed on the certificate: its first issue for the latest term.
+                'issued_on' => CertificateGeneratorService::lastIssuedOn($profile)?->format('M j, Y'),
                 'code' => $profile->certificate_code,
             ],
         ]);
