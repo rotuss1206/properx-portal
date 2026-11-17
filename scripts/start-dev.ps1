@@ -1,9 +1,15 @@
 # Opens the local development services, each in its own titled PowerShell window that stays open.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\start-dev.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\start-dev.ps1 -SyncSecretsOnly
 #
 # Each command travels as -EncodedCommand, so its quotes and ">" need no escaping.
 # The Stripe listeners use the portal's test key from .env (STRIPE_SECRET), so no "stripe login" is needed.
+# Their signing secret is then written where the events are checked, when it differs: STRIPE_WEBHOOK_SECRET in
+# the portal's .env (then config:clear and queue:restart) and the Test Signing Secret of Gravity Forms Stripe
+# on the local copy of properx.org. The secret is never printed.
+
+param([switch] $SyncSecretsOnly)
 
 $ErrorActionPreference = 'Stop'
 
@@ -124,6 +130,100 @@ function Get-StripeTestKey {
     return $key
 }
 
+# The signing secret "stripe listen" uses for this key. The same for every listener of the key.
+function Get-StripeListenSecret([string] $Key) {
+    # Through cmd.exe: the CLI writes notices to stderr, which Windows PowerShell would turn into errors.
+    $env:PPX_STRIPE_KEY = $Key
+    try {
+        $secret = (cmd.exe /d /c 'stripe listen --api-key %PPX_STRIPE_KEY% --print-secret 2>nul' | Out-String).Trim()
+    } finally {
+        Remove-Item Env:PPX_STRIPE_KEY -ErrorAction SilentlyContinue
+    }
+
+    if (-not $secret.StartsWith('whsec_')) {
+        throw 'stripe listen --print-secret gave no signing secret. Is the Stripe CLI installed and the key valid?'
+    }
+
+    return $secret
+}
+
+# STRIPE_WEBHOOK_SECRET in the portal's .env, replaced or added when it differs. True when changed.
+# The file is read and written as UTF-8 without a BOM, line endings kept.
+function Sync-PortalWebhookSecret([string] $Secret) {
+    $envFile = Join-Path $root '.env'
+    $text = [IO.File]::ReadAllText($envFile, [Text.Encoding]::UTF8)
+    $pattern = '(?m)^[ \t]*STRIPE_WEBHOOK_SECRET[ \t]*=.*$'
+    $match = [regex]::Match($text, $pattern)
+    $current = if ($match.Success) { ($match.Value -replace '^\s*STRIPE_WEBHOOK_SECRET\s*=\s*', '').Trim().Trim('"', "'") } else { '' }
+
+    if ($current -ceq $Secret) {
+        return $false
+    }
+
+    $line = 'STRIPE_WEBHOOK_SECRET=' + $Secret
+    $newline = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
+    $text = if ($match.Success) {
+        ([regex] $pattern).Replace($text, [Text.RegularExpressions.MatchEvaluator] { param($m) $line }, 1)
+    } else {
+        $text.TrimEnd() + $newline + $line + $newline
+    }
+
+    [IO.File]::WriteAllText($envFile, $text, (New-Object Text.UTF8Encoding $false))
+
+    return $true
+}
+
+# The Test Signing Secret of Gravity Forms Stripe on the local copy (its option, through wp-load.php).
+# Prints only "updated", "unchanged" or "missing". The secret travels in an environment variable.
+function Sync-SiteWebhookSecret([string] $Php, [string] $Secret) {
+    $site = Join-Path (Split-Path -Parent $root) 'properx-org.local'
+
+    if (-not (Test-Path -LiteralPath (Join-Path $site 'wp-load.php'))) {
+        return 'missing'
+    }
+
+    $code = @'
+$_SERVER['HTTP_HOST'] = 'properx-org.local'; $_SERVER['HTTPS'] = 'on'; define('WP_USE_THEMES', false);
+require getenv('PPX_SITE') . '/wp-load.php';
+if (wp_get_environment_type() !== 'local') { echo 'not-local'; exit; }
+$name = 'gravityformsaddon_gravityformsstripe_settings';
+$settings = get_option($name);
+if (! is_array($settings)) { echo 'missing'; exit; }
+$secret = (string) getenv('PPX_SECRET');
+if (($settings['test_signing_secret'] ?? '') === $secret) { echo 'unchanged'; exit; }
+$settings['test_signing_secret'] = $secret;
+update_option($name, $settings);
+echo 'updated';
+'@
+
+    $env:PPX_SITE = $site
+    $env:PPX_SECRET = $Secret
+    try {
+        return (& $Php -r $code 2>$null | Out-String).Trim()
+    } finally {
+        Remove-Item Env:PPX_SITE, Env:PPX_SECRET -ErrorAction SilentlyContinue
+    }
+}
+
+function Sync-WebhookSecrets([string] $Php, [string] $Key) {
+    $secret = Get-StripeListenSecret $Key
+
+    if (Sync-PortalWebhookSecret $secret) {
+        & $Php (Join-Path $root 'artisan') config:clear | Out-Null
+        & $Php (Join-Path $root 'artisan') queue:restart | Out-Null
+        Write-Host '  portal: STRIPE_WEBHOOK_SECRET updated in .env (config cleared, queue restarted)'
+    } else {
+        Write-Host '  portal: STRIPE_WEBHOOK_SECRET already matches'
+    }
+
+    switch (Sync-SiteWebhookSecret $Php $secret) {
+        'updated' { Write-Host '  site: Gravity Forms Test Signing Secret updated' }
+        'unchanged' { Write-Host '  site: Gravity Forms Test Signing Secret already matches' }
+        'not-local' { Write-Host '  site: not changed, the copy is not WP_ENVIRONMENT_TYPE=local' -ForegroundColor Yellow }
+        default { Write-Host '  site: properx-org.local or its Stripe settings not found, skipped' -ForegroundColor Yellow }
+    }
+}
+
 function ConvertTo-QuotedLiteral([string] $Text) {
     return "'" + ($Text -replace "'", "''") + "'"
 }
@@ -155,6 +255,12 @@ function Start-DevService([string] $Title, [bool] $AlreadyRunning, [string] $Com
     Open-DevWindow $Title $Command
 }
 
+if ($SyncSecretsOnly) {
+    Write-Host 'Stripe signing secret:'
+    Sync-WebhookSecrets (Get-PhpPath) (Get-StripeTestKey)
+    return
+}
+
 Write-Host 'Start OSPanel as administrator first.' -ForegroundColor Yellow
 
 if (-not (Get-Process mysqld -ErrorAction SilentlyContinue)) {
@@ -179,6 +285,14 @@ try {
     Start-DevService 'Stripe -> portal' (Test-StripeListening $stripeToPortal) "stripe listen --api-key `$env:PORTAL_STRIPE_TEST_KEY --all-snapshot --forward-to `"$stripeToPortal`" --skip-verify"
 } finally {
     Remove-Item Env:PORTAL_STRIPE_TEST_KEY -ErrorAction SilentlyContinue
+}
+
+# Before the queue window: a worker stopped by queue:restart is then opened again with the new settings.
+Write-Host 'Stripe signing secret:'
+Sync-WebhookSecrets $php $stripeKey
+
+for ($i = 0; $i -lt 15 -and (Test-QueueWorkerRunning) -and ((Get-Item (Join-Path $root '.env')).LastWriteTime -gt (Get-Date).AddSeconds(-30)); $i++) {
+    Start-Sleep -Seconds 1
 }
 
 Start-DevService 'Queue' (Test-QueueWorkerRunning) ('& ' + (ConvertTo-QuotedLiteral $php) + ' artisan queue:work')

@@ -27,7 +27,10 @@ class SecurityHeaders
         $headers->set('X-Content-Type-Options', 'nosniff');
         $headers->set('X-Frame-Options', 'DENY');
         $headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+        // Stripe's Payment Element asks for the Payment Request API inside its frame (Stripe's guidance:
+        // allow it for js.stripe.com); everywhere else nothing may use it.
+        $payment = $request->routeIs(...self::STRIPE_PAGES) ? 'payment=(self "https://js.stripe.com")' : 'payment=()';
+        $headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), '.$payment);
 
         if ($request->isSecure() || app()->isProduction()) {
             $headers->set('Strict-Transport-Security', 'max-age='.config('portal.security.hsts_max_age').'; includeSubDomains');

@@ -114,6 +114,8 @@ enrollment, `/join/agency` (route `join.agency`) only:
 | `frame-src` | `'self' https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://m.stripe.network` (card fields, 3D Secure, bank connection) |
 | `connect-src` | `https://api.stripe.com https://m.stripe.network` |
 
+The same page sends `Permissions-Policy: ... payment=(self "https://js.stripe.com")` (Stripe's guidance for the Payment Element); every other page keeps `payment=()`.
+
 The member's billing page, `/member/billing` (route `member.billing`), adds one source to `form-action`:
 `https://billing.stripe.com`. Its "Manage payment method" form is answered with a redirect to Stripe's
 Customer Portal, and browsers check that redirect against `form-action`. The page loads nothing of Stripe's.

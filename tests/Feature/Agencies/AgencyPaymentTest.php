@@ -624,4 +624,11 @@ class AgencyPaymentTest extends TestCase
         $other = $this->get('/verify-certificate')->headers->get('Content-Security-Policy');
         $this->assertStringNotContainsString('stripe', $other);
     }
+
+    public function test_only_the_enrollment_page_lets_stripe_use_the_payment_request_api(): void
+    {
+        // Found live: the 3D Secure step logged "Permissions policy violation: payment is not allowed".
+        $this->assertSame('camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")', $this->get('/join/agency')->headers->get('Permissions-Policy'));
+        $this->assertSame('camera=(), microphone=(), geolocation=(), payment=()', $this->get('/verify-certificate')->headers->get('Permissions-Policy'));
+    }
 }

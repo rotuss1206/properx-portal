@@ -175,6 +175,10 @@ check after deployment. A price can also be pinned with its ID (`STRIPE_PRICE_AG
    (site and portal) with `--api-key` taken from the portal's `STRIPE_SECRET` in `.env`, so no `stripe login` is
    needed; it stops with an explanation unless that key starts with `sk_test_` or `rk_test_`, and never prints it.
    Running `stripe` by hand without the key needs `stripe login` (test mode).
+   After opening them it writes their signing secret where the events are checked, only when it differs:
+   `STRIPE_WEBHOOK_SECRET` in `.env` (then `config:clear` and `queue:restart`, and the queue window opens again) and
+   the Test Signing Secret of Gravity Forms Stripe on the local copy of properx.org (its option, only while that copy
+   is `WP_ENVIRONMENT_TYPE=local`). The secret is never printed. `start-dev.ps1 -SyncSecretsOnly` does only that.
 2. Forward events to the local site. `--skip-verify` is needed because the local HTTPS certificate is self-signed:
 
    ```bash
@@ -182,7 +186,7 @@ check after deployment. A price can also be pinned with its ID (`STRIPE_PRICE_AG
        --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed
    ```
 
-3. Copy the printed signing secret (`whsec_...`) into `.env` as `STRIPE_WEBHOOK_SECRET`, then run `php artisan config:clear`.
+3. By hand: copy the printed signing secret (`whsec_...`) into `.env` as `STRIPE_WEBHOOK_SECRET`, then run `php artisan config:clear` (`start-dev.ps1` does this itself).
 4. Trigger events in another terminal. Overriding the customer email makes the event match a seeded member:
 
    ```bash
