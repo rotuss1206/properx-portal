@@ -38,15 +38,21 @@ class SendRenewalReminders extends Command
             },
         );
 
-        $this->within(
-            MemberProfile::query()->whereNull('agency_id')->whereNotNull('stripe_customer_id')->where('payment_status', PaymentStatus::Active)->whereBetween('paid_through_at', [now(), $until])->with('user'),
-            'Member profile',
-            function (MemberProfile $profile) use ($renewals, &$sent) {
-                $sent += (int) $renewals->remindIndividual($profile);
-            },
-        );
+        // Individual members only when switched on (RENEWAL_REMINDERS_INDIVIDUAL_ENABLED): properx.org
+        // and Stripe may already remind them.
+        $individuals = (bool) config('portal.renewals.individual_reminders_enabled');
 
-        $this->info("Renewal reminders sent: {$sent}, errors: ".count($this->errors).'.');
+        if ($individuals) {
+            $this->within(
+                MemberProfile::query()->whereNull('agency_id')->whereNotNull('stripe_customer_id')->where('payment_status', PaymentStatus::Active)->whereBetween('paid_through_at', [now(), $until])->with('user'),
+                'Member profile',
+                function (MemberProfile $profile) use ($renewals, &$sent) {
+                    $sent += (int) $renewals->remindIndividual($profile);
+                },
+            );
+        }
+
+        $this->info("Renewal reminders sent: {$sent}, errors: ".count($this->errors).'.'.($individuals ? '' : ' Individual members: off.'));
 
         return $this->finishBudget();
     }

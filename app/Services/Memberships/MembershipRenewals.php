@@ -143,6 +143,10 @@ class MembershipRenewals
     {
         $type = $profile->paid_through_at ? self::dueRenewalReminder($profile->paid_through_at) : null;
 
+        if (! config('portal.renewals.individual_reminders_enabled')) {
+            return false;
+        }
+
         if ($type === null || $profile->agency_id !== null || blank($profile->stripe_customer_id) || $profile->payment_status !== PaymentStatus::Active || $profile->user === null) {
             return false;
         }

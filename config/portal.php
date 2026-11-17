@@ -340,6 +340,9 @@ return [
 
     'renewals' => [
         'reminder_days' => array_values(array_unique(array_filter(array_map('intval', explode(',', (string) env('AGENCY_RENEWAL_REMINDER_DAYS', '14,7,1')))))),
+        // Renewal reminders to individual members (properx.org / Stripe may send their own): off until
+        // switched on. Agencies' principals always get theirs.
+        'individual_reminders_enabled' => (bool) env('RENEWAL_REMINDERS_INDIVIDUAL_ENABLED', false),
         'grace_reminder_days' => array_values(array_unique(array_filter(array_map('intval', explode(',', (string) env('MEMBERSHIP_GRACE_REMINDER_DAYS', '7,1')))))),
         // Overdue reminders, "expired" and "your agency's membership ended" are emailed only when
         // switched on (off by default, so a deployment never mails people long past due), and only

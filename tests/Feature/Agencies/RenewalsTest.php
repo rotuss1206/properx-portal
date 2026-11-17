@@ -19,6 +19,7 @@ use App\Notifications\Member\AgencyMembershipEnded;
 use App\Notifications\Member\MembershipExpired;
 use App\Notifications\Member\PaymentOverdueReminder;
 use App\Notifications\Member\RenewalReminder;
+use App\Services\Memberships\MembershipRenewals;
 use App\Support\MembershipBanner;
 use App\Support\RenewalDays;
 use Carbon\CarbonImmutable;
@@ -62,6 +63,7 @@ class RenewalsTest extends TestCase
             'portal.renewals.reminder_days' => [14, 7, 1],
             'portal.renewals.grace_reminder_days' => [7, 1],
             'portal.renewals.expiry_emails_enabled' => true,
+            'portal.renewals.individual_reminders_enabled' => true,
         ]);
         $this->travelTo(CarbonImmutable::parse('2027-03-01 08:00', 'America/New_York'));
 
@@ -162,6 +164,24 @@ class RenewalsTest extends TestCase
         Notification::assertSentToTimes($this->individual, RenewalReminder::class, 3);
         $this->assertEqualsCanonicalizing([ReminderType::RenewalDays14, ReminderType::RenewalDays7, ReminderType::RenewalDays1],
             ReminderLog::query()->where('user_id', $this->principal->id)->pluck('reminder_type')->all());
+    }
+
+    public function test_individual_members_get_no_reminder_unless_switched_on_while_agencies_do(): void
+    {
+        Notification::fake();
+        config(['portal.renewals.individual_reminders_enabled' => false]);
+
+        $this->artisan('app:send-renewal-reminders')->expectsOutputToContain('Individual members: off.')->assertSuccessful();
+
+        Notification::assertSentToTimes($this->principal, RenewalReminder::class, 1);
+        Notification::assertNotSentTo($this->individual, RenewalReminder::class);
+        $this->assertFalse(ReminderLog::query()->where('user_id', $this->individual->id)->exists());
+        $this->assertFalse(app(MembershipRenewals::class)->remindIndividual($this->individual->memberProfile));
+
+        // Switched on later: the reminder that is due goes out.
+        config(['portal.renewals.individual_reminders_enabled' => true]);
+        $this->remind();
+        Notification::assertSentToTimes($this->individual, RenewalReminder::class, 1);
     }
 
     public function test_the_days_come_from_config_and_the_bell_shows_the_reminder(): void
