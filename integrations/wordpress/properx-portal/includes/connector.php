@@ -229,6 +229,14 @@ function properx_portal_payload( $entry ) {
 	$payload['stripe_customer_id']     = $customer ? (string) $customer : null;
 	$payload['stripe_subscription_id'] = 0 === strpos( $subscription, 'sub_' ) ? $subscription : null;
 
+	// The partner code (single-entry form, plugin 2.2.0): for the portal's reports only. Entries of the
+	// earlier form have no such field and send none; their license types (field 17) still go.
+	$form    = class_exists( 'GFAPI' ) ? GFAPI::get_form( (int) rgar( $entry, 'form_id' ) ) : false;
+	$partner = is_array( $form ) && function_exists( 'properx_portal_field_by_label' ) ? properx_portal_field_by_label( $form, 'ppx_partner_code' ) : null;
+	$code    = null === $partner ? '' : strtoupper( trim( (string) rgar( $entry, (string) $partner->id ) ) );
+
+	$payload['partner_code'] = '' === $code ? null : $code;
+
 	foreach ( array( 'phone', 'firm_name', 'license_state', 'address' ) as $optional ) {
 		if ( '' === $payload[ $optional ] ) {
 			$payload[ $optional ] = null;

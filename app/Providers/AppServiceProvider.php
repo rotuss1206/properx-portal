@@ -87,6 +87,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(config('portal.intake.requests_per_minute'))->by('intake|'.$request->ip());
         });
 
+        RateLimiter::for('agency-handoff', function (Request $request) {
+            return Limit::perMinute(config('portal.registration.handoff.requests_per_minute'))->by('agency-handoff|'.$request->ip());
+        });
+
         RateLimiter::for('livewire', function (Request $request) {
             return Limit::perMinute(config('portal.registration.livewire_requests_per_minute'))->by($request->ip());
         });

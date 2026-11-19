@@ -29,6 +29,10 @@ Allow the properx.org server's outbound IP to reach `/api/intake/*` on the porta
 
 In the portal environment, set `INTAKE_ENABLED=true` and restart.
 
+`AGENCY_HANDOFF_ENABLED=true` opens `/api/intake/agency-start` for "My agency" on the application form (same secret,
+needs `AGENCY_ENROLLMENT_ENABLED`). Set it only after the form has the "My agency" block; the order is in
+[changes.md](changes.md), "Single entry /apply".
+
 Leave `INTAKE_SEND_INVITE` unset for now. While it is off, new members get no "set your password" email from the portal. Turn it on when the portal is announced to members.
 
 The connection is tested in step 5, with a button.
@@ -94,6 +98,8 @@ Everything is in the entry's notes (Forms > Entries > the entry). They hold no p
 | `OK (not added: canceled less than 24 months ago, eligible again on <date>; ...)` | The client's 24-month rule: this email or NPN canceled an individual membership recently. Nobody was added; staff got a Nova notification and an audit entry (`member_rejoin_blocked`) | Staff decide. To let them in: Nova > the member profile > **Lift rejoin wait** (reason required), then "Resend to portal". Otherwise refund the payment in Stripe |
 | `Cancellation sent to portal: OK (the member is marked canceled; ...)` | Plugin 2.1.0+, "Send cancellations to the portal" on: the subscription was canceled or ended. Access lasts until the paid period ends; the 24-month wait starts (Nova: "Canceled On", "Rejoin") | Nothing |
 | `Cancellation sent to portal: OK (no member with this email or subscription in the portal)` | The application never reached the portal | Nothing, or check the entry's own "Sent to portal" notes |
+| `Agency enrollment opened in the portal (...)` | Plugin 2.2.0+, "My agency": the visitor went to the portal's agency enrollment with a one-time link (30 minutes). Nothing was charged here | Nothing. A visitor who lost the link starts again on /apply; each start is a new enrollment, and the owner of an earlier unfinished one gets its link by email |
+| Form message "We couldn't open the agency enrollment just now" | The portal did not answer `/api/intake/agency-start` well: `AGENCY_HANDOFF_ENABLED` or `AGENCY_ENROLLMENT_ENABLED` off (404), secret or clock (401), WAF (403), or down | Test connection on the plugin's page; check the two flags. No entry is saved for such a try |
 | No note at all | Payment still "Processing", WP-Cron is not running, or sending was off when it was paid | Check the Setup checklist; "Resend to portal" sends what was paid while it was off |
 
 Retries: 5 min, 15 min, 1 h, 3 h, 6 h, 12 h (about 22 hours). After that, resend by hand:

@@ -1,0 +1,881 @@
+{
+    "id": 1,
+    "title": "Membership Application Form",
+    "cssClass": "apply-form",
+    "button": {
+        "type": "text",
+        "text": "Join ProPerx Alliance"
+    },
+    "fields": [
+        {
+            "type": "html",
+            "id": 4,
+            "label": "HTML Block",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "content": "<p>Personal Information</p>",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "name",
+            "id": 5,
+            "label": "Name",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": [
+                {
+                    "id": "5.2",
+                    "label": "Prefix",
+                    "name": "",
+                    "autocompleteAttribute": "honorific-prefix",
+                    "choices": [
+                        {
+                            "text": "Dr.",
+                            "value": "Dr."
+                        },
+                        {
+                            "text": "Miss",
+                            "value": "Miss"
+                        },
+                        {
+                            "text": "Mr.",
+                            "value": "Mr."
+                        },
+                        {
+                            "text": "Mrs.",
+                            "value": "Mrs."
+                        },
+                        {
+                            "text": "Ms.",
+                            "value": "Ms."
+                        },
+                        {
+                            "text": "Mx.",
+                            "value": "Mx."
+                        },
+                        {
+                            "text": "Prof.",
+                            "value": "Prof."
+                        },
+                        {
+                            "text": "Rev.",
+                            "value": "Rev."
+                        }
+                    ],
+                    "isHidden": true,
+                    "inputType": "radio"
+                },
+                {
+                    "id": "5.3",
+                    "label": "First",
+                    "name": "",
+                    "autocompleteAttribute": "given-name",
+                    "customLabel": "First Name"
+                },
+                {
+                    "id": "5.4",
+                    "label": "Middle",
+                    "name": "",
+                    "autocompleteAttribute": "additional-name",
+                    "isHidden": true
+                },
+                {
+                    "id": "5.6",
+                    "label": "Last",
+                    "name": "",
+                    "autocompleteAttribute": "family-name",
+                    "customLabel": "Last Name"
+                },
+                {
+                    "id": "5.8",
+                    "label": "Suffix",
+                    "name": "",
+                    "autocompleteAttribute": "honorific-suffix",
+                    "isHidden": true
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": "",
+            "checkboxLabel": ""
+        },
+        {
+            "type": "email",
+            "id": 7,
+            "label": "Email address",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": [
+                {
+                    "id": "7",
+                    "label": "Enter Email",
+                    "name": "",
+                    "autocompleteAttribute": "email",
+                    "customLabel": "This will be your member login email."
+                },
+                {
+                    "id": "7.2",
+                    "label": "Confirm Email",
+                    "name": "",
+                    "autocompleteAttribute": "email",
+                    "customLabel": "Please confirm your email address."
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": "",
+            "checkboxLabel": ""
+        },
+        {
+            "type": "phone",
+            "id": 8,
+            "label": "Phone Number",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 6,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "text",
+            "id": 9,
+            "label": "Business/Agency Name",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "Optional",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 6,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "html",
+            "id": 10,
+            "label": "HTML Block",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "content": "<p>Address</p>",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "address",
+            "id": 11,
+            "label": "Address",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": [
+                {
+                    "id": "11.1",
+                    "label": "Street Address",
+                    "name": "",
+                    "autocompleteAttribute": "address-line1"
+                },
+                {
+                    "id": "11.2",
+                    "label": "Address Line 2",
+                    "name": "",
+                    "autocompleteAttribute": "address-line2",
+                    "isHidden": true
+                },
+                {
+                    "id": "11.3",
+                    "label": "City",
+                    "name": "",
+                    "autocompleteAttribute": "address-level2"
+                },
+                {
+                    "id": "11.4",
+                    "label": "State / Province",
+                    "name": "",
+                    "autocompleteAttribute": "address-level1"
+                },
+                {
+                    "id": "11.5",
+                    "label": "ZIP / Postal Code",
+                    "name": "",
+                    "autocompleteAttribute": "postal-code"
+                },
+                {
+                    "id": "11.6",
+                    "label": "Country",
+                    "name": "",
+                    "autocompleteAttribute": "country-name",
+                    "isHidden": true
+                },
+                {
+                    "id": "11.geolocation_latitude",
+                    "label": "Latitude",
+                    "name": "",
+                    "isHidden": true
+                },
+                {
+                    "id": "11.geolocation_longitude",
+                    "label": "Longitude",
+                    "name": "",
+                    "isHidden": true
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "html",
+            "id": 12,
+            "label": "HTML Block",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "content": "<p>License Verification</p>",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "text",
+            "id": 14,
+            "label": "NPN (National Producer Number)",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": null,
+            "description": "Your NPN is the unique number assigned to your insurance license by NIPR. It is 1–10 digits. This is how we verify your active license.",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 6,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "date",
+            "id": 15,
+            "label": "Insurance license expiration date ",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": null,
+            "description": "Your license must be current and active. Expired licenses are not eligible for membership.",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 6,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "address",
+            "id": 16,
+            "label": "Resident License State",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": [
+                {
+                    "id": "16.1",
+                    "label": "Street Address",
+                    "name": "",
+                    "autocompleteAttribute": "address-line1",
+                    "isHidden": true
+                },
+                {
+                    "id": "16.2",
+                    "label": "Address Line 2",
+                    "name": "",
+                    "autocompleteAttribute": "address-line2",
+                    "isHidden": true
+                },
+                {
+                    "id": "16.3",
+                    "label": "City",
+                    "name": "",
+                    "autocompleteAttribute": "address-level2",
+                    "isHidden": true
+                },
+                {
+                    "id": "16.4",
+                    "label": "State / Province",
+                    "name": "",
+                    "autocompleteAttribute": "address-level1",
+                    "customLabel": "The state where your primary insurance license is held."
+                },
+                {
+                    "id": "16.5",
+                    "label": "ZIP / Postal Code",
+                    "name": "",
+                    "autocompleteAttribute": "postal-code",
+                    "isHidden": true
+                },
+                {
+                    "id": "16.6",
+                    "label": "Country",
+                    "name": "",
+                    "autocompleteAttribute": "country-name",
+                    "isHidden": true
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "checkbox",
+            "id": 17,
+            "label": "License Type(s) Held",
+            "adminLabel": "",
+            "isRequired": true,
+            "choices": [
+                {
+                    "text": "Life",
+                    "value": "Life",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Health",
+                    "value": "Health",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Property &amp; Casualty",
+                    "value": "Property & Casualty",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Annuity",
+                    "value": "Annuity",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Variable",
+                    "value": "Variable",
+                    "isSelected": false,
+                    "price": ""
+                }
+            ],
+            "inputs": [
+                {
+                    "id": "17.1",
+                    "label": "Life",
+                    "name": ""
+                },
+                {
+                    "id": "17.2",
+                    "label": "Health",
+                    "name": ""
+                },
+                {
+                    "id": "17.3",
+                    "label": "Property & Casualty",
+                    "name": ""
+                },
+                {
+                    "id": "17.4",
+                    "label": "Annuity",
+                    "name": ""
+                },
+                {
+                    "id": "17.5",
+                    "label": "Variable",
+                    "name": ""
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "html",
+            "id": 18,
+            "label": "HTML Block",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "content": "<p>Membership Selection</p>",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": "",
+            "checkboxLabel": ""
+        },
+        {
+            "type": "product",
+            "id": 28,
+            "label": "Select Your Membership Plan",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": null,
+            "inputType": "radio",
+            "description": "",
+            "maxLength": "",
+            "cssClass": "membership-plan",
+            "choices": [
+                {
+                    "text": "Individual Membership <span class=\"price\"><s>$199/yr</s> $169<span class=\"term\">/yr</span></span>",
+                    "value": "individual",
+                    "isSelected": false,
+                    "price": "$169.00"
+                }
+            ],
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "basePrice": "$0.00",
+            "calculationFormula": "",
+            "enableCalculation": false,
+            "checkboxLabel": ""
+        },
+        {
+            "type": "html",
+            "id": 21,
+            "label": "HTML Block",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "content": "<p>Payment</p>",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": "",
+            "checkboxLabel": ""
+        },
+        {
+            "type": "radio",
+            "id": 29,
+            "label": "Payment Method",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": null,
+            "choices": [
+                {
+                    "text": "Credit Card (3% surcharge applies)",
+                    "value": "Credit Card (3% surcharge applies)",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Debit Card",
+                    "value": "Debit Card",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "ACH Direct Debit",
+                    "value": "ACH Direct Debit",
+                    "isSelected": false,
+                    "price": ""
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "product",
+            "id": 30,
+            "label": "Credit Card Surcharge (3%)",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": [
+                {
+                    "id": "30.1",
+                    "label": "Name",
+                    "name": ""
+                },
+                {
+                    "id": "30.2",
+                    "label": "Price",
+                    "name": ""
+                },
+                {
+                    "id": "30.3",
+                    "label": "Quantity",
+                    "name": ""
+                }
+            ],
+            "inputType": "calculation",
+            "description": "",
+            "maxLength": "",
+            "cssClass": "gform_hidden",
+            "choices": null,
+            "conditionalLogic": {
+                "enabled": true,
+                "actionType": "show",
+                "logicType": "all",
+                "rules": [
+                    {
+                        "fieldId": "29",
+                        "operator": "is",
+                        "value": "Credit Card (3% surcharge applies)"
+                    }
+                ]
+            },
+            "layoutGridColumnSpan": 12,
+            "basePrice": "$0.00",
+            "calculationFormula": "{Select Your membership plan:28} * 0.03",
+            "enableCalculation": true,
+            "checkboxLabel": ""
+        },
+        {
+            "type": "html",
+            "id": 31,
+            "label": "ACH Payment Notice",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": {
+                "enabled": true,
+                "actionType": "show",
+                "logicType": "all",
+                "rules": [
+                    {
+                        "fieldId": "29",
+                        "operator": "is",
+                        "value": "ACH Direct Debit"
+                    }
+                ]
+            },
+            "content": "<div style=\"background-color: #f8f9fa; border-left: 4px solid #0073aa; padding: 15px; margin: 15px 0; border-radius: 4px;\">\n    <p style=\"margin-top: 0; color: #0073aa;\"> ACH Direct Debit Information</p>\n    <span>When paying via ACH Direct Debit, your bank transaction may take <strong>3 to 5 business days</strong> to clear.</span>\n<br>\n    <span>Your membership application will remain in <strong>Pending</strong> status until Stripe confirms the successful transfer.</span>\n</div>",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "stripe_creditcard",
+            "id": 19,
+            "label": "Payment Information",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": [
+                {
+                    "id": "19.1",
+                    "label": "Card Details",
+                    "name": ""
+                },
+                {
+                    "id": "19.4",
+                    "label": "Card Type",
+                    "name": ""
+                },
+                {
+                    "id": "19.5",
+                    "label": "Cardholder Name",
+                    "name": ""
+                }
+            ],
+            "description": "Your payment is processed securely. Card information is never stored on our servers.",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "html",
+            "id": 22,
+            "label": "HTML Block",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "choices": "",
+            "conditionalLogic": "",
+            "content": "<p>Agreements</p>",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": "",
+            "checkboxLabel": ""
+        },
+        {
+            "type": "consent",
+            "id": 24,
+            "label": "24-month reapplication restriction acknowledgment",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": [
+                {
+                    "id": "24.1",
+                    "label": "Consent",
+                    "name": ""
+                },
+                {
+                    "id": "24.2",
+                    "label": "Text",
+                    "name": "",
+                    "isHidden": true
+                },
+                {
+                    "id": "24.3",
+                    "label": "Description",
+                    "name": "",
+                    "isHidden": true
+                }
+            ],
+            "checkboxLabel": "I understand that members who cancel may not reapply for 24 months.",
+            "choices": [
+                {
+                    "text": "Checked",
+                    "value": "1",
+                    "isSelected": false,
+                    "price": ""
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "consent",
+            "id": 32,
+            "label": "24-month reapplication restriction acknowledgment",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": [
+                {
+                    "id": "32.1",
+                    "label": "Consent",
+                    "name": ""
+                },
+                {
+                    "id": "32.2",
+                    "label": "Text",
+                    "name": "",
+                    "isHidden": true
+                },
+                {
+                    "id": "32.3",
+                    "label": "Description",
+                    "name": "",
+                    "isHidden": true
+                }
+            ],
+            "checkboxLabel": "I understand that membership dues are nonrefundable, including if I cancel before the end of the membership term. My membership will renew annually unless I cancel before the renewal date.",
+            "choices": [
+                {
+                    "text": "Checked",
+                    "value": "1",
+                    "isSelected": false,
+                    "price": ""
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "consent",
+            "id": 25,
+            "label": "Terms of Service and Privacy Policy agreement",
+            "adminLabel": "",
+            "isRequired": true,
+            "inputs": [
+                {
+                    "id": "25.1",
+                    "label": "Consent",
+                    "name": ""
+                },
+                {
+                    "id": "25.2",
+                    "label": "Text",
+                    "name": "",
+                    "isHidden": true
+                },
+                {
+                    "id": "25.3",
+                    "label": "Description",
+                    "name": "",
+                    "isHidden": true
+                }
+            ],
+            "checkboxLabel": "I have read and agree to the ProPerX Alliance Terms of Service and Privacy Policy.",
+            "choices": [
+                {
+                    "text": "Checked",
+                    "value": "1",
+                    "isSelected": false,
+                    "price": ""
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 12,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        },
+        {
+            "type": "select",
+            "id": 27,
+            "label": "How did you hear about ProPerx Alliance?",
+            "adminLabel": "",
+            "isRequired": false,
+            "inputs": null,
+            "choices": [
+                {
+                    "text": "Colleague/Referral",
+                    "value": "Colleague/Referral",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Employer",
+                    "value": "Employer",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Industry Event",
+                    "value": "Industry Event",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Social Media",
+                    "value": "Social Media",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Search Engine",
+                    "value": "Search Engine",
+                    "isSelected": false,
+                    "price": ""
+                },
+                {
+                    "text": "Other",
+                    "value": "Other",
+                    "isSelected": true,
+                    "price": ""
+                }
+            ],
+            "description": "",
+            "maxLength": "",
+            "cssClass": "",
+            "conditionalLogic": "",
+            "layoutGridColumnSpan": 4,
+            "calculationFormula": "",
+            "enableCalculation": ""
+        }
+    ],
+    "notifications": [
+        {
+            "id": "6a60d16152493",
+            "name": "New Membership Request Staff Notification",
+            "event": "form_submission",
+            "toType": "email",
+            "to": "staff@example.org",
+            "subject": "(subject)",
+            "message": "(message)"
+        },
+        {
+            "id": "6a69b4934fa63",
+            "name": "User Pending Confirmation",
+            "event": "create_subscription",
+            "toType": "field",
+            "to": "7",
+            "subject": "(subject)",
+            "message": "(message)"
+        }
+    ],
+    "confirmations": [
+        {
+            "id": "6a60d161566f2",
+            "name": "Default Confirmation",
+            "isDefault": true,
+            "type": "message",
+            "message": "(message)"
+        },
+        {
+            "id": "6ae222c225426",
+            "name": "Timeout Confirmation",
+            "isDefault": false,
+            "type": "message",
+            "message": "(message)"
+        }
+    ]
+}

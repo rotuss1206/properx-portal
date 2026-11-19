@@ -59,6 +59,28 @@ Tick **Send cancellations to the portal** and press **Save settings**, but only 
 
 From then on, when a membership subscription is canceled (in the entry, or in Stripe, or it simply ends), the portal marks the member canceled, keeps their access until the paid period ends, and starts the client's 24-month wait: a new application from the same email or NPN is not added, the entry gets a note "not added: canceled less than 24 months ago, eligible again on <date>", and ProPerX staff see it in the portal, where they can lift the wait. While the switch is off nothing is sent, but the moment of the cancellation is kept on the entry; the entry's side panel then offers **Resend cancellation to portal**.
 
+### Send agency enrollments (plugin 2.2.0 or later)
+
+Leave **Send agency enrollments to the portal** off until the application form has "Who's joining?" and the "My
+agency" block ([changes.md](changes.md), "Single entry /apply"), and Kevin confirms that `AGENCY_HANDOFF_ENABLED` is
+set in the portal. Then tick it and press **Save settings**.
+
+From then on, "My agency" on the application form does not show a confirmation: the visitor goes straight to the
+portal's agency enrollment, on its step 2, with their name, email, phone, agency name and starting tier filled in.
+Nothing is charged on this site and no WordPress user is created. If the portal cannot be reached, the form says so
+and keeps what was typed; the visitor can press the button again. If the email cannot start an enrollment (it already has a
+portal account, for example), a neutral message appears next to the email field; it does not say whether the email is
+a member. The entry gets the note "Agency enrollment opened in the portal".
+
+### Application form changes (plugin 2.2.0 or later)
+
+The section "Application form changes" at the bottom of the same page brings the Membership Application form to the
+single-entry layout ("Who's joining?" with "Just me" and "My agency"). Press **Preview changes**, read the list, tick
+the confirmation and press **Apply /apply form changes**. A backup of the form is saved first and listed there with
+Download and Restore. Entries and the Stripe and User Registration feeds are never touched: the Stripe feed is changed
+by hand afterwards. The whole order, with the manual way field by field, is in [changes.md](changes.md), "Single entry
+/apply".
+
 ### What to do about a red line
 
 | Red line | What to do |

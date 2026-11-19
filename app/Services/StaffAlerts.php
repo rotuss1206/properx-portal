@@ -75,6 +75,7 @@ class StaffAlerts
     public const SOURCES = [
         'wordpress_intake' => 'a paid application from properx.org',
         'wordpress_cancellation' => 'a cancellation from properx.org',
+        'wordpress_agency_start' => 'an agency enrollment started on properx.org',
         'stripe_webhook' => 'a Stripe webhook event',
     ];
 

@@ -1,0 +1,249 @@
+/*
+ * The application form (/apply), form class "ppx-apply": "Who's joining?" as two cards, the agency
+ * block, the tier box and the order summary (docs/agency/screens, "Individual application").
+ * Gravity Forms keeps its own fields; only these parts are styled.
+ */
+
+.ppx-apply {
+	--ppx-navy: #163c6d;
+	--ppx-blue: #1f5aa6;
+	--ppx-line: #d6dde8;
+	--ppx-soft: #eef4fb;
+	--ppx-muted: #5b6b7f;
+	--ppx-green: #2e7d32;
+}
+
+/* Who's joining? The site theme draws radio labels as pills; here each choice is a card. */
+
+.ppx-apply .gfield.ppx-joining .gfield_radio {
+	display: grid !important;
+	grid-template-columns: 1fr;
+	gap: 12px;
+}
+
+@media (min-width: 641px) {
+	.ppx-apply .gfield.ppx-joining .gfield_radio {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice {
+	position: relative;
+	display: flex !important;
+	align-items: flex-start;
+	gap: 10px;
+	width: auto !important;
+	margin: 0 !important;
+	padding: 16px 18px !important;
+	border: 1px solid var(--ppx-line) !important;
+	border-radius: 8px;
+	background: #fff !important;
+	cursor: pointer;
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice:has(input:checked) {
+	border: 2px solid var(--ppx-navy) !important;
+	padding: 15px 17px !important;
+	background: var(--ppx-soft) !important;
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice {
+	box-sizing: border-box;
+	min-width: 0;
+	max-width: 100%;
+}
+
+/* The theme hides the radio and draws a tick over its label; here the real radio stands before the text. */
+.ppx-apply .gfield.ppx-joining .gchoice input {
+	position: static !important;
+	display: inline-block !important;
+	flex: none;
+	width: 18px !important;
+	height: 18px !important;
+	margin: 3px 0 0 !important;
+	opacity: 1 !important;
+	transform: none !important;
+	-webkit-appearance: radio !important;
+	appearance: auto !important;
+	accent-color: var(--ppx-navy);
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice input::before,
+.ppx-apply .gfield.ppx-joining .gchoice label::before,
+.ppx-apply .gfield.ppx-joining .gchoice label::after {
+	display: none !important;
+	content: none !important;
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice label {
+	min-width: 0;
+	white-space: normal !important;
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice label {
+	display: block !important;
+	max-width: none;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	background: none !important;
+	box-shadow: none !important;
+	color: var(--ppx-navy) !important;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.ppx-apply .ppx-choice-text {
+	display: block !important;
+	margin-top: 4px;
+	color: #3b4656 !important;
+	font-weight: 400 !important;
+	font-size: 0.9em;
+}
+
+.ppx-apply .ppx-choice-price {
+	display: block !important;
+	margin-top: 4px;
+	color: var(--ppx-blue) !important;
+	font-weight: 600 !important;
+	font-size: 0.9em;
+}
+
+.ppx-apply .ppx-choice-note {
+	margin-left: 6px;
+	color: var(--ppx-muted) !important;
+	font-weight: 400 !important;
+	font-size: 0.9em;
+}
+
+/* The agency block */
+
+.ppx-apply .ppx-section-title {
+	margin: 12px 0 4px;
+	color: var(--ppx-blue);
+	font-size: 1.15em;
+}
+
+.ppx-apply .ppx-section-text,
+.ppx-apply .ppx-continue-note,
+.ppx-apply .ppx-summary-note,
+.ppx-apply .ppx-tiers-note {
+	margin: 0;
+	color: var(--ppx-muted) !important;
+	font-weight: 400 !important;
+	font-size: 0.9em;
+}
+
+.ppx-apply .ppx-continue-note {
+	text-align: center;
+}
+
+.ppx-apply .ppx-next {
+	padding: 20px 24px;
+	border: 1px solid var(--ppx-line);
+	border-radius: 8px;
+	background: #f6f8fb;
+}
+
+.ppx-apply .ppx-next h4 {
+	margin: 0 0 12px;
+	color: #1c2a3a;
+}
+
+.ppx-apply .ppx-next ol {
+	margin: 0 0 16px;
+	padding-left: 1.4em;
+}
+
+.ppx-apply .ppx-next li {
+	margin: 0 0 8px;
+}
+
+.ppx-apply .ppx-tiers {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 10px;
+}
+
+@media (min-width: 641px) {
+	.ppx-apply .ppx-tiers {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+.ppx-apply .ppx-tier {
+	padding: 12px 14px;
+	border: 1px solid var(--ppx-line);
+	border-radius: 6px;
+	background: #fff;
+}
+
+.ppx-apply .ppx-tier-name {
+	display: block;
+	font-size: 0.9em;
+}
+
+.ppx-apply .ppx-tier-price strong {
+	color: var(--ppx-blue);
+	font-size: 1.35em;
+}
+
+.ppx-apply .ppx-tiers-note {
+	margin: 12px 0 0;
+	color: var(--ppx-muted);
+	font-size: 0.85em;
+}
+
+/* The order summary */
+
+.ppx-apply .ppx-summary {
+	max-width: 340px;
+	margin-left: auto;
+	padding: 16px 18px;
+	border: 1px solid var(--ppx-line);
+	border-radius: 8px;
+	background: #fff;
+}
+
+.ppx-apply .ppx-summary-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 3px 0;
+	color: #3b4656;
+	font-size: 0.95em;
+}
+
+.ppx-apply .ppx-summary-row[hidden] {
+	display: none;
+}
+
+.ppx-apply .ppx-summary-total {
+	margin-top: 6px;
+	padding-top: 9px;
+	border-top: 1px solid var(--ppx-line);
+	color: #1c2a3a;
+	font-weight: 700;
+	font-size: 1.05em;
+}
+
+.ppx-apply .ppx-summary-note {
+	margin: 8px 0 0;
+	color: var(--ppx-muted);
+	font-size: 0.8em;
+}
+
+/* The plan's price */
+
+.ppx-apply .ppx-plan-price {
+	margin-left: 8px;
+	color: var(--ppx-blue);
+	font-weight: 700;
+}
+
+.ppx-apply .ppx-plan-price s {
+	margin-left: 4px;
+	color: var(--ppx-muted);
+	font-weight: 400;
+	font-size: 0.85em;
+}

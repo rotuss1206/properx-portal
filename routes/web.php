@@ -5,6 +5,7 @@ use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\Join\ContinueEnrollmentController;
 use App\Http\Controllers\Join\InvitationController;
 use App\Http\Controllers\Join\PeopleTemplateController;
+use App\Http\Controllers\Join\StartEnrollmentController;
 use App\Http\Controllers\VerifyCertificateController;
 use App\Http\Middleware\RequireAcceptedInvitation;
 use App\Http\Middleware\RequireTwoFactor;
@@ -53,6 +54,11 @@ Route::livewire('/join/agency', Wizard::class)
 Route::get('/join/agency/people-template.csv', PeopleTemplateController::class)
     ->middleware('throttle:agency-registration')
     ->name('join.agency.people-template');
+
+// The one-time link from properx.org/apply ("My agency"): opens the prefilled draft on screen 2.
+Route::get('/join/agency/start/{token}', StartEnrollmentController::class)
+    ->middleware('throttle:agency-registration')
+    ->name('join.agency.start');
 
 // The link of a "Save and continue later" email.
 Route::get('/join/agency/continue/{token}', ContinueEnrollmentController::class)

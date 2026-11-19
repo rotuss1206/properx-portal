@@ -49,10 +49,13 @@ $PlatformPaths = @('README.md', 'Dockerfile', '.dockerignore', 'site.json', '.tr
 $PlatformPatterns = @('^\.git/', '^azure-pipelines-[^/]*\.yml$', '^pipelines/')
 
 # Never copied, wherever they appear.
-$ExcludedNames = @('CLAUDE.md', 'AGENTS.md', '.mcp.json', 'boost.json', '.env', 'auth.json', '.phpunit.result.cache')
-$ExcludedDirectories = @('.claude', '.ai', '.vscode', '.idea', '.osp')
+$ExcludedNames = @('CLAUDE.md', 'AGENTS.md', 'GEMINI.md', '.cursorrules', '.windsurfrules', 'copilot-instructions.md',
+    '.mcp.json', 'boost.json', '.env', 'auth.json', '.phpunit.result.cache')
+$ExcludedDirectories = @('.claude', '.ai', '.cursor', '.codex', '.junie', '.windsurf', '.github', '.vscode', '.idea', '.osp')
 # Only at the repository root: resources/views/vendor (published mail templates) is application code.
-$ExcludedRootDirectories = @('vendor', 'node_modules', 'scripts')
+$ExcludedRootDirectories = @('vendor', 'node_modules', 'scripts', 'integrations', 'dist')
+# Never copied, by path prefix (also covered by the docs/ rule below; named so it stays out if that rule changes).
+$ExcludedPrefixes = @('docs/wordpress/backup/', 'docs/wordpress/', 'docs/agency/', 'docs/design/')
 
 # Areas named in the suggested commit message. A changed path (lower case) belongs to the first
 # area whose pattern matches it; file names count, so tests and migrations land in their area.
@@ -123,6 +126,9 @@ function Test-Excluded([string] $Path) {
     if ($ExcludedRootDirectories -contains $segments[0]) { return $true }
     foreach ($segment in $segments[0..($segments.Count - 1)]) {
         if ($ExcludedDirectories -contains $segment) { return $true }
+    }
+    foreach ($prefix in $ExcludedPrefixes) {
+        if ($Path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { return $true }
     }
     if ($Path -like 'docs/*' -and $Path -ne 'docs/PORTAL.md') { return $true }
     return $false

@@ -162,6 +162,7 @@ class IndividualIntake
             'source' => self::SOURCE,
             'entry_id' => $entryId,
             'conflicts' => $conflicts,
+            'partner_code' => self::partnerCode($data),
         ]));
 
         return ['outcome' => $outcome, 'member_profile_id' => $profile->getKey(), 'conflicts' => $conflicts];
@@ -209,6 +210,7 @@ class IndividualIntake
             'entry_id' => $entryId,
             'filled' => $filled,
             'conflicts' => $conflicts,
+            'partner_code' => self::partnerCode($data),
         ]));
 
         return ['outcome' => 'linked', 'member_profile_id' => $profile->getKey(), 'conflicts' => $conflicts];
@@ -289,6 +291,18 @@ class IndividualIntake
     /**
      * The two-letter code for a state's code or full name (the form sends the name).
      */
+    /**
+     * The partner code typed on the application (MGA/FMO), for reporting in the audit log only.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private static function partnerCode(array $data): ?string
+    {
+        $code = strtoupper(trim((string) ($data['partner_code'] ?? '')));
+
+        return $code === '' ? null : $code;
+    }
+
     public static function stateCode(?string $state): ?string
     {
         $state = trim((string) $state);

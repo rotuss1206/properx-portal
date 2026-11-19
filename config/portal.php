@@ -254,6 +254,15 @@ return [
         // Per IP: page loads, and Livewire round trips (every "Continue", "Back", blurred field).
         'page_requests_per_minute' => 30,
         'livewire_requests_per_minute' => 120,
+
+        // "My agency" on properx.org/apply (POST /api/intake/agency-start, signed like the intake with
+        // WP_INTAKE_SECRET): a new draft prefilled from the site's short block and a one-time link that
+        // opens it on screen 2. Off (404) unless enabled; needs AGENCY_ENROLLMENT_ENABLED too.
+        'handoff' => [
+            'enabled' => (bool) env('AGENCY_HANDOFF_ENABLED', false),
+            'link_minutes' => 30,
+            'requests_per_minute' => 30,
+        ],
     ],
 
     /*

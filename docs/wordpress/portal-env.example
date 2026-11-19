@@ -81,6 +81,9 @@ CERTIFICATE_SIGNATURE_IMAGE=
 AGENCY_ENROLLMENT_ENABLED=
 # "Just me" on /join/agency: the individual application on the marketing site.
 INDIVIDUAL_MEMBERSHIP_URL=<https-address>
+# true: "My agency" on properx.org/apply opens a prefilled enrollment (POST /api/intake/agency-start, signed with
+# WP_INTAKE_SECRET). Needs AGENCY_ENROLLMENT_ENABLED. Leave it unset until the site's form is ready.
+AGENCY_HANDOFF_ENABLED=
 # Optional Stripe price IDs. Empty: prices are found by their lookup keys (config/agency.php).
 STRIPE_PRICE_AGENCY_FOUNDING_2TO9=
 STRIPE_PRICE_AGENCY_STANDARD_2TO9=

@@ -652,6 +652,413 @@ class PluginTest extends TestCase {
 		);
 	}
 
+	// "My agency": handoff to the portal's agency enrollment
+
+	private function agencyForm(): array {
+		$fields = array();
+
+		foreach ( array( 30 => 'ppx_joining', 31 => 'ppx_agency_first_name', 32 => 'ppx_agency_last_name', 33 => 'ppx_agency_email', 34 => 'ppx_agency_phone', 35 => 'ppx_agency_name', 36 => 'ppx_agency_headcount', 37 => 'ppx_partner_code' ) as $id => $label ) {
+			$fields[] = (object) array( 'id' => $id, 'adminLabel' => $label, 'failed_validation' => false, 'validation_message' => '' );
+		}
+
+		return array( 'id' => 1, 'fields' => $fields );
+	}
+
+	private function postAgencyBlock( string $joining = 'agency' ): void {
+		$_POST = array(
+			'input_30' => $joining,
+			'input_31' => 'Dana',
+			'input_32' => 'Whitfield',
+			'input_33' => 'dana@agency.test',
+			'input_34' => '(330) 555-0188',
+			'input_35' => 'Whitfield Insurance Group LLC',
+			'input_36' => '10-49',
+			'input_37' => ' midwestfmo ',
+		);
+	}
+
+	private function validationResult(): array {
+		return array( 'is_valid' => true, 'form' => $this->agencyForm(), 'failed_validation_page' => 1 );
+	}
+
+	private function fieldByLabel( array $form, string $label ): object {
+		return properx_portal_field_by_label( $form, $label );
+	}
+
+	protected function tearDown(): void {
+		$GLOBALS['properx_portal_agency_link'] = null;
+	}
+
+	public function test_the_agency_handoff_is_off_by_default_and_sends_nothing(): void {
+		$this->configureWith( array( 'send_enabled' => '1' ) );
+		$this->postAgencyBlock();
+
+		$this->assertFalse( properx_portal_agency_handoff_enabled() );
+		$this->assertTrue( properx_portal_agency_validation( $this->validationResult(), 'form-submit' )['is_valid'] );
+		$this->assertSame( array(), $GLOBALS['wp_requests'] );
+	}
+
+	public function test_my_agency_is_sent_signed_and_the_visitor_goes_to_the_portal_link(): void {
+		$this->configureWith( array( 'agency_handoff_enabled' => '1' ) );
+		$this->postAgencyBlock();
+		$GLOBALS['wp_response'] = array( 'code' => 200, 'body' => '{"outcome":"started","url":"https://portal.test/join/agency/start/abc"}' );
+
+		$result = properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+
+		$this->assertTrue( $result['is_valid'] );
+		[ $url, $args ] = $GLOBALS['wp_requests'][0];
+		$this->assertSame( 'https://portal.test/api/intake/agency-start', $url );
+		$this->assertSame( hash_hmac( 'sha256', $args['headers']['X-Timestamp'] . '.' . $args['body'], self::SECRET ), $args['headers']['X-Signature'] );
+
+		$body = json_decode( $args['body'], true );
+		$this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/', $body['request_id'] );
+		unset( $body['request_id'] );
+		$this->assertSame(
+			array( 'first_name' => 'Dana', 'last_name' => 'Whitfield', 'email' => 'dana@agency.test', 'phone' => '(330) 555-0188', 'agency_name' => 'Whitfield Insurance Group LLC', 'headcount' => '10-49', 'partner_code' => 'MIDWESTFMO' ),
+			$body
+		);
+
+		$this->assertSame( array( 'redirect' => 'https://portal.test/join/agency/start/abc' ), properx_portal_agency_confirmation( array( 'type' => 'message' ), array( 'id' => 1 ), array( 'id' => 9 ) ) );
+
+		properx_portal_agency_note( array( 'id' => 9 ), array( 'id' => 1 ) );
+		$this->assertSame( 'Agency enrollment opened in the portal (one-time link, nothing charged on this site).', end( $GLOBALS['gf_notes'][9] )[0] );
+		$this->assertStringNotContainsString( 'Dana', json_encode( $GLOBALS['gf_notes'][9] ) );
+	}
+
+	public function test_each_submission_has_its_own_request_id(): void {
+		$this->configureWith( array( 'agency_handoff_enabled' => '1' ) );
+		$this->postAgencyBlock();
+		$GLOBALS['wp_response'] = array( 'code' => 200, 'body' => '{"outcome":"started","url":"https://portal.test/join/agency/start/abc"}' );
+
+		properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+		properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+
+		$this->assertNotSame( json_decode( $GLOBALS['wp_requests'][0][1]['body'], true )['request_id'], json_decode( $GLOBALS['wp_requests'][1][1]['body'], true )['request_id'] );
+	}
+
+	public function test_just_me_validation_only_requests_and_other_forms_are_left_alone(): void {
+		$this->configureWith( array( 'agency_handoff_enabled' => '1' ) );
+
+		$this->postAgencyBlock( 'individual' );
+		properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+
+		$this->postAgencyBlock();
+		properx_portal_agency_validation( $this->validationResult(), 'api-validate' );
+
+		$other         = $this->validationResult();
+		$other['form']['id'] = 2;
+		properx_portal_agency_validation( $other, 'form-submit' );
+
+		$invalid             = $this->validationResult();
+		$invalid['is_valid'] = false;
+		properx_portal_agency_validation( $invalid, 'form-submit' );
+
+		$this->assertSame( array(), $GLOBALS['wp_requests'] );
+		$this->assertSame( array( 'type' => 'message' ), properx_portal_agency_confirmation( array( 'type' => 'message' ), array( 'id' => 1 ), array( 'id' => 9 ) ) );
+	}
+
+	public function test_an_existing_member_gets_the_portal_s_message_on_the_email_field(): void {
+		$this->configureWith( array( 'agency_handoff_enabled' => '1' ) );
+		$this->postAgencyBlock();
+		$GLOBALS['wp_response'] = array( 'code' => 200, 'body' => json_encode( array( 'outcome' => 'existing_member', 'message' => PROPERX_PORTAL_EMAIL_REFUSED ) ) );
+
+		$result = properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+
+		$this->assertFalse( $result['is_valid'] );
+		$email = $this->fieldByLabel( $result['form'], 'ppx_agency_email' );
+		$this->assertTrue( $email->failed_validation );
+		$this->assertSame( PROPERX_PORTAL_EMAIL_REFUSED, $email->validation_message );
+		$this->assertSame( array( 'type' => 'message' ), properx_portal_agency_confirmation( array( 'type' => 'message' ), array( 'id' => 1 ), array( 'id' => 9 ) ) );
+	}
+
+	public function test_the_refusal_text_is_the_portal_s_neutral_one(): void {
+		$portal = file_get_contents( dirname( __DIR__, 3 ) . '/app/Services/Intake/AgencyHandoff.php' );
+
+		$this->assertStringContainsString( '"' . PROPERX_PORTAL_EMAIL_REFUSED . '"', $portal );
+		$this->assertStringNotContainsString( 'already has', PROPERX_PORTAL_EMAIL_REFUSED );
+	}
+
+	public function test_fields_the_portal_refuses_are_marked(): void {
+		$this->configureWith( array( 'agency_handoff_enabled' => '1' ) );
+		$this->postAgencyBlock();
+		$GLOBALS['wp_response'] = array( 'code' => 422, 'body' => '{"message":"Validation failed.","fields":["phone"]}' );
+
+		$result = properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+
+		$this->assertFalse( $result['is_valid'] );
+		$this->assertTrue( $this->fieldByLabel( $result['form'], 'ppx_agency_phone' )->failed_validation );
+		$this->assertFalse( $this->fieldByLabel( $result['form'], 'ppx_agency_email' )->failed_validation );
+	}
+
+	/**
+	 * @return array<string, array{array<string, mixed>}>
+	 */
+	public static function unreachablePortals(): array {
+		return array(
+			'no connection'   => array( array( 'error' => true ) ),
+			'switched off'    => array( array( 'code' => 404 ) ),
+			'bad signature'   => array( array( 'code' => 401 ) ),
+			'server error'    => array( array( 'code' => 500 ) ),
+			'a foreign link'  => array( array( 'code' => 200, 'body' => '{"outcome":"started","url":"https://evil.test/join/agency/start/abc"}' ) ),
+			'not a start url' => array( array( 'code' => 200, 'body' => '{"outcome":"started","url":"https://portal.test/member"}' ) ),
+		);
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider( 'unreachablePortals' )]
+	public function test_a_portal_that_does_not_answer_well_stops_the_form_with_a_clear_message( array $response ): void {
+		$this->configureWith( array( 'agency_handoff_enabled' => '1' ) );
+		$this->postAgencyBlock();
+		$GLOBALS['wp_response'] = isset( $response['error'] ) ? new WP_Error( 'cURL error 28: timed out' ) : $response;
+
+		$result = properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+
+		$this->assertFalse( $result['is_valid'] );
+		$joining = $this->fieldByLabel( $result['form'], 'ppx_joining' );
+		$this->assertTrue( $joining->failed_validation );
+		$this->assertSame( PROPERX_PORTAL_UNREACHABLE, $joining->validation_message );
+		$this->assertNull( $GLOBALS['properx_portal_agency_link'] );
+	}
+
+	// /apply form changes ("Apply /apply form changes")
+
+	private function formBefore(): array {
+		return json_decode( file_get_contents( __DIR__ . '/fixtures/apply-form-before.json' ), true );
+	}
+
+	private function fieldOf( array $form, string $key, $value ): ?array {
+		$at = properx_portal_index_of( $form['fields'], $key, $value );
+
+		return $at < 0 ? null : $form['fields'][ $at ];
+	}
+
+	public function test_the_form_changes_put_the_choice_and_the_agency_block_on_top(): void {
+		$plan = properx_portal_plan_form_changes( $this->formBefore() );
+		$form = $plan['form'];
+
+		$this->assertSame( array(), $plan['problems'] );
+		$this->assertSame(
+			array( 'ppx_joining', 'ppx_partner_code', 'ppx_agency_heading', 'ppx_agency_first_name', 'ppx_agency_last_name', 'ppx_agency_email', 'ppx_agency_phone', 'ppx_agency_name', 'ppx_agency_headcount', 'ppx_agency_next' ),
+			array_column( array_slice( $form['fields'], 0, 10 ), 'adminLabel' )
+		);
+
+		$joining = $this->fieldOf( $form, 'adminLabel', 'ppx_joining' );
+		$this->assertSame( 33, $joining['id'] );
+		$this->assertSame( array( 'individual', 'agency' ), array_column( $joining['choices'], 'value' ) );
+		$this->assertTrue( $joining['choices'][0]['isSelected'] );
+		$this->assertSame( 'join', $joining['inputName'] );
+		$this->assertTrue( $joining['allowsPrepopulate'] );
+		$this->assertSame( 'code', $this->fieldOf( $form, 'adminLabel', 'ppx_partner_code' )['inputName'] );
+		$this->assertSame( array( '2-9', '10-49', '50+' ), array_column( $this->fieldOf( $form, 'adminLabel', 'ppx_agency_headcount' )['choices'], 'value' ) );
+
+		// The agency block shows for "My agency", the partner code for both.
+		$this->assertSame( array( array( 'fieldId' => '33', 'operator' => 'is', 'value' => 'agency' ) ), $this->fieldOf( $form, 'adminLabel', 'ppx_agency_email' )['conditionalLogic']['rules'] );
+		$this->assertArrayNotHasKey( 'conditionalLogic', $this->fieldOf( $form, 'adminLabel', 'ppx_partner_code' ) );
+		$this->assertStringContainsString( '[properx_pricing view="apply-tiers"]', $this->fieldOf( $form, 'adminLabel', 'ppx_agency_next' )['content'] );
+	}
+
+	public function test_the_individual_fields_show_for_just_me_and_license_types_go(): void {
+		$form = properx_portal_plan_form_changes( $this->formBefore() )['form'];
+		$just = array( 'fieldId' => '33', 'operator' => 'is', 'value' => 'individual' );
+
+		foreach ( array_keys( PROPERX_PORTAL_FORM_FIELDS ) as $id ) {
+			$this->assertSame( $just, $this->fieldOf( $form, 'id', $id )['conditionalLogic']['rules'][0], "field $id" );
+		}
+
+		$this->assertNull( $this->fieldOf( $form, 'id', 17 ) );
+		$this->assertSame( 'ppx_npn', $this->fieldOf( $form, 'id', 14 )['adminLabel'] );
+		$this->assertTrue( $this->fieldOf( $form, 'id', 16 )['isRequired'] );
+		$this->assertTrue( $this->fieldOf( $form, 'id', 15 )['isRequired'], 'the license expiration date stays (default until the client decides)' );
+
+		$payment = $this->fieldOf( $form, 'id', 29 );
+		$this->assertSame( array( 'credit', 'debit', 'ach' ), array_column( $payment['choices'], 'value' ) );
+
+		$surcharge = $this->fieldOf( $form, 'id', 30 );
+		$this->assertSame( '{Membership:28} * 0.029', $surcharge['calculationFormula'] );
+		$this->assertSame( array( $just, array( 'fieldId' => '29', 'operator' => 'is', 'value' => 'credit' ) ), $surcharge['conditionalLogic']['rules'] );
+		$this->assertSame( array( $just, array( 'fieldId' => '29', 'operator' => 'is', 'value' => 'ach' ) ), $this->fieldOf( $form, 'id', 31 )['conditionalLogic']['rules'] );
+
+		// The order summary sits right after the payment details.
+		$at = properx_portal_index_of( $form['fields'], 'id', 19 );
+		$this->assertSame( 'ppx_order_summary', $form['fields'][ $at + 1 ]['adminLabel'] );
+
+		foreach ( PROPERX_PORTAL_AGREEMENTS as $id => $agreement ) {
+			$this->assertSame( $agreement['text'], $this->fieldOf( $form, 'id', $id )['checkboxLabel'] );
+		}
+	}
+
+	public function test_emails_go_for_just_me_and_my_agency_has_its_own_confirmation(): void {
+		$form = properx_portal_plan_form_changes( $this->formBefore() )['form'];
+
+		foreach ( $form['notifications'] as $key => $notification ) {
+			if ( 'ppxpaymentmismatch' !== $key ) {
+				$this->assertSame( array( array( 'fieldId' => '33', 'operator' => 'is', 'value' => 'individual' ) ), $notification['conditionalLogic']['rules'], $notification['name'] );
+			}
+		}
+
+		$mismatch = $form['notifications']['ppxpaymentmismatch'];
+		$this->assertSame( PROPERX_PORTAL_MISMATCH_EVENT, $mismatch['event'] );
+		$this->assertSame( 'staff@example.org', $mismatch['to'], 'the staff email\'s recipients' );
+		$this->assertStringNotContainsString( '{Name', $mismatch['message'] . $mismatch['subject'] );
+
+		$this->assertSame( 'agency', $form['confirmations']['ppxagencyfallback']['conditionalLogic']['rules'][0]['value'] );
+		$this->assertFalse( $form['confirmations']['ppxagencyfallback']['isDefault'] );
+		$this->assertStringContainsString( 'ppx-apply', $form['cssClass'] );
+	}
+
+	public function test_running_the_changes_again_changes_nothing(): void {
+		$first  = properx_portal_plan_form_changes( $this->formBefore() );
+		$second = properx_portal_plan_form_changes( $first['form'] );
+
+		$this->assertNotEmpty( $first['changes'] );
+		$this->assertSame( array(), $second['changes'] );
+		$this->assertSame( $first['form'], $second['form'] );
+	}
+
+	public function test_another_form_or_a_changed_field_stops_everything(): void {
+		$form = $this->formBefore();
+		$form['fields'][ properx_portal_index_of( $form['fields'], 'id', 29 ) ]['type'] = 'select';
+		unset( $form['fields'][ properx_portal_index_of( $form['fields'], 'id', 24 ) ] );
+
+		$plan = properx_portal_plan_form_changes( $form );
+
+		$this->assertSame( array(), $plan['changes'] );
+		$this->assertSame( $form, $plan['form'] );
+		$this->assertContains( 'Field 29 is a select, expected a radio.', $plan['problems'] );
+		$this->assertCount( 2, $plan['problems'] );
+	}
+
+	public function test_the_changes_name_fields_and_values_without_entry_data(): void {
+		$changes = properx_portal_plan_form_changes( $this->formBefore() )['changes'];
+
+		$this->assertContains( 'Field 17 "License Type(s) Held" removed (entries keep their values)', $changes );
+		$this->assertContains( 'New field 33 "Who\'s joining?" (radio) at the top', $changes );
+		$this->assertContains( 'Notification "User Pending Confirmation": send only for "Just me"', $changes );
+	}
+
+	// Prices and the founding cutoff
+
+	public function test_prices_switch_at_midnight_eastern_on_january_1_2027(): void {
+		$before = ( new DateTimeImmutable( '2026-12-31 23:59:59', new DateTimeZone( 'America/New_York' ) ) )->getTimestamp();
+		$after  = $before + 1;
+
+		$this->assertSame( 169, properx_portal_price( 'individual', $before ) );
+		$this->assertSame( 199, properx_portal_price( 'individual', $after ) );
+		$this->assertSame( 129, properx_portal_price( 'agency_enterprise', $before ) );
+		$this->assertSame( 139, properx_portal_price( 'agency_enterprise', $after ) );
+	}
+
+	public function test_agency_prices_and_the_cutoff_match_the_portal(): void {
+		$config = file_get_contents( dirname( __DIR__, 3 ) . '/config/agency.php' );
+
+		foreach ( array( '2to9' => 'agency', '10to49' => 'agency_plus', '50plus' => 'agency_enterprise' ) as $key => $plan ) {
+			preg_match( "/'agency_{$key}' => \[.*?'rates' => \['founding' => (\d+), 'standard' => (\d+)\]/s", $config, $rates );
+			$this->assertSame( (int) $rates[1], PROPERX_PORTAL_PRICES[ $plan ]['founding'] * 100, $plan );
+			$this->assertSame( (int) $rates[2], PROPERX_PORTAL_PRICES[ $plan ]['standard'] * 100, $plan );
+		}
+
+		$this->assertStringContainsString( "'founding_cutoff' => '" . PROPERX_PORTAL_FOUNDING_UNTIL . "'", $config );
+		$this->assertStringContainsString( "'founding_cutoff_timezone' => '" . PROPERX_PORTAL_PRICE_TIMEZONE . "'", $config );
+	}
+
+	public function test_the_plan_and_the_choice_show_today_s_prices(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$form   = properx_portal_plan_form_changes( $this->formBefore() )['form'];
+		$fields = array_map( fn ( $field ) => (object) $field, $form['fields'] );
+		$before = ( new DateTimeImmutable( '2026-12-01', new DateTimeZone( 'America/New_York' ) ) )->getTimestamp();
+
+		$priced = properx_portal_apply_prices( array( 'id' => 1, 'fields' => $fields ), $before );
+		$plan   = properx_portal_field_by_label( $priced, 'ppx_plan' );
+		$this->assertSame( '$169.00', $plan->choices[0]['price'] );
+		$this->assertStringContainsString( '<s>$199/yr</s>', $plan->choices[0]['text'] );
+		$this->assertStringContainsString( 'From $129 per person per year', properx_portal_field_by_label( $priced, 'ppx_joining' )->choices[1]['text'] );
+
+		$fields = array_map( fn ( $field ) => (object) $field, $form['fields'] );
+		$after  = properx_portal_apply_prices( array( 'id' => 1, 'fields' => $fields ), $before + 86400 * 60 );
+		$this->assertSame( '$199.00', properx_portal_field_by_label( $after, 'ppx_plan' )->choices[0]['price'] );
+		$this->assertStringNotContainsString( '<s>', properx_portal_field_by_label( $after, 'ppx_plan' )->choices[0]['text'] );
+		$this->assertStringContainsString( 'From $139', properx_portal_field_by_label( $after, 'ppx_joining' )->choices[1]['text'] );
+	}
+
+	public function test_the_tier_box_lists_today_s_rates(): void {
+		$before = ( new DateTimeImmutable( '2026-12-01', new DateTimeZone( 'America/New_York' ) ) )->getTimestamp();
+
+		$html = properx_portal_pricing_shortcode( array( 'view' => 'apply-tiers' ), '', '', $before );
+		$this->assertStringContainsString( '<strong>$159</strong>', $html );
+		$this->assertStringContainsString( 'Founding rates for agencies that join by December 31, 2026', $html );
+
+		$html = properx_portal_pricing_shortcode( array( 'view' => 'apply-tiers' ), '', '', $before + 86400 * 60 );
+		$this->assertStringContainsString( '<strong>$179</strong>', $html );
+		$this->assertStringNotContainsString( 'Founding', $html );
+	}
+
+	public function test_the_npn_needs_7_to_10_digits(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$field = (object) array( 'id' => 14, 'adminLabel' => 'ppx_npn' );
+		$ok    = array( 'is_valid' => true, 'message' => '' );
+
+		$this->assertTrue( properx_portal_validate_npn( $ok, '1234567', array( 'id' => 1 ), $field )['is_valid'] );
+		$this->assertTrue( properx_portal_validate_npn( $ok, '1234567890', array( 'id' => 1 ), $field )['is_valid'] );
+		$this->assertSame( 'Enter your NPN: 7 to 10 digits, numbers only.', properx_portal_validate_npn( $ok, '123456', array( 'id' => 1 ), $field )['message'] );
+		$this->assertFalse( properx_portal_validate_npn( $ok, '12345678901', array( 'id' => 1 ), $field )['is_valid'] );
+		$this->assertTrue( properx_portal_validate_npn( $ok, '12', array( 'id' => 2 ), $field )['is_valid'], 'other forms are left alone' );
+	}
+
+	// The card type check after payment
+
+	public function test_stripe_payment_methods_are_read_as_credit_debit_or_bank(): void {
+		$this->assertSame( 'credit', properx_portal_payment_kind( array( 'type' => 'card', 'card' => array( 'funding' => 'credit' ) ) ) );
+		$this->assertSame( 'debit', properx_portal_payment_kind( array( 'type' => 'card', 'card' => array( 'funding' => 'debit' ) ) ) );
+		$this->assertSame( 'debit', properx_portal_payment_kind( array( 'type' => 'card', 'card' => array( 'funding' => 'prepaid' ) ) ) );
+		$this->assertSame( 'ach', properx_portal_payment_kind( array( 'type' => 'us_bank_account' ) ) );
+		$this->assertSame( 'unknown', properx_portal_payment_kind( array( 'type' => 'card', 'card' => array( 'funding' => 'unknown' ) ) ) );
+		$this->assertSame( 'unknown', properx_portal_payment_kind( null ) );
+	}
+
+	public function test_a_different_payment_method_is_a_mismatch_with_a_note_and_no_card_details(): void {
+		$this->assertSame( array( 'mismatch' => false, 'note' => 'Payment method check: OK (credit card).' ), properx_portal_payment_check_result( 'credit', 'credit' ) );
+
+		$missed = properx_portal_payment_check_result( 'debit', 'credit' );
+		$this->assertTrue( $missed['mismatch'] );
+		$this->assertSame( 'Payment method check: chose debit card, paid with credit card. The 2.9% credit card surcharge was not charged.', $missed['note'] );
+
+		$extra = properx_portal_payment_check_result( 'credit', 'debit' );
+		$this->assertTrue( $extra['mismatch'] );
+		$this->assertStringContainsString( 'consider refunding it', $extra['note'] );
+
+		$this->assertTrue( properx_portal_payment_check_result( 'ach', 'debit' )['mismatch'] );
+		$this->assertFalse( properx_portal_payment_check_result( 'ach', 'unknown' )['mismatch'] );
+	}
+
+	public function test_older_entries_map_their_payment_texts(): void {
+		$this->assertSame( 'credit', PROPERX_PORTAL_PAYMENT_KINDS['Credit Card (3% surcharge applies)'] );
+		$this->assertSame( 'ach', PROPERX_PORTAL_PAYMENT_KINDS['ACH Direct Debit'] );
+	}
+
+	// Intake: the partner code goes along for reporting
+
+	public function test_the_partner_code_is_sent_with_the_application_and_older_entries_send_none(): void {
+		$GLOBALS['gf_forms'][1] = array( 'id' => 1, 'fields' => array( (object) array( 'id' => 34, 'adminLabel' => 'ppx_partner_code' ) ) );
+		$entry                  = array( 'id' => 50, 'form_id' => 1, '34' => ' midwestfmo ', '17.1' => 'Life', 'transaction_id' => 'sub_X1' );
+
+		$payload = properx_portal_payload( $entry );
+		$this->assertSame( 'MIDWESTFMO', $payload['partner_code'] );
+		$this->assertSame( array( 'Life' ), $payload['license_types'] );
+
+		$GLOBALS['gf_forms'] = array();
+		$this->assertNull( properx_portal_payload( $entry )['partner_code'] );
+	}
+
+	public function test_an_empty_headcount_starts_from_the_smallest_tier(): void {
+		$this->configureWith( array( 'agency_handoff_enabled' => '1' ) );
+		$this->postAgencyBlock();
+		unset( $_POST['input_36'] );
+		$GLOBALS['wp_response'] = array( 'code' => 200, 'body' => '{"outcome":"started","url":"https://portal.test/join/agency/start/abc"}' );
+
+		properx_portal_agency_validation( $this->validationResult(), 'form-submit' );
+
+		$this->assertSame( '2-9', json_decode( $GLOBALS['wp_requests'][0][1]['body'], true )['headcount'] );
+	}
+
 	// Package
 
 	public function test_the_built_zip_unpacks_into_one_folder_on_any_server(): void {

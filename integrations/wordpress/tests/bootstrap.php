@@ -164,12 +164,51 @@ class GFAPI {
 
 	// The checklist asks for the form and its Stripe feed; these tests have neither.
 	public static function get_form( $form_id ) {
-		return false;
+		return $GLOBALS['gf_forms'][ $form_id ] ?? false;
+	}
+
+	public static function get_forms() {
+		return array_values( $GLOBALS['gf_forms'] ?? array() );
 	}
 
 	public static function get_feeds( $feed_ids = null, $form_id = null, $addon_slug = null ) {
 		return array();
 	}
+}
+
+function selected( $value, $current, $echo ) {
+	return $value === $current ? 'selected' : '';
+}
+
+function admin_url( $path = '' ) {
+	return 'https://site.test/wp-admin/' . $path;
+}
+
+function wp_nonce_url( $url, $action ) {
+	return $url . '&_wpnonce=nonce';
+}
+
+function add_shortcode( $tag, $callback ) {
+	$GLOBALS['wp_shortcodes'][ $tag ] = $callback;
+}
+
+function wp_strip_all_tags( $text ) {
+	return trim( strip_tags( (string) $text ) );
+}
+
+function rgars( $array, $path ) {
+	foreach ( explode( '/', $path ) as $key ) {
+		if ( ! is_array( $array ) || ! isset( $array[ $key ] ) ) {
+			return null;
+		}
+		$array = $array[ $key ];
+	}
+
+	return $array;
+}
+
+function rgpost( $name ) {
+	return $_POST[ $name ] ?? '';
 }
 
 function rgar( $array, $key, $default = null ) {
@@ -192,5 +231,8 @@ require_once $plugin . '/includes/settings.php';
 require_once $plugin . '/includes/checklist.php';
 require_once $plugin . '/includes/connector.php';
 require_once $plugin . '/includes/cancellation.php';
+require_once $plugin . '/includes/agency-handoff.php';
+require_once $plugin . '/includes/apply-form.php';
+require_once $plugin . '/includes/form-migration.php';
 require_once $plugin . '/includes/approval-email.php';
 require_once $plugin . '/includes/admin-page.php';

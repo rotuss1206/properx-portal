@@ -162,11 +162,15 @@ class Wizard extends Component
             $this->paymentMessage = (string) ($draft->data['payment']['message'] ?? '');
         }
 
-        // Partner QR links: /join/agency?partner=CODE.
-        $partner = $request->query('partner');
+        // Partner QR links: /join/agency?code=CODE (older links: ?partner=CODE).
+        $partner = $request->query('code', $request->query('partner'));
 
         if (is_string($partner) && trim($partner) !== '') {
             $this->membership->partner_code = PartnerCode::normalize(Str::limit($partner, 50, ''));
+
+            // A partner link opens "Who's joining?" with its code, also over an enrollment this browser
+            // saved on a later screen: its answers stay, and Continue goes on from here.
+            $this->step = 1;
         }
 
         // "My agency" on the marketing site: /join/agency?tier=agency-plus opens on the tier screen.
@@ -184,6 +188,13 @@ class Wizard extends Component
 
     public function next(): void
     {
+        // "Just me": individual membership is the application on properx.org; a partner code goes along.
+        if ($this->step === 1 && $this->membership->type === MembershipForm::INDIVIDUAL) {
+            $this->leaveForIndividual();
+
+            return;
+        }
+
         $form = $this->form();
 
         if ($form !== null) {
@@ -221,6 +232,25 @@ class Wizard extends Component
         $this->step = min($this->step + 1, array_key_last(self::STEPS));
         $this->furthestStep = max($this->furthestStep, $this->step);
         $this->save();
+    }
+
+    private function leaveForIndividual(): void
+    {
+        $url = (string) config('portal.registration.individual_url');
+
+        if ($url === '') {
+            $this->addError('membership.type', 'Individual membership applications are on properx.org.');
+
+            return;
+        }
+
+        $code = PartnerCode::normalize($this->membership->partner_code);
+
+        if ($code !== '') {
+            $url .= (str_contains($url, '?') ? '&' : '?').http_build_query(['code' => $code]);
+        }
+
+        $this->redirect($url);
     }
 
     public function back(): void
@@ -878,6 +908,7 @@ class Wizard extends Component
         ];
         $draft->step = $this->step;
         $draft->furthest_step = $this->furthestStep;
+        $draft->rememberPrincipalEmail($this->principal->email);
         $draft->extend();
         $draft->save();
 

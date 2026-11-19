@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\IntakeSubmission;
+use App\Rules\UsPhone;
+use App\Services\Intake\AgencyHandoff;
 use App\Services\Intake\IndividualCancellation;
 use App\Services\Intake\IndividualIntake;
 use App\Services\ServiceAccount;
@@ -12,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -57,6 +61,8 @@ class IntakeController extends Controller
             'license_types.*' => ['string', 'max:50'],
             'stripe_customer_id' => ['nullable', 'string', 'regex:/^cus_[A-Za-z0-9]{1,60}$/'],
             'stripe_subscription_id' => ['nullable', 'string', 'regex:/^sub_[A-Za-z0-9]{1,60}$/'],
+            // Reporting only (which partner brought the member); no price change.
+            'partner_code' => ['nullable', 'string', 'max:50'],
         ]);
 
         if ($validator->fails()) {
@@ -124,6 +130,49 @@ class IntakeController extends Controller
     }
 
     /**
+     * "My agency" on properx.org/apply: a new enrollment draft prefilled from the site's short block
+     * and a one-time link (portal.registration.handoff.link_minutes) that opens it on screen 2. Same
+     * signature as the intake. Off (404) unless AGENCY_HANDOFF_ENABLED and AGENCY_ENROLLMENT_ENABLED.
+     * Each request id is used once; an email with a portal account starts nothing (200, outcome
+     * existing_member or blocked, with a message for the visitor).
+     */
+    public function agencyStart(Request $request, AgencyHandoff $handoff): JsonResponse
+    {
+        abort_unless(config('portal.registration.handoff.enabled') && config('portal.registration.enabled'), Response::HTTP_NOT_FOUND);
+
+        if (! $this->signatureIsValid($request)) {
+            StaffAlerts::integrationRefused($this->source($request), 'signature');
+
+            return response()->json(['error' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $validator = Validator::make(is_array($data) ? $data : [], [
+            'request_id' => ['required', 'string', 'regex:/^[a-f0-9]{32}$/'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'phone' => ['required', 'string', 'max:32', new UsPhone],
+            'agency_name' => ['required', 'string', 'max:255'],
+            'headcount' => ['required', 'string', Rule::in(array_keys(AgencyHandoff::HEADCOUNTS))],
+            'partner_code' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        if ($validator->fails()) {
+            // The visitor typed these on the site: not an integration fault, so no staff alert.
+            return response()->json(['message' => 'Validation failed.', 'fields' => $validator->errors()->keys()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $validated = $validator->validated();
+
+        if (IntakeSubmission::query()->where('source', AgencyHandoff::SOURCE)->where('entry_id', $validated['request_id'])->exists()) {
+            return response()->json(['error' => 'This request was already handled.'], Response::HTTP_CONFLICT);
+        }
+
+        return response()->json($handoff->handle($validated));
+    }
+
+    /**
      * The connector's "Test connection" button: a signed request that changes nothing.
      */
     public function ping(Request $request): JsonResponse
@@ -141,7 +190,11 @@ class IntakeController extends Controller
 
     private function source(Request $request): string
     {
-        return $request->routeIs('intake.cancellation') ? 'wordpress_cancellation' : 'wordpress_intake';
+        return match (true) {
+            $request->routeIs('intake.cancellation') => 'wordpress_cancellation',
+            $request->routeIs('intake.agency-start') => 'wordpress_agency_start',
+            default => 'wordpress_intake',
+        };
     }
 
     private function signatureIsValid(Request $request): bool

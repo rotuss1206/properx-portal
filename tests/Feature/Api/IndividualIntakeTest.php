@@ -115,6 +115,21 @@ class IndividualIntakeTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_a_partner_code_is_kept_in_the_audit_for_reporting_and_changes_nothing_else(): void
+    {
+        $this->send($this->payload(['partner_code' => ' midwestfmo ']))->assertOk()->assertJsonPath('outcome', 'created');
+
+        $this->assertSame('MIDWESTFMO', AuditLog::query()->where('action', 'member_intake_created')->sole()->details['partner_code']);
+
+        // Older entries without the field still go through; a too long code is refused by name.
+        $this->send($this->payload(['entry_id' => '102', 'email' => 'other@example.test', 'npn' => '87654321']))->assertOk();
+        $this->assertArrayNotHasKey('partner_code', AuditLog::query()->where('action', 'member_intake_created')->latest('id')->first()->details);
+
+        $this->send($this->payload(['entry_id' => '103', 'partner_code' => str_repeat('X', 51)]))
+            ->assertUnprocessable()
+            ->assertJsonPath('fields', ['partner_code']);
+    }
+
     public function test_the_invite_goes_out_only_when_switched_on(): void
     {
         Notification::fake();

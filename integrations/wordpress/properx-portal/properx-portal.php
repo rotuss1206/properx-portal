@@ -1,14 +1,14 @@
 <?php
 /**
  * Plugin Name:       ProPerX Portal
- * Description:       Sends paid Gravity Forms membership applications and their cancellations to the ProPerX member portal and sends one approval email when a member is approved. Settings: Forms > Settings > ProPerX Portal.
- * Version:           2.1.0
+ * Description:       Sends paid Gravity Forms membership applications and their cancellations to the ProPerX member portal, hands "My agency" over to the portal's agency enrollment, and sends one approval email when a member is approved. Settings: Forms > Settings > ProPerX Portal.
+ * Version:           2.2.0
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            KEENEY
  * License:           Proprietary
  *
- * Both features are off until an administrator turns them on. No card data, no files, and no personal
+ * Every feature is off until an administrator turns them on. No card data, no files, and no personal
  * data in entry notes or logs. Deactivating removes nothing; deleting the plugin removes its settings
  * and leaves the notes on the entries.
  */
@@ -35,6 +35,9 @@ require_once __DIR__ . '/includes/settings.php';
 require_once __DIR__ . '/includes/checklist.php';
 require_once __DIR__ . '/includes/connector.php';
 require_once __DIR__ . '/includes/cancellation.php';
+require_once __DIR__ . '/includes/agency-handoff.php';
+require_once __DIR__ . '/includes/apply-form.php';
+require_once __DIR__ . '/includes/form-migration.php';
 require_once __DIR__ . '/includes/approval-email.php';
 require_once __DIR__ . '/includes/admin-page.php';
 require_once __DIR__ . '/includes/cli.php';

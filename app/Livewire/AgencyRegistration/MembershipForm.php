@@ -7,12 +7,15 @@ use Closure;
 use Illuminate\Validation\Rule;
 
 /**
- * Screen 1 · Who is joining? "Just me" leaves for the individual application; this
- * wizard only continues for an agency (member type Agency). Optional MGA/FMO code.
+ * Screen 1 · Who is joining? "Just me" leaves for the individual application on properx.org
+ * (INDIVIDUAL_MEMBERSHIP_URL, Wizard::next); this wizard only continues for an agency (member type
+ * Agency). Optional MGA/FMO code.
  */
 class MembershipForm extends StepForm
 {
     public const AGENCY = 'agency';
+
+    public const INDIVIDUAL = 'individual';
 
     public string $type = '';
 

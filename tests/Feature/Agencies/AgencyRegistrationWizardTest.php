@@ -152,29 +152,79 @@ class AgencyRegistrationWizardTest extends TestCase
 
     // Screen 1 · Membership type and partner code
 
-    public function test_just_me_links_to_the_individual_application(): void
+    public function test_just_me_is_a_choice_that_leaves_for_the_individual_application(): void
     {
-        config(['portal.registration.individual_url' => 'https://www.properx.example/join']);
+        config(['portal.registration.individual_url' => 'https://www.properx.example/apply']);
 
         Livewire::test(Wizard::class)
-            ->assertSeeHtml('href="https://www.properx.example/join"')
-            ->assertSee('My agency (2 or more)');
+            ->assertSee('Just me')
+            ->assertSee('My agency (2 or more)')
+            ->set('membership.type', 'individual')
+            ->call('next')
+            ->assertHasNoErrors()
+            ->assertRedirect('https://www.properx.example/apply');
+
+        $this->assertSame(0, AgencyRegistrationDraft::query()->count());
     }
 
-    public function test_just_me_is_a_link_to_the_marketing_site_not_a_choice(): void
+    public function test_just_me_takes_the_partner_code_along(): void
     {
-        config(['portal.registration.individual_url' => 'https://www.properx.example/join']);
+        config(['portal.registration.individual_url' => 'https://www.properx.example/apply']);
 
         Livewire::test(Wizard::class)
-            ->assertSeeHtml('<a href="https://www.properx.example/join" class="external">Apply as an individual on properx.org')
-            ->assertDontSee('Just me')
-            ->assertSeeHtml('class="choices choices-single"');
+            ->set('membership.type', 'individual')
+            ->set('membership.partner_code', ' fmo-2026 ')
+            ->call('next')
+            ->assertRedirect('https://www.properx.example/apply?code=FMO-2026');
+    }
 
+    public function test_a_code_link_opens_who_s_joining_over_a_draft_saved_on_a_later_screen(): void
+    {
+        config(['portal.registration.individual_url' => 'https://properx-org.example/?page_id=26']);
+
+        // This browser already has an enrollment, saved on screen 4.
+        $this->wizardAt(4);
+        $draft = AgencyRegistrationDraft::query()->sole();
+        $this->assertSame(4, $draft->step);
+
+        Livewire::withQueryParams(['code' => 'ohaa 2026&x'])
+            ->test(Wizard::class)
+            ->assertSet('step', 1)
+            ->assertSet('furthestStep', 4)
+            ->assertSee('Just me')
+            ->assertSet('membership.partner_code', 'OHAA 2026&X')
+            ->assertSet('agency.legal_name', $draft->data['agency']['legal_name'])
+            ->set('membership.type', 'individual')
+            ->call('next')
+            ->assertRedirect('https://properx-org.example/?page_id=26&code=OHAA+2026%26X');
+
+        // Without a code in the link, the saved screen opens as before.
+        Livewire::withQueryParams([])->test(Wizard::class)->assertSet('step', 4);
+    }
+
+    public function test_just_me_without_a_code_leaves_with_the_plain_address(): void
+    {
+        config(['portal.registration.individual_url' => 'https://properx-org.example/?page_id=26']);
+
+        Livewire::test(Wizard::class)
+            ->set('membership.type', 'individual')
+            ->set('membership.partner_code', '   ')
+            ->call('next')
+            ->assertRedirect('https://properx-org.example/?page_id=26');
+    }
+
+    public function test_without_the_individual_address_just_me_is_not_offered(): void
+    {
         config(['portal.registration.individual_url' => null]);
 
         Livewire::test(Wizard::class)
+            ->assertDontSee('Just me')
             ->assertSee('Individual membership applications are on properx.org.')
-            ->assertDontSeeHtml('class="external"');
+            ->set('membership.type', 'individual')
+            ->call('next')
+            ->assertHasErrors('membership.type')
+            ->assertSet('step', 1)
+            ->assertNoRedirect();
     }
 
     public function test_an_invalid_partner_code_says_it_may_be_left_empty(): void
@@ -191,7 +241,7 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertHasErrors(['membership.type' => 'required'])
             ->assertSee('Choose who is joining.')
             ->assertSet('step', 1)
-            ->set('membership.type', 'individual')
+            ->set('membership.type', 'something-else')
             ->call('next')
             ->assertHasErrors(['membership.type' => 'in'])
             ->set('membership.type', 'agency')
@@ -242,6 +292,11 @@ class AgencyRegistrationWizardTest extends TestCase
             ->test(Wizard::class)
             ->assertSet('membership.partner_code', 'FMO-2026')
             ->assertSet('step', 1);
+
+        // QR links: ?code= (wins over ?partner=).
+        Livewire::withQueryParams(['code' => 'ohaa-2026', 'partner' => 'fmo-2026'])
+            ->test(Wizard::class)
+            ->assertSet('membership.partner_code', 'OHAA-2026');
     }
 
     // Screen 2 · Tier

@@ -31,6 +31,12 @@ Route::post('/api/intake/cancellation', [IntakeController::class, 'cancellation'
     ->middleware('throttle:intake')
     ->name('intake.cancellation');
 
+// "My agency" on properx.org/apply: a prefilled enrollment draft and a one-time link to it.
+Route::post('/api/intake/agency-start', [IntakeController::class, 'agencyStart'])
+    ->withoutMiddleware('throttle:120,1')
+    ->middleware('throttle:agency-handoff')
+    ->name('intake.agency-start');
+
 Route::post('/api/intake/ping', [IntakeController::class, 'ping'])
     ->withoutMiddleware('throttle:120,1')
     ->middleware('throttle:intake')

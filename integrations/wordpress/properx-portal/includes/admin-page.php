@@ -167,7 +167,8 @@ function properx_portal_settings_page() {
 		wp_die( 'Only an administrator can open this page.' );
 	}
 
-	$outcome  = properx_portal_handle_settings_post();
+	$outcome   = properx_portal_handle_settings_post();
+	$migration = properx_portal_handle_form_migration_post();
 	$settings = properx_portal_stored_settings();
 
 	// Gravity Forms draws its header, tab menu and footer around this handler (GFSettings::settings_page).
@@ -195,6 +196,9 @@ function properx_portal_settings_page() {
 		.ppx-badge.is-none { background: #eceff3; color: #4a5568; }
 		.ppx-connection { flex: 0 1 auto; font-weight: 400; border-radius: 6px; padding: 6px 12px; }
 		.ppx-when { color: #5b6b7f; font-size: 12px; }
+		.ppx-changes { margin: 8px 0 12px 20px; font-size: 13px; }
+		.ppx-changes li { margin: 2px 0; }
+		.ppx-backups { margin: 8px 0 0 18px; list-style: disc; }
 	</style>';
 
 	echo '<div class="gform-settings-panel"><div class="gform-settings-panel__content ppx-portal-settings">';
@@ -246,6 +250,10 @@ function properx_portal_settings_page() {
 		checked( $settings['cancel_send_enabled'], true, false )
 	);
 	printf(
+		'<label class="ppx-switch"><input type="checkbox" name="agency_handoff_enabled" value="1" %s> Send agency enrollments to the portal</label><p class="ppx-hint">On: "My agency" on the application form opens the portal\'s agency enrollment, prefilled, instead of a confirmation (nothing is charged here). Needs AGENCY_HANDOFF_ENABLED and AGENCY_ENROLLMENT_ENABLED in the portal. Off: the form\'s own confirmation shows.</p>',
+		checked( $settings['agency_handoff_enabled'], true, false )
+	);
+	printf(
 		'<label class="ppx-switch"><input type="checkbox" name="approval_email_enabled" value="1" %s> Approval email</label><p class="ppx-hint">On: "Approve &amp; Activate" sends one email with next steps. Off: the two existing emails go out as before. Keep it off until the client approves the text.</p>',
 		checked( $settings['approval_email_enabled'], true, false )
 	);
@@ -257,6 +265,8 @@ function properx_portal_settings_page() {
 	echo '<div class="ppx-test-row"><button type="submit" name="properx_portal_test" value="1" class="button">Test connection</button>';
 	properx_portal_print_connection_status();
 	echo '</div></form>';
+
+	properx_portal_print_form_migration( $migration );
 
 	echo '</div></div>';
 }
