@@ -10,8 +10,9 @@ under each email.
   portal's email layout: the ProPerX Alliance logo embedded in the message (no remote images), a white card
   and a footer.
 - **What they never contain.** No subject line contains personal data. No body names anyone, and none
-  contains an NPN, license data or agency identifiers. The welcome email is the only one with figures: the
-  amounts paid and the renewal date.
+  contains an NPN, license data or agency identifiers, with one exception: the agency owner's welcome (0)
+  greets the owner by first name, as the client's template does. The receipt (1) is the only email with
+  figures: the amounts paid and the renewal date.
 - **Links.** Each person's link is single-use and expires after **14 days**. The portal stores only a
   fingerprint (hash) of the link, never the link itself. A reminder sends a new link for the same invitation,
   with the same expiry date. When staff resend an invitation, every earlier link stops working.
@@ -20,14 +21,62 @@ under each email.
 
 ---
 
-## 1. Welcome and receipt (to the principal)
+## 0. Agency owner welcome (to the principal), the client's text
 
-**When:** as soon as the agency is enrolled. This happens after a card payment, or once a bank payment clears.
+**When:** as soon as the agency is enrolled (card payment, or once a bank payment clears), just before the
+receipt (1).
+**Class:** `App\Notifications\AgencyOwnerWelcome`. Text word for word from the go-live requirements
+("Agency owner welcome"); approved by the client.
+**Settings:** `AGENCY_WELCOME_LOGIN_URL` ([Portal Login Link]; empty: the portal's sign-in page),
+`AGENCY_WELCOME_ATTACHMENT` (the small group health enrollment application; empty or missing: sent without it,
+and the portal logs a warning without personal data), `AGENCY_WELCOME_REPLY_TO` (the email asks the owner to
+reply with the completed application, so replies should reach the ProPerX team).
+
+**Subject:** Welcome to ProPerX Alliance! Your Agency Account Is Ready
+
+> Hi [First Name],
+>
+> Welcome to ProPerX Alliance! We're glad to have you and your agency on board.
+>
+> Your agency account is ready, and everything you need to get started is below.
+>
+> **1. ACCESS YOUR AGENCY PORTAL**
+> Your agency portal lists the employees you've enrolled in the alliance and lets you add your W2 workers.
+>
+> **[Log in to your agency portal]**
+>
+> **2. GIVE YOUR EMPLOYEES PORTAL ACCESS**
+> You can grant employees access to log in under their own accounts, affiliated with your agency under "Profile."
+>
+> **3. ENROLL IN HEALTH COVERAGE AND OTHER BENEFITS**
+> Your portal gives you the resources to enroll in health coverage and our other benefits, and it stores each
+> employee's enrollment details in their individual member portal.
+>
+> **ACTION REQUIRED:** Please complete the attached health enrollment application and reply to this email with
+> it on behalf of your agency. Your employees can enroll in health coverage and other benefits once we receive it.
+>
+> Questions? Contact us using the details below or simply reply to this email.
+>
+> Thank you for joining ProPerX Alliance. We look forward to growing together!
+>
+> Warm regards,
+>
+> Anne Glorioso
+> Founder and CEO
+> ProPerX Alliance
+> 440-776-7379 | hello@properx.org | properx.org
+
+The owner has no password yet when this arrives: the login link opens the sign-in page, and the account is set
+up from the one-time link in the receipt (1), which follows at once.
+
+## 1. Receipt and account setup (to the principal)
+
+**When:** right after the owner's welcome (0).
 **Class:** `App\Notifications\AgencyWelcome`
 
-**Subject:** Welcome to ProPerX Alliance: your agency is enrolled
+**Subject:** Your ProPerX Alliance receipt and account setup
 
-> **Welcome to ProPerX Alliance**
+> **Your agency is enrolled**
 >
 > Thank you: your agency is enrolled and your payment has been received.
 >

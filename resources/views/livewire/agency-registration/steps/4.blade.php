@@ -13,11 +13,13 @@
     Text me about my membership (optional). Message and data rates may apply; reply STOP to opt out.
 </x-join.checkbox>
 
+<h3 class="section-title">Your license</h3>
 <div class="grid grid-2">
-    <x-join.input name="principal.npn" label="Individual NPN" required inputmode="numeric" maxlength="10"
-        hint="National Producer Number, 7 to 10 digits." />
     <x-join.select name="principal.license_state" label="Resident license state" :options="$states" required />
+    <x-join.input name="principal.npn" label="Individual NPN" inputmode="numeric" maxlength="10"
+        hint="National Producer Number, 7 to 10 digits, if you have it." />
 </div>
+<x-join.license prefix="principal" upload="principalLicenseUpload" :file-name="$this->principal->license_file_name" :types="$this->principal->license_types" />
 
 <x-join.checkbox name="principal.authority_confirmed">
     I am authorized to enroll this agency and its people in ProPerX Alliance and to pay membership dues on their behalf.

@@ -40,6 +40,9 @@ final readonly class AgencyAdditionQuote
         public string $paymentMethod,
         public ?string $paymentMethodId,
         public string $subscriptionItemId,
+        /** Members billed before and after (the Stripe quantity; never below the minimum). */
+        public int $seatsBefore = 0,
+        public int $seatsAfter = 0,
     ) {}
 
     public function tierChanges(): bool

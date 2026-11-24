@@ -5,14 +5,19 @@
         <dl>
             <dt>People</dt><dd>{{ $this->people->headcount() }}</dd>
         </dl>
-        <p class="summary">Add at least one more person to see your tier and price.</p>
     @else
         <dl>
             <dt>People</dt><dd>{{ $quote->headcount }}</dd>
+            @if ($quote->seats !== $quote->headcount)
+                <dt>Billed members</dt><dd>{{ $quote->seats }}</dd>
+            @endif
             <dt>Tier</dt><dd>{{ $quote->tier->label() }}</dd>
             <dt>Rate</dt><dd>{{ \App\Support\Money::format($quote->rate) }} each</dd>
             <dt>Annual total</dt><dd class="total">{{ \App\Support\Money::format($quote->subtotal) }}</dd>
         </dl>
+        @if ($quote->minimumApplied())
+            <p class="minimum-line" data-minimum-line>{{ $quote->minimumLine() }}</p>
+        @endif
         @if ($quote->rateType === \App\Enums\RateType::Founding)
             <span class="badge">Founding rate (locked)</span>
         @endif

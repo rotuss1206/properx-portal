@@ -9,6 +9,7 @@ use App\Member\LicenseDocumentList;
 use App\Member\MemberMenu;
 use App\Member\Overview;
 use App\Models\LicenseDocument;
+use App\Models\User;
 use App\Services\DocumentDownloader;
 use App\Services\Documents\DocumentVault;
 use App\Services\Documents\StorageHealth;
@@ -33,7 +34,7 @@ use Throwable;
  * withdrawing a pending document. Plain forms (no Livewire temporary files); the files go through
  * DocumentVault like Nova uploads, encrypted, and leave only through the signed download route.
  * DocumentObserver audits uploads and deletions (ids only). Who sees the page: MemberMenu::visible
- * (no agency people, closed while the membership is restricted). With an XHR request (the progress
+ * (no agency employees, closed while the membership is restricted). With an XHR request (the progress
  * bars in public/portal/upload-page.js and upload.js) store() answers JSON.
  */
 class LicenseDocumentController extends Controller
@@ -71,9 +72,18 @@ class LicenseDocumentController extends Controller
         ])->header('Cache-Control', 'no-store, private');
     }
 
+    /**
+     * The dashboard's panel (individual members), or this page for agencies' licensed producers.
+     */
+    private static function mayUpload(User $user): bool
+    {
+        return Overview::for($user)->canUpload()
+            || (MemberMenu::visible($user, 'license-documents') && $user->can('create', LicenseDocument::class));
+    }
+
     public function create(Request $request): View
     {
-        abort_unless(Overview::for($request->user())->canUpload(), Response::HTTP_NOT_FOUND);
+        abort_unless(self::mayUpload($request->user()), Response::HTTP_NOT_FOUND);
 
         return view('member.license-documents.upload', [
             'earlier' => MemberMenu::visible($request->user(), 'license-documents')
@@ -92,7 +102,7 @@ class LicenseDocumentController extends Controller
 
     public function store(Request $request, DocumentVault $vault, StorageHealth $storage): RedirectResponse|JsonResponse
     {
-        abort_unless(Overview::for($request->user())->canUpload(), Response::HTTP_FORBIDDEN);
+        abort_unless(self::mayUpload($request->user()), Response::HTTP_FORBIDDEN);
 
         $type = $request->input('document_type');
         $details = $this->validatedDetails($request);

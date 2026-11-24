@@ -5,7 +5,14 @@ namespace App\Livewire\AgencyRegistration\Concerns;
 use App\Livewire\AgencyRegistration\PeopleCsv;
 use App\Livewire\AgencyRegistration\PeopleCsvException;
 use App\Livewire\AgencyRegistration\PeopleForm;
+use App\Models\PendingLicenseFile;
+use App\Services\Documents\DocumentVault;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
+use Throwable;
 
 /**
  * The list of people being added, one at a time or from a CSV, with the same rules everywhere
@@ -32,6 +39,105 @@ trait ManagesPeopleList
 
     /** The count after a change, e.g. "3 people." */
     abstract protected function peopleCountText(): string;
+
+    /**
+     * Who uploaded license copies belong to: [PendingLicenseFile::OWNER_*, id] (the enrollment's
+     * draft, saved first if needed, or the agency), or null when nothing can be stored now.
+     *
+     * @return array{0: string, 1: int}|null
+     */
+    abstract protected function licenseFileOwner(): ?array;
+
+    /** The license copy chosen in the add / edit form (Livewire upload). */
+    public $licenseUpload = null;
+
+    /** @var array<int, mixed> License copies chosen for people already on the list, by row. */
+    public array $rowLicenseUploads = [];
+
+    /**
+     * A license copy for the person in the form: checked, stored encrypted at once, and the form
+     * keeps only its record's id.
+     */
+    public function updatedLicenseUpload(): void
+    {
+        $stored = $this->storeLicenseUpload($this->licenseUpload, 'people.entry.license_file');
+        $this->licenseUpload = null;
+
+        if ($stored !== null) {
+            $this->people->entry['license_file'] = $stored->getKey();
+            $this->people->entry['license_file_name'] = Str::limit($stored->original_filename, 80);
+            $this->people->resetErrorBag('entry.license_file');
+            $this->peopleSaved();
+        }
+    }
+
+    /**
+     * A license copy for someone already on the list ("License copy needed" after a spreadsheet).
+     */
+    public function updatedRowLicenseUploads(mixed $value, mixed $key): void
+    {
+        $index = (int) $key;
+        $file = $this->rowLicenseUploads[$index] ?? null;
+        unset($this->rowLicenseUploads[$index]);
+
+        if (! $this->peopleListOpen() || ! isset($this->people->rows[$index])) {
+            return;
+        }
+
+        $stored = $this->storeLicenseUpload($file, "people.rows.{$index}.license_file");
+
+        if ($stored !== null) {
+            $row = $this->people->rows[$index];
+            $this->people->rows[$index]['license_file'] = $stored->getKey();
+            $this->people->rows[$index]['license_file_name'] = Str::limit($stored->original_filename, 80);
+            $this->peopleStatus = "Added the license copy for {$row['first_name']} {$row['last_name']}.";
+            $this->peopleSaved();
+        }
+    }
+
+    /**
+     * PDF, JPG or PNG up to 10 MB (DocumentVault::uploadRules), stored in the vault, encrypted.
+     */
+    private function storeLicenseUpload(mixed $file, string $errorKey): ?PendingLicenseFile
+    {
+        if (! $file instanceof UploadedFile) {
+            return null;
+        }
+
+        // A message left from an earlier check would hide this file's own.
+        $this->resetErrorBag($errorKey);
+
+        $validator = Validator::make(['file' => $file], ['file' => DocumentVault::uploadRules()], [
+            'file.max' => 'The license copy is larger than 10 MB.',
+            'file.mimes' => 'Upload the license copy as a PDF, JPG or PNG.',
+            'file.mimetypes' => 'Upload the license copy as a PDF, JPG or PNG.',
+        ]);
+
+        if ($validator->fails()) {
+            $this->addError($errorKey, $validator->errors()->first('file'));
+
+            return null;
+        }
+
+        $owner = $this->licenseFileOwner();
+
+        if ($owner === null) {
+            $this->addError($errorKey, 'The license copy cannot be saved right now. Please try again.');
+
+            return null;
+        }
+
+        try {
+            return PendingLicenseFile::store($file, $owner[0], $owner[1]);
+        } catch (InvalidArgumentException) {
+            $this->addError($errorKey, 'Upload the license copy as a PDF, JPG or PNG.');
+        } catch (Throwable $e) {
+            Log::warning('A license copy could not be stored', ['owner' => $owner[0], 'owner_id' => $owner[1], 'error' => $e::class]);
+            $this->addError($errorKey, "We can't store the file right now. Please try again in a few minutes.");
+        }
+
+        return null;
+    }
 
     /**
      * Adds the person in the form to the list, or saves the changes to the row being edited.

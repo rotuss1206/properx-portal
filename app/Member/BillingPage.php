@@ -99,7 +99,8 @@ final class BillingPage
                     AgencyStatus::Inactive => 'danger',
                     default => 'warning',
                 },
-                'quantity' => $agency ? $agency->billingHeadcount().' '.($agency->billingHeadcount() === 1 ? 'person' : 'people') : null,
+                // Members billed (Stripe's quantity): at least the minimum, so possibly more than the people.
+                'quantity' => $agency ? $agency->billingHeadcount().' billed '.($agency->billingHeadcount() === 1 ? 'member' : 'members') : null,
                 'renews_at' => $agency?->paid_through_at,
                 'member_since' => $agency?->created_at,
                 'founding' => $agency?->rate_type === RateType::Founding,

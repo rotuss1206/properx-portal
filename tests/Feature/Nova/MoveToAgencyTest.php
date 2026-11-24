@@ -197,7 +197,7 @@ class MoveToAgencyTest extends TestCase
         $this->actingAs($this->staff(Role::ExecutiveDirector));
 
         // As a producer the short NPN is refused, nothing charged.
-        $this->move()->assertJsonPath('danger', fn (string $message) => str_contains($message, 'NPN of 7 to 10 digits'));
+        $this->move()->assertJsonPath('danger', fn (string $message) => str_contains($message, 'one of 7 to 10 digits'));
         $this->assertSame([], $this->stripe->sent('POST', '/v1/subscriptions/sub_agency'));
 
         $this->move(['person_type' => PersonType::AgencyEmployee->value])->assertOk()->assertJsonMissingPath('danger');

@@ -17,6 +17,7 @@ use App\Models\ReminderLog;
 use App\Models\User;
 use App\Notifications\AgencyEnrolledStaff;
 use App\Notifications\AgencyInvitationEmail;
+use App\Notifications\AgencyOwnerWelcome;
 use App\Notifications\AgencyWelcome;
 use App\Notifications\Member\AgencyInvitationNotice;
 use App\Notifications\Staff\StaffAlert;
@@ -148,7 +149,7 @@ class AgencyInvitationTest extends TestCase
 
         $welcome = Notification::sent($this->principal, AgencyWelcome::class)->sole()->toMail($this->principal);
         $html = (string) $welcome->render();
-        $this->assertSame('Welcome to ProPerX Alliance: your agency is enrolled', $welcome->subject);
+        $this->assertSame('Your ProPerX Alliance receipt and account setup', $welcome->subject);
         foreach (['Agency, Founding rate', '$477', 'Credit card surcharge', '$13.83', 'Total paid', '$490.83', 'Renews on', now()->addYear()->format('F j, Y')] as $text) {
             $this->assertStringContainsString($text, $html);
         }
@@ -159,6 +160,70 @@ class AgencyInvitationTest extends TestCase
         foreach (['Priya', 'Nair', 'Dana', 'Whitfield', $this->agency->legal_name, $this->employee->user->email] as $private) {
             $this->assertStringNotContainsString($private, $text);
             $this->assertStringNotContainsString($private, $html);
+        }
+    }
+
+    public function test_the_owner_gets_the_client_s_welcome_once_before_the_receipt(): void
+    {
+        Notification::fake();
+        $this->inviteEveryone();
+        $this->inviteEveryone();
+
+        Notification::assertSentToTimes($this->principal, AgencyOwnerWelcome::class, 1);
+        Notification::assertNotSentTo($this->producer->user, AgencyOwnerWelcome::class);
+
+        $mail = Notification::sent($this->principal, AgencyOwnerWelcome::class)->sole()->toMail($this->principal);
+        $text = preg_replace('/\s+/', ' ', strip_tags((string) $mail->render()));
+
+        $this->assertSame('Welcome to ProPerX Alliance! Your Agency Account Is Ready', $mail->subject);
+        $this->assertSame(url('/nova/login'), $mail->actionUrl);
+        foreach ([
+            'Hi '.$this->principal->memberProfile->first_name.',',
+            'Welcome to ProPerX Alliance! We\'re glad to have you and your agency on board.',
+            'Your agency account is ready, and everything you need to get started is below.',
+            '1. ACCESS YOUR AGENCY PORTAL',
+            'Your agency portal lists the employees you\'ve enrolled in the alliance and lets you add your W2 workers.',
+            '2. GIVE YOUR EMPLOYEES PORTAL ACCESS',
+            'You can grant employees access to log in under their own accounts, affiliated with your agency under "Profile."',
+            '3. ENROLL IN HEALTH COVERAGE AND OTHER BENEFITS',
+            'Your portal gives you the resources to enroll in health coverage and our other benefits, and it stores each employee\'s enrollment details in their individual member portal.',
+            'ACTION REQUIRED: Please complete the attached health enrollment application and reply to this email with it on behalf of your agency. Your employees can enroll in health coverage and other benefits once we receive it.',
+            'Questions? Contact us using the details below or simply reply to this email.',
+            'Thank you for joining ProPerX Alliance. We look forward to growing together!',
+            'Warm regards,', 'Anne Glorioso', 'Founder and CEO', '440-776-7379 | hello@properx.org | properx.org',
+        ] as $line) {
+            $this->assertStringContainsString(htmlspecialchars($line, ENT_QUOTES), htmlspecialchars(html_entity_decode($text, ENT_QUOTES), ENT_QUOTES));
+        }
+
+        // Nothing configured: no attachment, no reply-to.
+        $this->assertSame([], $mail->attachments);
+        $this->assertSame([], $mail->replyTo);
+    }
+
+    public function test_the_owner_welcome_attaches_the_application_and_replies_to_the_team_when_configured(): void
+    {
+        $file = storage_path('framework/testing/health-enrollment-application.pdf');
+        @mkdir(dirname($file), 0777, true);
+        file_put_contents($file, '%PDF-1.4 application');
+        config([
+            'portal.agency_welcome.attachment' => $file,
+            'portal.agency_welcome.reply_to' => 'hello@properx.example',
+            'portal.agency_welcome.login_url' => 'https://portal.properx.example/nova/login',
+        ]);
+
+        try {
+            $mail = (new AgencyOwnerWelcome('Dana'))->toMail($this->principal);
+
+            $this->assertSame($file, $mail->attachments[0]['file']);
+            $this->assertSame('health-enrollment-application.pdf', $mail->attachments[0]['options']['as']);
+            $this->assertSame([['hello@properx.example', null]], $mail->replyTo);
+            $this->assertSame('https://portal.properx.example/nova/login', $mail->actionUrl);
+
+            // A path that does not exist: sent without it.
+            config(['portal.agency_welcome.attachment' => 'storage/missing.pdf']);
+            $this->assertSame([], (new AgencyOwnerWelcome('Dana'))->toMail($this->principal)->attachments);
+        } finally {
+            @unlink($file);
         }
     }
 

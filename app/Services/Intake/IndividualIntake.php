@@ -13,6 +13,7 @@ use App\Services\Memberships\RejoinRule;
 use App\Services\StaffAlerts;
 use App\Services\Stripe\StripeWebhookHandler;
 use App\Services\Stripe\SubscriptionReader;
+use App\Support\LicenseTypes;
 use App\Support\UsStates;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +33,7 @@ class IndividualIntake
     public function __construct(private StripeWebhookHandler $stripeEvents) {}
 
     /** Profile fields filled from the application, compared when the member already exists. */
-    private const PROFILE_FIELDS = ['first_name', 'last_name', 'phone', 'address', 'firm_name', 'npn', 'license_state', 'license_type', 'license_expires_at'];
+    private const PROFILE_FIELDS = ['first_name', 'last_name', 'phone', 'address', 'firm_name', 'npn', 'license_number', 'license_state', 'license_type', 'license_expires_at'];
 
     /**
      * @param  array<string, mixed>  $data  Validated by IntakeController
@@ -273,7 +274,15 @@ class IndividualIntake
      */
     private function profileValues(array $data): array
     {
-        $types = array_filter(array_map(fn ($type) => trim((string) $type), $data['license_types'] ?? []));
+        $types = array_values(array_filter(array_map(fn ($type) => trim((string) $type), $data['license_types'] ?? [])));
+        $other = trim((string) ($data['license_type_other'] ?? ''));
+        $number = Str::upper(trim((string) ($data['license_number'] ?? '')));
+
+        // "Other" with its words (plugin 2.3.0), as the agency enrollment keeps it; a type off the
+        // list from an older entry stays as it was sent.
+        $type = $other !== '' || in_array(LicenseTypes::OTHER, $types, true)
+            ? LicenseTypes::forProfile([...$types, LicenseTypes::OTHER], $other)
+            : ($types === [] ? null : Str::limit(implode(', ', $types), 100, ''));
 
         return [
             'first_name' => trim($data['first_name']),
@@ -281,9 +290,10 @@ class IndividualIntake
             'phone' => $data['phone'] ?? null,
             'address' => $data['address'] ?? null,
             'firm_name' => $data['firm_name'] ?? null,
-            'npn' => $data['npn'],
+            'npn' => filled($data['npn'] ?? null) ? $data['npn'] : null,
+            'license_number' => $number === '' ? null : $number,
             'license_state' => self::stateCode($data['license_state'] ?? null),
-            'license_type' => $types === [] ? null : Str::limit(implode(', ', $types), 100, ''),
+            'license_type' => $type,
             'license_expires_at' => $data['license_expires_at'],
         ];
     }

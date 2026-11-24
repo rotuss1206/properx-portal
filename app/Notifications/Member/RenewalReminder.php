@@ -21,7 +21,7 @@ class RenewalReminder extends Notification
     public const INDIVIDUAL = 'individual';
 
     /**
-     * @param  array{people?: ?int, tier?: ?string, amount?: ?int, method?: ?string}  $facts
+     * @param  array{people?: ?int, seats?: ?int, tier?: ?string, amount?: ?int, method?: ?string}  $facts
      */
     public function __construct(
         public readonly string $kind,
@@ -55,6 +55,8 @@ class RenewalReminder extends Notification
         $rows = array_filter([
             'Renews on' => $date,
             'People' => $agency && isset($this->facts['people']) ? (string) $this->facts['people'] : null,
+            // The two-member minimum: billed for more members than people.
+            'Billed members' => $agency && isset($this->facts['seats'], $this->facts['people']) && $this->facts['seats'] > $this->facts['people'] ? $this->facts['seats'].' (minimum)' : null,
             'Tier' => $agency ? ($this->facts['tier'] ?? null) : null,
             'Amount' => isset($this->facts['amount']) ? Money::exact((int) $this->facts['amount']).' a year' : null,
             'Payment method' => $this->facts['method'] ?? 'The payment method on file',

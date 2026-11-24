@@ -8,7 +8,8 @@
     $headcount = $people->headcount();
     $editing = isset($people->rows[$people->editing]);
     $isProducer = ($people->entry['type'] ?? '') === \App\Enums\PersonType::LicensedProducer->value;
-    $fields = ['type' => 'Person type', 'first_name' => 'First name', 'last_name' => 'Last name', 'email' => 'Email', 'npn' => 'NPN', 'license_state' => 'State'];
+    $fields = ['type' => 'Person type', 'first_name' => 'First name', 'last_name' => 'Last name', 'email' => 'Email', 'npn' => 'NPN', 'license_state' => 'State', 'license_number' => 'License number', 'license_types' => 'License type', 'license_type_other' => 'Other license type', 'license_file' => 'License copy'];
+    $copyNeeded = \App\Support\LicenseCopy::NEEDED;
 @endphp
 <h2>Add your people</h2>
 <p class="lead">You are person 1. Add each licensed producer and agency employee who joins with you. After payment, everyone gets an email invitation to set up their account.</p>
@@ -32,7 +33,11 @@
                 <span>{{ $principal->email }}</span>
                 @if ($principal->npn !== '')<span>NPN {{ $principal->npn }}</span>@endif
                 @if ($principal->license_state !== '')<span>{{ $states[$principal->license_state] ?? $principal->license_state }}</span>@endif
+                @if ($principal->license_number !== '')<span>License {{ $principal->license_number }}</span>@endif
             </p>
+            @if (\App\Support\LicenseCopy::missing(['license_file' => $principal->license_file]))
+                <p class="license-status"><span class="tag tag-needed">{{ $copyNeeded }}</span> <button type="button" class="link" wire:click="goTo(4)">Upload it on step 4</button></p>
+            @endif
         </div>
         <p class="person-fixed">Person 1 · <button type="button" class="link" wire:click="goTo(4)">Change on step 4</button></p>
     </li>
@@ -50,7 +55,24 @@
                     <span>{{ $row['email'] }}</span>
                     @if ($row['npn'] !== '')<span>NPN {{ $row['npn'] }}</span>@endif
                     @if ($row['license_state'] !== '')<span>{{ $states[$row['license_state']] ?? $row['license_state'] }}</span>@endif
+                    @if ($row['license_number'] !== '')<span>License {{ $row['license_number'] }}</span>@endif
                 </p>
+                @if ($row['type'] === \App\Enums\PersonType::LicensedProducer->value)
+                    {{-- A spreadsheet brings no file: each producer's copy is uploaded here (LicenseCopy). --}}
+                    <div class="license-status">
+                        @if ($row['license_file'] !== '')
+                            <span class="tag tag-ok">License copy</span> <span class="license-file">{{ $row['license_file_name'] }}</span>
+                        @elseif (\App\Support\LicenseCopy::required())
+                            <span class="tag tag-needed">{{ $copyNeeded }}</span>
+                        @endif
+                        <label class="btn-small upload-small">
+                            {{ $row['license_file'] !== '' ? 'Replace copy' : 'Upload license copy' }}<span class="sr-only"> for {{ $name }}</span>
+                            <input class="sr-only" type="file" wire:model="rowLicenseUploads.{{ $index }}" accept="{{ \App\Services\Documents\DocumentVault::acceptedExtensions() }}">
+                        </label>
+                        <span class="hint" wire:loading wire:target="rowLicenseUploads.{{ $index }}">Uploading…</span>
+                        <x-join.error :name="'people.rows.'.$index.'.license_file'" />
+                    </div>
+                @endif
                 @if ($rowErrors->isNotEmpty())
                     <ul class="person-errors" id="person-{{ $index }}-errors">
                         @foreach ($rowErrors as $field => $message)
@@ -68,15 +90,21 @@
     @endforeach
 </ol>
 
-@if (! $people->minimumMet())
-    <p class="notice-info minimum" id="people-minimum">
-        Agency membership needs at least {{ $minimumHeadcount }} people. Add someone else
-        @if ($individualUrl)
-            or <a href="{{ $individualUrl }}">switch to individual membership</a>.
-        @else
-            or switch to individual membership on properx.org.
+@if ($people->principalOnly())
+    {{-- The client's rule: an agency always pays for at least two members, so adding them costs nothing more. --}}
+    <div class="notice-info minimum" id="people-minimum">
+        <p><strong>Add your W2 employees.</strong> Only you are on the list so far. Agency employees need no license, and your agency pays for at least {{ $minimumHeadcount }} members anyway.</p>
+        @if ($this->quote?->minimumApplied())
+            <p class="minimum-line">{{ $this->quote->minimumLine() }}</p>
         @endif
-    </p>
+        <p>You can continue as you are and add people later.
+            @if ($individualUrl)
+                Just you? <a href="{{ $individualUrl }}">Apply for individual membership</a>.
+            @endif
+        </p>
+    </div>
+@elseif ($this->quote?->minimumApplied())
+    <p class="minimum-line" id="people-minimum">{{ $this->quote->minimumLine() }}</p>
 @endif
 <x-join.error name="people.rows" />
 
@@ -144,7 +172,7 @@
                 <label class="choice">
                     <input type="radio" name="people-entry-type" wire:model.live="people.entry.type" value="{{ $value }}">
                     <strong>{{ $label }}</strong>
-                    <span>{{ $value === \App\Enums\PersonType::LicensedProducer->value ? 'Holds a resident insurance license (NPN).' : 'Works for the agency, no license needed.' }}</span>
+                    <span>{{ $value === \App\Enums\PersonType::LicensedProducer->value ? 'Holds a resident insurance license; a copy of it is needed.' : 'W2 employee of the agency, no license needed.' }}</span>
                 </label>
             @endforeach
         </div>
@@ -160,10 +188,11 @@
 
     @if ($isProducer)
         <div class="grid grid-2">
-            <x-join.input name="people.entry.npn" wire:keydown.enter.prevent="savePerson" label="Individual NPN" required inputmode="numeric" maxlength="10" autocomplete="off"
-                hint="7 to 10 digits." />
             <x-join.select name="people.entry.license_state" label="Resident license state" :options="$states" required />
+            <x-join.input name="people.entry.npn" wire:keydown.enter.prevent="savePerson" label="Individual NPN" inputmode="numeric" maxlength="10" autocomplete="off"
+                hint="7 to 10 digits, if they have it." />
         </div>
+        <x-join.license prefix="people.entry" upload="licenseUpload" :file-name="$people->entry['license_file_name']" :types="$people->entry['license_types']" />
     @endif
 
     <div class="person-form-actions">

@@ -19,7 +19,7 @@ const PROPERX_PORTAL_HEARTBEAT       = 'properx_portal_cron_heartbeat';
 const PROPERX_PORTAL_SECRET_MIN_SIZE = 32;
 
 /**
- * @return array{url: string, form_id: int, secret: string, secret_changed_at: int, send_enabled: bool, approval_email_enabled: bool, cancel_send_enabled: bool, agency_handoff_enabled: bool}
+ * @return array{url: string, form_id: int, secret: string, secret_changed_at: int, send_enabled: bool, approval_email_enabled: bool, cancel_send_enabled: bool, agency_handoff_enabled: bool, health_enrollment_url: string, provider_search_url: string}
  */
 function properx_portal_stored_settings() {
 	$stored = get_option( PROPERX_PORTAL_OPTION, array() );
@@ -34,6 +34,8 @@ function properx_portal_stored_settings() {
 			'approval_email_enabled' => false,
 			'cancel_send_enabled'    => false,
 			'agency_handoff_enabled' => false,
+			'health_enrollment_url'  => '',
+			'provider_search_url'    => '',
 		),
 		is_array( $stored ) ? $stored : array()
 	);
@@ -193,6 +195,17 @@ function properx_portal_apply_settings_form( array $input ) {
 
 	if ( ! properx_portal_form_id_is_constant() ) {
 		$changes['form_id'] = absint( $input['form_id'] ?? 0 );
+	}
+
+	// The welcome email's links; an empty one leaves its section out of the email.
+	foreach ( PROPERX_PORTAL_WELCOME_LINKS as $key => $label ) {
+		$link = trim( (string) ( $input[ $key ] ?? '' ) );
+
+		if ( '' === $link || properx_portal_url_is_acceptable( $link ) ) {
+			$changes[ $key ] = $link;
+		} else {
+			$errors[] = $label . ' must be a full https:// address.';
+		}
 	}
 
 	if ( ! properx_portal_secret_is_constant() ) {

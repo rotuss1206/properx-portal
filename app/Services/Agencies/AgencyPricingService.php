@@ -11,8 +11,9 @@ use Carbon\CarbonInterface;
 
 /**
  * Agency dues (no Stripe calls): the tier follows the headcount, founding rates apply to
- * payments before the cutoff, a valid partner code caps the rate at the partner rate,
- * and credit cards pay a surcharge. Rates and prices: config/agency.php.
+ * payments before the cutoff, a valid partner code caps the rate at its tier's partner rate,
+ * credit cards pay a surcharge, and an agency always pays for at least
+ * agency.minimum_headcount members (billableSeats). Rates and prices: config/agency.php.
  */
 class AgencyPricingService
 {
@@ -21,8 +22,9 @@ class AgencyPricingService
      * @param  string|null  $cardFunding  Stripe PaymentMethod card.funding; null for ACH or not known yet
      * @param  RateType|null  $rateType  a locked rate type (renewals); by default it follows $paidAt
      * @param  string|null  $payerState  the paying agency's state (legal address): no surcharge in an exempt state
+     * @param  int  $employees  how many of the people are agency employees (billed only with agency.bill_employees)
      *
-     * @throws HeadcountTooLowException
+     * @throws HeadcountTooLowException when there is nobody (an agency has at least its principal)
      */
     public function quote(
         int $headcount,
@@ -31,23 +33,24 @@ class AgencyPricingService
         ?string $cardFunding = null,
         ?RateType $rateType = null,
         ?string $payerState = null,
+        int $employees = 0,
     ): AgencyQuote {
-        $minimum = (int) config('agency.minimum_headcount');
-
-        if ($headcount < $minimum) {
-            throw HeadcountTooLowException::for($headcount, $minimum);
+        if ($headcount < 1) {
+            throw HeadcountTooLowException::for($headcount, 1);
         }
 
         $paidAt ??= now();
-        $tier = AgencyTier::forHeadcount($headcount);
+        $tier = AgencyTier::forHeadcount(max($headcount, (int) config('agency.minimum_headcount')));
         $rateType ??= $this->rateTypeFor($paidAt);
         $tierRate = $tier->rate($rateType);
 
-        // Partner codes do not stack: the lower of the partner rate and the tier rate.
+        // Partner codes do not stack: the lower of the tier's partner rate and the tier rate.
         $partnerCodeValid = $partnerCode?->isValid($paidAt) ?? false;
-        $rate = $partnerCodeValid ? min($tierRate, (int) config('agency.partner_rate')) : $tierRate;
+        $partnerRate = self::partnerRate($tier);
+        $rate = $partnerCodeValid ? min($tierRate, $partnerRate) : $tierRate;
+        $seats = self::billableSeats($headcount, $employees);
 
-        $subtotal = $rate * $headcount;
+        $subtotal = $rate * $seats;
         $surcharge = $this->surcharge($subtotal, $cardFunding, $payerState);
 
         return new AgencyQuote(
@@ -57,7 +60,9 @@ class AgencyPricingService
             tierRate: $tierRate,
             rate: $rate,
             partnerCodeValid: $partnerCodeValid,
-            partnerRateApplied: $rate < $tierRate,
+            partnerRateApplied: $partnerCodeValid && $partnerRate <= $tierRate,
+            seats: $seats,
+            billedPeople: self::billedPeople($headcount, $employees),
             subtotal: $subtotal,
             surcharge: $surcharge,
             total: $subtotal + $surcharge,
@@ -72,13 +77,40 @@ class AgencyPricingService
     public function quoteForAgency(Agency $agency, ?CarbonInterface $at = null, ?string $cardFunding = null): AgencyQuote
     {
         return $this->quote(
-            headcount: $agency->headcount,
+            headcount: max(1, $agency->headcount),
+            employees: $agency->employeeCount(),
             paidAt: $at,
             partnerCode: $agency->partnerCode,
             cardFunding: $cardFunding,
             rateType: $agency->rate_type,
             payerState: $agency->legalState(),
         );
+    }
+
+    /**
+     * People the agency is billed for before the minimum: everyone, or only its licensed producers
+     * while agency employees are not billed (agency.bill_employees).
+     */
+    public static function billedPeople(int $people, int $employees): int
+    {
+        return (bool) config('agency.bill_employees') ? $people : max(0, $people - $employees);
+    }
+
+    /**
+     * Members the agency pays for: the people billed, never fewer than agency.minimum_headcount.
+     * The one place this rule lives (wizard, Stripe quantity, adding and removing people, renewals).
+     */
+    public static function billableSeats(int $people, int $employees): int
+    {
+        return max((int) config('agency.minimum_headcount'), self::billedPeople($people, $employees));
+    }
+
+    /**
+     * The partner rate of a tier, in cents (agency.partner_rates).
+     */
+    public static function partnerRate(AgencyTier $tier): int
+    {
+        return (int) config('agency.partner_rates.'.$tier->value);
     }
 
     public function rateTypeFor(CarbonInterface $paidAt): RateType

@@ -76,6 +76,7 @@ class StaffAlerts
         'wordpress_intake' => 'a paid application from properx.org',
         'wordpress_cancellation' => 'a cancellation from properx.org',
         'wordpress_agency_start' => 'an agency enrollment started on properx.org',
+        'wordpress_license_copy' => 'a license copy sent with an application from properx.org',
         'stripe_webhook' => 'a Stripe webhook event',
     ];
 

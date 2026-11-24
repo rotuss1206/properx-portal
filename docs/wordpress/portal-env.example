@@ -69,16 +69,20 @@ MEMBERSHIP_REJOIN_WAIT_MONTHS=
 STAFF_SUMMARY_ENABLED=
 
 # --- Certificate -----------------------------------------------------------------------
-# Second signature. Empty: the date of issue stands in its place.
-CERTIFICATE_SECOND_SIGNATORY_NAME=
-CERTIFICATE_SECOND_SIGNATORY_TITLE=
-# File name of a PNG of the Executive Director's signature in resources/views/pdf/images.
-# Empty: the name is set in the signature font.
-CERTIFICATE_SIGNATURE_IMAGE=
+# Second signature (bottom right). Empty: the date of issue stands in its place.
+CERTIFICATE_SECOND_SIGNATORY_NAME="Anne Glorioso"
+CERTIFICATE_SECOND_SIGNATORY_TITLE="Founder and CEO"
+# File name of the second signatory's signature (transparent PNG, ships in resources/views/pdf/images).
+# Empty: the name is set in the signature font. The first signature (Executive Director) is always set in type.
+CERTIFICATE_SIGNATURE_IMAGE=signature-anne-glorioso.png
 
 # --- Agency enrollment -------------------------------------------------------------------
 # true opens the public wizard at /join/agency. Off (404) while unset.
 AGENCY_ENROLLMENT_ENABLED=
+# Agency employees (W2) billed like producers. Empty or true: yes. false: they count toward the two-member minimum only.
+AGENCY_BILL_EMPLOYEES=
+# Licensed producers need a license copy before the agency pays. Empty or true: yes. false: relaxed.
+AGENCY_REQUIRE_LICENSE_COPY=
 # "Just me" on /join/agency: the individual application on the marketing site.
 INDIVIDUAL_MEMBERSHIP_URL=<https-address>
 # true: "My agency" on properx.org/apply opens a prefilled enrollment (POST /api/intake/agency-start, signed with
@@ -95,6 +99,13 @@ STRIPE_PRICE_AGENCY_STANDARD_50PLUS=
 AGENCY_SURCHARGE_EXEMPT_STATES=
 # Optional address that gets "New agency enrolled". Empty: staff see a Nova notification only.
 AGENCY_STAFF_NOTIFICATION_EMAIL=
+# The agency owner's welcome (sent when the enrollment is paid): [Portal Login Link] (empty: the portal's
+# sign-in page), the health enrollment application attached (a path in the image, relative to the app
+# root, or absolute; empty or missing: sent without it; set later, when the client sends the file) and the
+# reply-to address the email asks to reply to.
+AGENCY_WELCOME_LOGIN_URL=
+AGENCY_WELCOME_ATTACHMENT=
+AGENCY_WELCOME_REPLY_TO=hello@properx.org
 # Terms and privacy pages linked from the enrollment's consents. Empty: properx.org's pages.
 PORTAL_TERMS_URL=
 PORTAL_PRIVACY_URL=

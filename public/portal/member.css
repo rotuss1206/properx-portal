@@ -549,6 +549,8 @@ body.ppx-member {
 
 .ppx-profile__text--lead { margin: 6px 0 12px; }
 
+.ppx-profile__license-note { margin: 0 22px 18px; }
+
 .ppx-profile__codes { margin: 0 22px 18px; padding: 14px 16px; border-radius: var(--ppx-radius); background: var(--ppx-blue-50); }
 
 .ppx-profile__code-list {
@@ -1085,6 +1087,11 @@ body.ppx-member {
 .ppx-add__text { min-width: 0; overflow-wrap: anywhere; }
 
 .ppx-add__actions { display: inline-flex; gap: 6px; }
+
+/* A producer's license copy on the list: status and the upload link. */
+.ppx-add__license { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 6px; font-size: 13px; color: var(--ppx-muted); }
+
+.ppx-add__upload { position: relative; cursor: pointer; }
 
 .ppx-add__types { display: grid; gap: 6px; padding-top: 6px; }
 

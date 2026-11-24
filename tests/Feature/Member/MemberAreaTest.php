@@ -156,18 +156,19 @@ class MemberAreaTest extends TestCase
         $response->assertSee('href="'.route('member.profile').'#security"', false);
     }
 
-    public function test_agency_people_see_no_license_uploads_and_only_the_principal_sees_my_agency(): void
+    public function test_agency_producers_see_license_documents_and_only_the_principal_sees_my_agency(): void
     {
         $agency = $this->agency(2);
         $principal = $agency->principal()->first();
         $person = $agency->members()->where('user_id', '!=', $principal->id)->first()->user;
 
-        $this->actingAs($person)->get('/member')->assertOk()->assertDontSee('License documents')->assertSee('Billing')->assertDontSee('My agency');
+        // License documents for agencies' producers (the go-live rule); the dashboard has no upload for them.
+        $this->actingAs($person)->get('/member')->assertOk()->assertSee('License documents')->assertSee('Billing')->assertDontSee('My agency');
         $this->get('/member/billing')->assertOk()->assertSee('Your membership is paid by');
         $this->get('/member/agency')->assertNotFound();
-        $this->get('/member/license-documents')->assertNotFound();
+        $this->get('/member/license-documents')->assertOk();
 
-        $this->actingAs($principal)->get('/member')->assertOk()->assertSeeInOrder(['Profile', 'My agency', 'Billing'])->assertDontSee('License documents');
+        $this->actingAs($principal)->get('/member')->assertOk()->assertSeeInOrder(['Profile', 'My agency', 'License documents', 'Billing']);
         $this->get('/member/billing')->assertOk();
         $this->get('/member/agency')->assertOk();
     }

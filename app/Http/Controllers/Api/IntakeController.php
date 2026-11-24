@@ -8,6 +8,7 @@ use App\Rules\UsPhone;
 use App\Services\Intake\AgencyHandoff;
 use App\Services\Intake\IndividualCancellation;
 use App\Services\Intake\IndividualIntake;
+use App\Services\Intake\IndividualLicenseCopy;
 use App\Services\ServiceAccount;
 use App\Services\StaffAlerts;
 use Illuminate\Http\JsonResponse;
@@ -50,7 +51,11 @@ class IntakeController extends Controller
             'phone' => ['nullable', 'string', 'max:32'],
             'address' => ['nullable', 'string', 'max:500'],
             'firm_name' => ['nullable', 'string', 'max:255'],
-            'npn' => ['required', 'string', 'regex:/^[0-9]{1,10}$/'],
+            // The application asks for the license number and leaves the NPN optional (plugin 2.3.0);
+            // entries from the earlier form have an NPN and no license number. One of them is needed.
+            'npn' => ['nullable', 'required_without:license_number', 'string', 'regex:/^[0-9]{1,10}$/'],
+            'license_number' => ['nullable', 'required_without:npn', 'string', 'max:50'],
+            'license_type_other' => ['nullable', 'string', 'max:100'],
             'license_expires_at' => ['required', 'date_format:Y-m-d'],
             'license_state' => ['nullable', 'string', function (string $attribute, mixed $value, \Closure $fail) {
                 if (IndividualIntake::stateCode($value) === null) {
@@ -84,6 +89,59 @@ class IntakeController extends Controller
         Auth::setUser($serviceAccount);
 
         return response()->json($intake->handle($validator->validated(), $serviceAccount));
+    }
+
+    /**
+     * The license copy uploaded with a paid application (plugin 2.3.0), sent after the application
+     * itself, base64 in the same signed JSON. PDF, JPG or PNG up to 10 MB, checked by its bytes.
+     * 409 while the application has not arrived (the plugin retries); 200 otherwise, also when the
+     * copy was stored before or has no member to belong to.
+     */
+    public function licenseCopy(Request $request, IndividualLicenseCopy $copies, ServiceAccount $serviceAccounts): JsonResponse
+    {
+        abort_unless(config('portal.intake.enabled'), Response::HTTP_NOT_FOUND);
+
+        if (! $this->signatureIsValid($request)) {
+            StaffAlerts::integrationRefused($this->source($request), 'signature');
+
+            return response()->json(['error' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $validator = Validator::make(is_array($data) ? $data : [], [
+            'entry_id' => ['required', 'regex:/^[0-9]{1,20}$/'],
+            'file_name' => ['required', 'string', 'max:255'],
+            'content' => ['required', 'string'],
+        ]);
+
+        $contents = $validator->fails() ? false : base64_decode((string) $data['content'], true);
+        $mimeType = is_string($contents) ? (string) (new \finfo(FILEINFO_MIME_TYPE))->buffer($contents) : '';
+
+        if ($validator->passes() && ($contents === false || $contents === ''
+            || strlen($contents) > config('portal.uploads.max_kilobytes') * 1024
+            || ! isset(config('portal.uploads.mime_types')[$mimeType]))) {
+            $validator->errors()->add('content', 'Not a PDF, JPG or PNG up to 10 MB.');
+        }
+
+        if ($validator->errors()->isNotEmpty()) {
+            StaffAlerts::integrationRefused($this->source($request), 'validation', $validator->errors()->keys());
+
+            return response()->json(['message' => 'Validation failed.', 'fields' => $validator->errors()->keys()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $serviceAccount = $serviceAccounts->user();
+
+        if ($serviceAccount === null || ! $serviceAccount->checkPermissionTo('members.intake.create')) {
+            Log::critical('License copy cannot be stored: no API Service account with the intake permission.');
+
+            return response()->json(['error' => 'Service account unavailable.'], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
+        Auth::setUser($serviceAccount);
+
+        $result = $copies->handle(['entry_id' => (string) $data['entry_id'], 'file_name' => (string) $data['file_name']], $contents, $mimeType);
+
+        return response()->json($result, $result['outcome'] === IndividualLicenseCopy::PENDING ? Response::HTTP_CONFLICT : Response::HTTP_OK);
     }
 
     /**
@@ -193,6 +251,7 @@ class IntakeController extends Controller
         return match (true) {
             $request->routeIs('intake.cancellation') => 'wordpress_cancellation',
             $request->routeIs('intake.agency-start') => 'wordpress_agency_start',
+            $request->routeIs('intake.license-copy') => 'wordpress_license_copy',
             default => 'wordpress_intake',
         };
     }

@@ -48,12 +48,12 @@ class AgencyPaymentTest extends TestCase
 
     private const PRINCIPAL = [
         'first_name' => 'Dana', 'last_name' => 'Whitfield', 'title' => 'owner', 'email' => 'dana@lonestarbenefits.example',
-        'mobile_phone' => '512-555-0199', 'npn' => '18273645', 'license_state' => 'TX', 'authority_confirmed' => true,
+        'mobile_phone' => '512-555-0199', 'npn' => '18273645', 'license_state' => 'TX', 'license_number' => 'TX-1001', 'license_types' => ['Life', 'Health'], 'authority_confirmed' => true,
     ];
 
     private const PEOPLE = [
-        ['type' => 'licensed_producer', 'first_name' => 'Marcus', 'last_name' => 'Reyes', 'email' => 'marcus@lonestarbenefits.example', 'npn' => '20304050', 'license_state' => 'TX'],
-        ['type' => 'agency_employee', 'first_name' => 'Priya', 'last_name' => 'Nair', 'email' => 'priya@lonestarbenefits.example', 'npn' => '', 'license_state' => ''],
+        ['type' => 'licensed_producer', 'first_name' => 'Marcus', 'last_name' => 'Reyes', 'email' => 'marcus@lonestarbenefits.example', 'npn' => '20304050', 'license_state' => 'TX', 'license_number' => 'TX-2002', 'license_types' => ['Life'], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => ''],
+        ['type' => 'agency_employee', 'first_name' => 'Priya', 'last_name' => 'Nair', 'email' => 'priya@lonestarbenefits.example', 'npn' => '', 'license_state' => '', 'license_number' => '', 'license_types' => [], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => ''],
     ];
 
     /** Dues of 3 people at the founding Agency rate, and 2.9% of them. */
@@ -66,6 +66,9 @@ class AgencyPaymentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // The license copy rule has its own tests (AgencyLicenseCopyTest).
+        config(['agency.require_license_copy' => false]);
 
         $this->seedRoles();
         $this->apiService();

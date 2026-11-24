@@ -5,8 +5,11 @@ namespace App\Livewire\AgencyRegistration;
 use App\Enums\PersonType;
 use App\Models\MemberProfile;
 use App\Models\User;
+use App\Rules\OtherLicenseTypeNeedsText;
 use App\Rules\UniqueBlindIndex;
 use App\Services\Memberships\RejoinRule;
+use App\Support\LicenseCopy;
+use App\Support\LicenseTypes;
 use App\Support\UsStates;
 use Closure;
 use Illuminate\Support\Facades\Validator;
@@ -16,17 +19,29 @@ use Illuminate\Validation\Rule;
 /**
  * Screen 5 · People (Agency spec 5.4). The principal (screen 4) is person 1 and is not listed
  * here; these rows are everyone else, added one at a time through the "entry" form. Each
- * person's email, and each licensed producer's NPN, must be new to the portal and appear once
- * in the enrollment, the principal's included. Employees have no NPN or license state.
+ * person's email, and each licensed producer's NPN when given, must be new to the portal and
+ * appear once in the enrollment, the principal's included.
+ *
+ * Licensed producers (the client's rules): license number, resident state, license types (with
+ * "Other" and its words) and a copy of the license (LicenseCopy: required in the form, and before
+ * payment for rows from a spreadsheet); the NPN is optional, 7 to 10 digits when given. Agency
+ * employees (W2): name and contact details only.
  */
 class PeopleForm extends StepForm
 {
     /** Headcount the wizard accepts, the principal included; larger agencies contact ProPerX. */
     public const MAX_HEADCOUNT = 500;
 
-    public const ROW = ['type' => '', 'first_name' => '', 'last_name' => '', 'email' => '', 'npn' => '', 'license_state' => ''];
+    /** license_file: the id of a PendingLicenseFile of this enrollment or agency, never a path. */
+    public const ROW = [
+        'type' => '', 'first_name' => '', 'last_name' => '', 'email' => '', 'npn' => '', 'license_state' => '',
+        'license_number' => '', 'license_types' => [], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => '',
+    ];
 
-    /** @var list<array{type: string, first_name: string, last_name: string, email: string, npn: string, license_state: string}> */
+    /** Fields a licensed producer has and an agency employee does not. */
+    public const LICENSE_FIELDS = ['npn', 'license_state', 'license_number', 'license_types', 'license_type_other', 'license_file', 'license_file_name'];
+
+    /** @var list<array{type: string, first_name: string, last_name: string, email: string, npn: string, license_state: string, license_number: string, license_types: list<string>, license_type_other: string, license_file: string, license_file_name: string}> */
     public array $rows = [];
 
     /** The add / edit form. */
@@ -51,14 +66,30 @@ class PeopleForm extends StepForm
         return 1 + count($this->rows);
     }
 
-    public function minimumMet(): bool
+    /**
+     * Only the principal is on the list: the agency still pays for the minimum of members.
+     */
+    public function principalOnly(): bool
     {
-        return $this->headcount() >= (int) config('agency.minimum_headcount');
+        return $this->rows === [];
     }
 
     public function entryIsEmpty(): bool
     {
         return collect(self::tidy($this->entry))->except('type')->filter()->isEmpty();
+    }
+
+    /**
+     * People on the list who still need a license copy (LicenseCopy), as "First Last".
+     *
+     * @return list<string>
+     */
+    public function missingLicenseCopies(): array
+    {
+        return array_values(array_map(
+            fn (array $row) => trim($row['first_name'].' '.$row['last_name']),
+            array_filter($this->rows, fn (array $row) => LicenseCopy::missing($row)),
+        ));
     }
 
     /**
@@ -80,10 +111,12 @@ class PeopleForm extends StepForm
      */
     public function rowErrors(array $row): array
     {
-        $validator = Validator::make(['entry' => self::tidy($row)], $this->personRules('entry', fn () => -1), $this->messages(), $this->validationAttributes());
+        // A spreadsheet brings no file: its producers get "License copy needed" and upload it on the list.
+        $validator = Validator::make(['entry' => self::tidy($row)], $this->personRules('entry', fn () => -1, withFile: false), $this->messages(), $this->validationAttributes());
 
         return collect($validator->errors()->messages())
-            ->mapWithKeys(fn (array $messages, string $key) => [Str::after($key, 'entry.') => $messages[0]])
+            // One message per field: "license_types.0" belongs to "license_types".
+            ->mapWithKeys(fn (array $messages, string $key) => [Str::before(Str::after($key, 'entry.'), '.') => $messages[0]])
             ->all();
     }
 
@@ -94,19 +127,28 @@ class PeopleForm extends StepForm
     }
 
     /**
-     * Only the known fields, trimmed; emails in lower case; an employee keeps no NPN or state.
+     * Only the known fields, trimmed; emails in lower case; license types from the known choices;
+     * an employee keeps no license data at all.
      *
-     * @return array{type: string, first_name: string, last_name: string, email: string, npn: string, license_state: string}
+     * @return array{type: string, first_name: string, last_name: string, email: string, npn: string, license_state: string, license_number: string, license_types: list<string>, license_type_other: string, license_file: string, license_file_name: string}
      */
     public static function tidy(mixed $row): array
     {
         $row = array_intersect_key(is_array($row) ? $row : [], self::ROW) + self::ROW;
+        $types = LicenseTypes::normalize($row['license_types']);
         $row = array_map(fn (mixed $value) => is_scalar($value) ? trim((string) $value) : '', $row);
+        $row['license_types'] = $types;
         $row['email'] = Str::lower($row['email']);
+        $row['license_number'] = Str::upper($row['license_number']);
+
+        if (! in_array(LicenseTypes::OTHER, $types, true)) {
+            $row['license_type_other'] = '';
+        }
 
         if ($row['type'] === PersonType::AgencyEmployee->value) {
-            $row['npn'] = '';
-            $row['license_state'] = '';
+            foreach (self::LICENSE_FIELDS as $field) {
+                $row[$field] = self::ROW[$field];
+            }
         }
 
         return $row;
@@ -117,10 +159,9 @@ class PeopleForm extends StepForm
      */
     public function rules(): array
     {
-        $minimum = (int) config('agency.minimum_headcount') - 1;
-
+        // A principal alone may enroll: the agency pays for the minimum of members (AgencyPricingService::billableSeats).
         return [
-            'rows' => ['array', 'min:'.$minimum, 'max:'.(self::MAX_HEADCOUNT - 1)],
+            'rows' => ['array', 'max:'.(self::MAX_HEADCOUNT - 1)],
             ...$this->personRules('rows.*', fn (string $attribute) => (int) explode('.', $attribute)[1]),
         ];
     }
@@ -132,15 +173,12 @@ class PeopleForm extends StepForm
      */
     public function entryRules(): array
     {
-        return $this->personRules('entry', fn () => $this->editing);
+        return $this->personRules('entry', fn () => $this->editing, withFile: true);
     }
 
     public function messages(): array
     {
-        $min = (int) config('agency.minimum_headcount');
-
         $messages = [
-            'rows.min' => "Agency membership needs at least {$min} people. Add someone else or switch to individual membership.",
             'rows.max' => 'This form takes up to '.self::MAX_HEADCOUNT.' people. Please contact ProPerX to enroll a larger agency.',
         ];
 
@@ -148,10 +186,14 @@ class PeopleForm extends StepForm
             $messages += [
                 "{$prefix}.type.required" => 'Choose licensed producer or agency employee.',
                 "{$prefix}.type.enum" => 'Choose licensed producer or agency employee.',
-                "{$prefix}.npn.required" => 'Enter the NPN of this licensed producer.',
                 "{$prefix}.npn.regex" => MemberProfile::AGENCY_NPN_MESSAGE,
                 "{$prefix}.license_state.required" => 'Choose the resident license state.',
                 "{$prefix}.license_state.in" => 'Choose the resident license state.',
+                "{$prefix}.license_number.required" => 'Enter the license number of this licensed producer.',
+                "{$prefix}.license_number.regex" => 'Use letters, digits, spaces, dashes, dots or slashes.',
+                "{$prefix}.license_types.required" => 'Choose at least one license type.',
+                "{$prefix}.license_type_other.required" => 'Say which other license type.',
+                "{$prefix}.license_file.required" => 'Upload a copy of the license (PDF, JPG or PNG, up to 10 MB).',
             ];
         }
 
@@ -169,6 +211,10 @@ class PeopleForm extends StepForm
                 "{$prefix}.email" => 'email',
                 "{$prefix}.npn" => 'NPN',
                 "{$prefix}.license_state" => 'resident license state',
+                "{$prefix}.license_number" => 'license number',
+                "{$prefix}.license_types" => 'license type',
+                "{$prefix}.license_type_other" => 'other license type',
+                "{$prefix}.license_file" => 'license copy',
             ];
         }
 
@@ -196,6 +242,7 @@ class PeopleForm extends StepForm
                 $problems[] = [
                     'line' => $problem['line'],
                     'row' => self::tidy($problem['row'] ?? []),
+                    // Errors per field (license_types.0 counts as license_types).
                     'errors' => array_filter(array_intersect_key($problem['errors'], self::ROW), 'is_string'),
                 ];
             }
@@ -208,9 +255,10 @@ class PeopleForm extends StepForm
 
     /**
      * @param  Closure(string): int  $ownIndex  the row this attribute belongs to (-1: not on the list yet)
+     * @param  bool  $withFile  whether a producer's license copy is checked here (the add form) or only before payment
      * @return array<string, mixed>
      */
-    private function personRules(string $prefix, Closure $ownIndex): array
+    private function personRules(string $prefix, Closure $ownIndex, bool $withFile = false): array
     {
         $producer = 'exclude_unless:'.$prefix.'.type,'.PersonType::LicensedProducer->value;
         $principal = $this->getComponent()->principal;
@@ -234,7 +282,8 @@ class PeopleForm extends StepForm
                     $fail('This email is already registered in the portal. Please contact ProPerX.');
                 }
             }],
-            "{$prefix}.npn" => [$producer, 'required', MemberProfile::AGENCY_NPN_RULE, function (string $attribute, mixed $value, Closure $fail) use ($ownIndex, $principal) {
+            // Optional (the client's answer); 7 to 10 digits and new to the portal when given.
+            "{$prefix}.npn" => [$producer, 'nullable', MemberProfile::AGENCY_NPN_RULE, function (string $attribute, mixed $value, Closure $fail) use ($ownIndex, $principal) {
                 if ((string) $value === trim($principal->npn)) {
                     $fail("This is the principal's NPN. Each person needs their own NPN.");
                 } elseif ($this->listedElsewhere('npn', (string) $value, $ownIndex($attribute))) {
@@ -244,6 +293,11 @@ class PeopleForm extends StepForm
                 }
             }, new UniqueBlindIndex(MemberProfile::class, 'npn')],
             "{$prefix}.license_state" => [$producer, 'required', Rule::in(array_keys(UsStates::ALL))],
+            "{$prefix}.license_number" => [$producer, 'required', 'string', 'max:50', 'regex:/^[A-Za-z0-9][A-Za-z0-9 \-\.\/]*$/'],
+            "{$prefix}.license_types" => [$producer, 'required', 'array', 'min:1', new OtherLicenseTypeNeedsText],
+            "{$prefix}.license_types.*" => [$producer, Rule::in(LicenseTypes::choices())],
+            "{$prefix}.license_type_other" => [$producer, 'nullable', 'string', 'max:100'],
+            "{$prefix}.license_file" => $withFile && LicenseCopy::required() ? [$producer, 'required', 'string', 'max:40'] : ['nullable', 'string', 'max:40'],
         ];
     }
 

@@ -13,7 +13,9 @@ use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\Member\LicenseNeedsAttention;
 use App\Nova\Cards\PendingVerification;
+use Database\Seeders\Support\DemoFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -298,7 +300,8 @@ class LicenseVerificationQueueTest extends TestCase
             ->assertOk()
             ->assertSee('Needs attention')
             ->assertSee(self::REASON)
-            ->assertSee('Update your NPN or state');
+            ->assertSee('Update your NPN')
+            ->assertSee('upload a new license document');
     }
 
     public function test_correcting_the_npn_sends_the_license_back_to_pending_review(): void
@@ -325,13 +328,19 @@ class LicenseVerificationQueueTest extends TestCase
             ->get()->contains(fn (AuditLog $entry) => $entry->details === ['from' => 'needs_attention', 'to' => 'pending_review']));
     }
 
-    public function test_correcting_the_state_sends_the_license_back_to_pending_review(): void
+    public function test_a_new_license_document_sends_the_license_back_to_pending_review(): void
     {
         $this->needsAttention($this->staff(Role::MembershipCoordinator), $this->producer)->assertOk();
 
-        $this->actingAs($this->producer->user->fresh())
-            ->patch(route('member.profile.license'), ['license_state' => 'OK', 'confirm_review' => '1'])
-            ->assertSessionHasNoErrors();
+        // Agencies' producers read their license in the profile (the go-live rule) and send a new one.
+        $this->actingAs($this->producer->user->fresh())->get(route('member.dashboard'))
+            ->assertSee('href="'.route('member.license-documents.upload').'"', false);
+        $this->patch(route('member.profile.license'), ['license_state' => 'OK', 'confirm_review' => '1'])->assertForbidden();
+
+        $this->post(route('member.license-documents.store'), [
+            'file' => UploadedFile::fake()->createWithContent('license.pdf', DemoFile::pdf('License')),
+            'from' => 'page', 'document_type' => 'resident', 'license_number' => 'TX-2002', 'license_issued_at' => '2025-01-01', 'license_expires_at' => '2027-01-01',
+        ])->assertRedirect();
 
         $this->assertSame(LicenseVerification::PendingReview, $this->producer->fresh()->license_verification);
     }

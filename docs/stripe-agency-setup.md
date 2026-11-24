@@ -17,7 +17,9 @@ amounts, currency and billing period must match exactly.
 
 For each price: **Recurring**, **Billing period: Yearly**, **Pricing model: Per unit** (standard pricing),
 **Currency: USD**, the amount below. Open **More pricing options** / **Advanced** to fill **Lookup key**.
-The amount is per person per year; the portal sets the quantity to the number of people.
+The amount is per person per year; the portal sets the quantity to the number of billed members: the people on the
+agency, but never fewer than 2 (a principal alone pays for two). While `AGENCY_BILL_EMPLOYEES=false`, agency employees
+count toward the minimum only.
 
 | Price description (suggested) | Amount (USD per year) | Lookup key |
 |---|---:|---|
@@ -34,8 +36,9 @@ payments completed before January 1, 2027, 12:00 a.m. Eastern, and stay with the
 Notes:
 - A price cannot be edited once created. To change an amount, create a new price, move the lookup key to it
   (Stripe offers this when the key is already taken) and archive the old one.
-- Partner-code rates ($149 or the tier rate, whichever is lower) need no price of their own: the portal bills
-  them on the same product with the amount set on the subscription.
+- Partner-code rates need no price of their own: 2 to 49 people (Agency and Agency Plus together) $149, 50 or more
+  $129, or the tier rate when it is lower (`config/agency.php`, `partner_rates`). The portal bills them on the same
+  product with the amount set on the subscription (`price_data`), so nothing is created in Stripe for them.
 - Instead of lookup keys the portal can be given price IDs (`STRIPE_PRICE_AGENCY_FOUNDING_2TO9` …
   `STRIPE_PRICE_AGENCY_STANDARD_50PLUS`). Leave them empty unless there is a reason to pin a specific price.
 

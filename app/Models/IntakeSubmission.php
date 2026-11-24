@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A paid application received from the marketing site (idempotency record: source + entry id).
  * Holds ids, the outcome and field names only.
  */
-#[Fillable(['source', 'entry_id', 'member_profile_id', 'outcome', 'result'])]
+#[Fillable(['source', 'entry_id', 'member_profile_id', 'license_document_id', 'outcome', 'result'])]
 class IntakeSubmission extends Model
 {
     protected function casts(): array
@@ -24,5 +24,15 @@ class IntakeSubmission extends Model
     public function memberProfile(): BelongsTo
     {
         return $this->belongsTo(MemberProfile::class);
+    }
+
+    /**
+     * The license copy sent with the application, once stored.
+     *
+     * @return BelongsTo<LicenseDocument, $this>
+     */
+    public function licenseDocument(): BelongsTo
+    {
+        return $this->belongsTo(LicenseDocument::class);
     }
 }

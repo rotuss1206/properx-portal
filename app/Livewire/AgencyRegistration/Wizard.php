@@ -10,12 +10,14 @@ use App\Livewire\AgencyRegistration\Concerns\ManagesPeopleList;
 use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\PartnerCode;
+use App\Models\PendingLicenseFile;
 use App\Notifications\AgencyEnrollmentContinueLink;
 use App\Services\Agencies\AgencyCheckout;
 use App\Services\Agencies\AgencyEnrollment;
 use App\Services\Agencies\AgencyPricingService;
 use App\Services\Agencies\AgencyQuote;
 use App\Services\Agencies\CheckoutException;
+use App\Support\LicenseCopy;
 use App\Support\Money;
 use App\Support\UsStates;
 use Illuminate\Contracts\View\View;
@@ -29,6 +31,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Throwable;
 
 /**
@@ -43,7 +46,10 @@ use Throwable;
 #[Title('Enroll your agency')]
 class Wizard extends Component
 {
-    use ManagesPeopleList;
+    use ManagesPeopleList, WithFileUploads;
+
+    /** The principal's license copy (screen 4), stored at once like the people's. */
+    public $principalLicenseUpload = null;
 
     public const STEPS = [
         1 => 'Membership type',
@@ -309,6 +315,93 @@ class Wizard extends Component
         return $count.' '.($count === 1 ? 'person' : 'people').'.';
     }
 
+    /**
+     * License copies belong to this enrollment's draft (saved first when it does not exist yet).
+     *
+     * @return array{0: string, 1: int}|null
+     */
+    protected function licenseFileOwner(): ?array
+    {
+        if ($this->enrolledAgencyId !== null || $this->processing()) {
+            return null;
+        }
+
+        if ($this->draft() === null) {
+            $this->save();
+        }
+
+        $draft = $this->draft();
+
+        return $draft === null ? null : [PendingLicenseFile::OWNER_DRAFT, $draft->getKey()];
+    }
+
+    /**
+     * The principal's license copy (screen 4).
+     */
+    public function updatedPrincipalLicenseUpload(): void
+    {
+        $stored = $this->storeLicenseUpload($this->principalLicenseUpload, 'principal.license_file');
+        $this->principalLicenseUpload = null;
+
+        if ($stored !== null) {
+            $this->principal->license_file = $stored->getKey();
+            $this->principal->license_file_name = Str::limit($stored->original_filename, 80);
+            $this->resetErrorBag('principal.license_file');
+            $this->save();
+        }
+    }
+
+    /**
+     * Who still needs a license copy before the agency can pay (LicenseCopy), the principal first.
+     * A copy counts only when it is really stored for this enrollment.
+     *
+     * @return list<string>
+     */
+    #[Computed]
+    public function missingLicenseCopies(): array
+    {
+        if (! LicenseCopy::required()) {
+            return [];
+        }
+
+        $draftId = $this->draft()?->getKey();
+        $people = [
+            ['type' => PersonType::LicensedProducer->value, 'first_name' => $this->principal->first_name, 'last_name' => $this->principal->last_name, 'license_file' => $this->principal->license_file],
+            ...$this->people->rows,
+        ];
+        $missing = [];
+
+        foreach ($people as $person) {
+            if ($person['type'] !== PersonType::LicensedProducer->value) {
+                continue;
+            }
+
+            if (LicenseCopy::missing($person) || PendingLicenseFile::findFor($person['license_file'], PendingLicenseFile::OWNER_DRAFT, $draftId) === null) {
+                $missing[] = trim($person['first_name'].' '.$person['last_name']);
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
+     * Payment waits for every licensed producer's license copy (the client's rule, LicenseCopy).
+     */
+    private function licenseCopiesBlockPayment(): bool
+    {
+        unset($this->missingLicenseCopies);
+        $missing = $this->missingLicenseCopies;
+
+        if ($missing === []) {
+            return false;
+        }
+
+        $this->checkout = [];
+        $this->paymentFailedWith('Upload a copy of the license for '.implode(', ', $missing).' before paying (step 5, or step 4 for the principal).');
+
+        return true;
+    }
+
     #[Computed]
     public function partnerCode(): ?PartnerCode
     {
@@ -316,16 +409,15 @@ class Wizard extends Component
     }
 
     /**
-     * The running price: from the People screen on, for the people on the list (null below the
-     * minimum); before it, an estimate for the chosen tier's smallest headcount.
+     * The running price: from the People screen on, for the people on the list (at least the
+     * minimum of billed members, so a principal alone pays for two); before it, an estimate for
+     * the chosen tier's smallest headcount.
      */
     #[Computed]
     public function quote(): ?AgencyQuote
     {
         if ($this->counted()) {
-            return $this->people->minimumMet()
-                ? app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode)
-                : null;
+            return app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode, employees: $this->peopleCounts()['employees']);
         }
 
         $tier = AgencyTier::tryFrom($this->tier->tier);
@@ -350,13 +442,7 @@ class Wizard extends Component
     {
         unset($this->quote);
 
-        if (! $this->people->minimumMet()) {
-            $this->tierNotice = '';
-
-            return;
-        }
-
-        $new = AgencyTier::forHeadcount($this->people->headcount());
+        $new = AgencyTier::forHeadcount(max($this->people->headcount(), (int) config('agency.minimum_headcount')));
         $old = AgencyTier::tryFrom($this->tier->tier);
 
         if ($old === $new) {
@@ -386,15 +472,29 @@ class Wizard extends Component
     }
 
     /**
-     * @return list<array{tier: AgencyTier, rate: int, rateType: RateType}>
+     * The tier cards of screen 2. With a valid partner code, Agency and Agency Plus share the
+     * partner rate, so they are one card for 2 to 49 people (the client's rule); the tier still
+     * follows the headcount on screen 5.
+     *
+     * @return list<array{tier: AgencyTier, rate: int, rateType: RateType, label: string, size: string, partner: bool, tiers: list<string>}>
      */
     #[Computed]
     public function tierCards(): array
     {
         $rateType = app(AgencyPricingService::class)->rateTypeFor(now());
+        $partner = $this->partnerCode !== null;
+        $size = fn (AgencyTier $tier) => $tier->maxHeadcount() === null ? $tier->minHeadcount().'+ people' : $tier->minHeadcount().'–'.$tier->maxHeadcount().' people';
+        $rate = fn (AgencyTier $tier) => $partner ? min($tier->rate($rateType), AgencyPricingService::partnerRate($tier)) : $tier->rate($rateType);
+
+        if ($partner) {
+            return [
+                ['tier' => AgencyTier::Agency, 'rate' => $rate(AgencyTier::Agency), 'rateType' => $rateType, 'label' => AgencyTier::Agency->label().' & '.AgencyTier::AgencyPlus->label(), 'size' => AgencyTier::Agency->minHeadcount().'–'.AgencyTier::AgencyPlus->maxHeadcount().' people', 'partner' => true, 'tiers' => [AgencyTier::Agency->value, AgencyTier::AgencyPlus->value]],
+                ['tier' => AgencyTier::AgencyEnterprise, 'rate' => $rate(AgencyTier::AgencyEnterprise), 'rateType' => $rateType, 'label' => AgencyTier::AgencyEnterprise->label(), 'size' => $size(AgencyTier::AgencyEnterprise), 'partner' => true, 'tiers' => [AgencyTier::AgencyEnterprise->value]],
+            ];
+        }
 
         return array_map(
-            fn (AgencyTier $tier) => ['tier' => $tier, 'rate' => $tier->rate($rateType), 'rateType' => $rateType],
+            fn (AgencyTier $tier) => ['tier' => $tier, 'rate' => $rate($tier), 'rateType' => $rateType, 'label' => $tier->label(), 'size' => $size($tier), 'partner' => false, 'tiers' => [$tier->value]],
             AgencyTier::cases(),
         );
     }
@@ -435,7 +535,7 @@ class Wizard extends Component
         $this->paymentMessage = '';
         $this->review->validate();
 
-        if ($this->quote === null) {
+        if ($this->quote === null || $this->licenseCopiesBlockPayment()) {
             return;
         }
 
@@ -488,6 +588,10 @@ class Wizard extends Component
         $this->paymentMessage = '';
         $this->review->validate();
 
+        if ($this->licenseCopiesBlockPayment()) {
+            return null;
+        }
+
         foreach ([1 => $this->membership, 2 => $this->tier, 3 => $this->agency, 4 => $this->principal, 5 => $this->people] as $step => $form) {
             $form->normalize();
 
@@ -534,7 +638,7 @@ class Wizard extends Component
 
         session()->put(self::PAYMENT_KEY, [
             'subscription' => $started['subscription'],
-            'receipt' => Arr::only($this->checkout, ['label', 'subtotal', 'surcharge', 'total']),
+            'receipt' => Arr::only($this->checkout, ['label', 'subtotal', 'surcharge', 'total']) + ['minimum_line' => $quote->minimumApplied() ? $quote->minimumLine() : null],
         ]);
 
         return [
@@ -633,7 +737,7 @@ class Wizard extends Component
 
     private function priceFor(?string $cardFunding): AgencyQuote
     {
-        return app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode, $cardFunding, payerState: $this->payerState());
+        return app(AgencyPricingService::class)->quote($this->people->headcount(), now(), $this->partnerCode, $cardFunding, payerState: $this->payerState(), employees: $this->peopleCounts()['employees']);
     }
 
     /**
@@ -663,6 +767,9 @@ class Wizard extends Component
                 'rate' => $quote->rate,
                 'tier_rate' => $quote->tierRate,
                 'headcount' => $quote->headcount,
+                // Members billed (the Stripe quantity): at least the minimum.
+                'seats' => $quote->seats,
+                'minimum_applied' => $quote->minimumApplied(),
                 'subtotal' => $quote->subtotal,
                 'surcharge' => $quote->surcharge,
                 'total' => $quote->total,

@@ -1,5 +1,5 @@
 <x-ppx.card title="License information" heading="h2" id="license" class="ppx-profile__section">
-    @if ($profile->holdsLicense() && $editing !== 'license')
+    @if ($profile->fullLicense() && $editing !== 'license')
         <x-slot:action>@include('member.profile.edit-button', ['section' => 'license', 'name' => 'license information'])</x-slot:action>
     @endif
 
@@ -37,10 +37,8 @@
         </form>
     @elseif ($profile->holdsLicense())
         <dl class="ppx-kv">
-            @if ($profile->fullLicense())
-                <div class="ppx-kv__row"><dt>License number</dt><dd>{{ $member->license_number ?: '—' }}</dd></div>
-                <div class="ppx-kv__row"><dt>License type</dt><dd>{{ $member->license_type ?: '—' }}</dd></div>
-            @endif
+            <div class="ppx-kv__row"><dt>License number</dt><dd>{{ $member->license_number ?: '—' }}</dd></div>
+            <div class="ppx-kv__row"><dt>License type</dt><dd>{{ $member->license_type ?: '—' }}</dd></div>
             <div class="ppx-kv__row"><dt>Resident state</dt><dd>{{ $profile->stateName() ?: '—' }}</dd></div>
             @if ($profile->fullLicense())
                 <div class="ppx-kv__row">
@@ -62,6 +60,10 @@
                 </div>
             @endif
         </dl>
+        @unless ($profile->fullLicense())
+            {{-- Agencies' producers: the license is read-only here (the go-live rule). --}}
+            <p class="ppx-profile__text ppx-profile__license-note">To update your license, <a href="{{ route('member.license-documents') }}">upload a new license document</a>.</p>
+        @endunless
     @else
         <dl class="ppx-kv">
             <div class="ppx-kv__row"><dt>License</dt><dd>Not applicable: agency staff hold no license.</dd></div>

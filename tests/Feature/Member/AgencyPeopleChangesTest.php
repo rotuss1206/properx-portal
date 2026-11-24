@@ -7,18 +7,25 @@ use App\Enums\AgencyTier;
 use App\Enums\InviteStatus;
 use App\Enums\MemberStatus;
 use App\Enums\PaymentStatus;
+use App\Enums\PersonType;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Jobs\SendAgencyInvitation;
 use App\Livewire\Member\AddPeople;
 use App\Models\Agency;
 use App\Models\AuditLog;
+use App\Models\LicenseDocument;
 use App\Models\MemberProfile;
+use App\Models\PendingLicenseFile;
 use App\Models\User;
 use App\Notifications\AgencyPeopleAdded;
 use App\Notifications\Member\AgencyEndingAtRenewal;
 use App\Notifications\Member\AgencyRemovalScheduled;
+use App\Services\Agencies\AgencyRosterChanges;
+use App\Support\LicenseCopy;
+use Database\Seeders\Support\DemoFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Features\SupportTesting\Testable;
@@ -34,9 +41,9 @@ class AgencyPeopleChangesTest extends TestCase
 {
     use CreatesPortalUsers, RefreshDatabase;
 
-    private const PRODUCER = ['type' => 'licensed_producer', 'first_name' => 'Elena', 'last_name' => 'Brooks', 'email' => 'elena@lonestar.example', 'npn' => '30405060', 'license_state' => 'TX'];
+    private const PRODUCER = ['type' => 'licensed_producer', 'first_name' => 'Elena', 'last_name' => 'Brooks', 'email' => 'elena@lonestar.example', 'npn' => '30405060', 'license_state' => 'TX', 'license_number' => 'TX-2002', 'license_types' => ['Life'], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => ''];
 
-    private const EMPLOYEE = ['type' => 'agency_employee', 'first_name' => 'Omar', 'last_name' => 'Haddad', 'email' => 'omar@lonestar.example', 'npn' => '', 'license_state' => ''];
+    private const EMPLOYEE = ['type' => 'agency_employee', 'first_name' => 'Omar', 'last_name' => 'Haddad', 'email' => 'omar@lonestar.example', 'npn' => '', 'license_state' => '', 'license_number' => '', 'license_types' => [], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => ''];
 
     private Agency $agency;
 
@@ -54,6 +61,9 @@ class AgencyPeopleChangesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // The license copy rule has its own tests (AgencyLicenseCopyTest).
+        config(['agency.require_license_copy' => false]);
         $this->freezeSecond();
 
         $this->seedRoles();
@@ -243,10 +253,10 @@ class AgencyPeopleChangesTest extends TestCase
 
     public function test_a_csv_adds_rows_with_the_wizard_s_rules(): void
     {
-        $csv = "type,first_name,last_name,email,npn,state\n"
-            ."Licensed producer,Elena,Brooks,elena@lonestar.example,30405060,TX\n"
+        $csv = "type,first_name,last_name,email,npn,state,license_number,license_type\n"
+            ."Licensed producer,Elena,Brooks,elena@lonestar.example,30405060,TX,TX-2002,Life\n"
             ."Agency employee,Omar,Haddad,omar@lonestar.example,,\n"
-            ."Licensed producer,Bad,Npn,bad@lonestar.example,12,TX\n";
+            ."Licensed producer,Bad,Npn,bad@lonestar.example,12,TX,TX-3,Life\n";
 
         Livewire::actingAs($this->principal)->test(AddPeople::class)
             ->call('importPeople', 'people.csv', $csv)
@@ -258,6 +268,46 @@ class AgencyPeopleChangesTest extends TestCase
     }
 
     // Adding: paying
+
+    public function test_with_the_license_copy_rule_a_producer_is_paid_for_only_with_this_agency_s_copy(): void
+    {
+        config(['agency.require_license_copy' => true]);
+        Notification::fake();
+        $this->updatesSucceed();
+        $pdf = fn () => UploadedFile::fake()->createWithContent('elena.pdf', DemoFile::pdf('License'));
+        $foreign = PendingLicenseFile::store($pdf(), PendingLicenseFile::OWNER_AGENCY, $this->agency->getKey() + 1);
+
+        $component = Livewire::actingAs($this->principal)->test(AddPeople::class);
+        foreach (self::PRODUCER as $key => $value) {
+            $component->set("people.entry.{$key}", $value);
+        }
+        $component->call('savePerson')->assertHasErrors(['people.entry.license_file' => 'required'])->call('clearPerson');
+
+        $component->call('importPeople', 'people.csv', "type,first_name,last_name,email,npn,state,license_number,license_type\nLicensed producer,Elena,Brooks,elena@lonestar.example,,TX,TX-2002,Life\n")
+            ->assertSee(LicenseCopy::NEEDED)
+            ->call('reviewCost')
+            ->assertSet('stage', 'list')
+            ->assertSee('Upload a copy of the license for Elena Brooks first.')
+            // Another agency's file is not this one's.
+            ->set('people.rows.0.license_file', $foreign->getKey())
+            ->call('reviewCost')
+            ->assertSet('stage', 'list');
+        $this->assertSame([], $this->stripe->sent('POST', '/v1/invoices/create_preview'));
+
+        $component->set('rowLicenseUploads.0', $pdf())
+            ->assertSet('people.rows.0.license_file_name', 'elena.pdf')
+            ->call('reviewCost')
+            ->assertSet('stage', 'review')
+            ->call('pay')
+            ->assertRedirect(route('member.agency'));
+
+        $elena = User::query()->where('email', 'elena@lonestar.example')->firstOrFail();
+        $this->assertNull($elena->memberProfile->npn);
+        $document = LicenseDocument::query()->where('user_id', $elena->getKey())->sole();
+        $this->assertSame(['pending', 'TX-2002', 'TX'], [$document->verification_status->value, $document->license_number, $document->license_state]);
+        $this->assertSame(0, PendingLicenseFile::query()->where('owner_id', $this->agency->getKey())->count());
+        $this->assertModelExists($foreign);
+    }
 
     public function test_paying_creates_the_people_sends_invitations_audits_and_emails_a_receipt(): void
     {
@@ -439,27 +489,67 @@ class AgencyPeopleChangesTest extends TestCase
         $this->assertSame([], $this->stripe->sent('POST', '/v1/subscriptions/sub_agency'));
     }
 
-    public function test_below_two_people_the_agency_ends_at_renewal_and_everyone_is_told(): void
+    public function test_a_principal_alone_already_pays_for_the_second_member(): void
+    {
+        // Both others leave at the renewal: the principal stays alone, billed for the minimum of two.
+        foreach ($this->people as $person) {
+            $person->forceFill(['removal_effective_at' => $this->agency->paid_through_at])->saveQuietly();
+        }
+        $this->lines = [];
+
+        $quote = app(AgencyRosterChanges::class)->quote($this->agency->fresh(), 1);
+
+        $this->assertSame(1, $quote->headcountBefore);
+        $this->assertSame(2, $quote->headcountAfter);
+        $this->assertSame(2, $quote->seatsBefore);
+        $this->assertSame(2, $quote->seatsAfter);
+        $this->assertTrue($quote->noCharge);
+        $this->assertSame(0, $quote->total);
+        $preview = collect($this->stripe->sent('POST', '/v1/invoices/create_preview'))->last()['params'];
+        $this->assertSame(2, (int) $preview['subscription_details']['items'][0]['quantity']);
+
+        // A second person added makes three billed members.
+        $this->assertSame(3, app(AgencyRosterChanges::class)->quote($this->agency->fresh(), 2)->seatsAfter);
+    }
+
+    public function test_employees_not_billed_count_toward_the_minimum_only(): void
+    {
+        config(['agency.bill_employees' => false]);
+        $this->people[0]->forceFill(['person_type' => PersonType::AgencyEmployee])->saveQuietly();
+        $this->people[1]->forceFill(['person_type' => PersonType::AgencyEmployee])->saveQuietly();
+
+        // Principal + 2 employees: one producer, the minimum bills two; a producer added still two.
+        $this->assertSame(2, $this->agency->fresh()->continuingSeats());
+        $this->assertSame(2, app(AgencyRosterChanges::class)->quote($this->agency->fresh(), 1)->seatsAfter);
+        // Employees added never change the billed members while they are not billed.
+        $this->assertSame(2, app(AgencyRosterChanges::class)->quote($this->agency->fresh(), 3, addedEmployees: 3)->seatsAfter);
+
+        // The renewal bills two as well.
+        $this->updatesSucceed();
+        app(AgencyRosterChanges::class)->syncRenewal($this->agency->fresh());
+        $last = collect($this->stripe->sent('POST', '/v1/subscriptions/sub_agency'))->last()['params'];
+        $this->assertSame(2, (int) $last['items'][0]['quantity']);
+    }
+
+    public function test_the_renewal_never_bills_fewer_than_two_members_and_the_agency_goes_on(): void
     {
         Notification::fake();
         $this->updatesSucceed();
 
         $this->actingAs($this->principal)->post(route('member.agency.remove', $this->people[0]), ['reason' => 'role_changed']);
-        Notification::assertNotSentTo($this->principal, AgencyEndingAtRenewal::class);
 
-        $this->get(route('member.agency', ['remove' => $this->people[1]->id]))->assertSee('fewer than 2', false);
+        $this->get(route('member.agency', ['remove' => $this->people[1]->id]))->assertSee('always billed for at least 2 members', false);
         $this->post(route('member.agency.remove', $this->people[1]), ['reason' => 'left_agency']);
 
+        // The principal stays alone: the renewal bills the minimum of two, and nothing ends.
         $last = collect($this->stripe->sent('POST', '/v1/subscriptions/sub_agency'))->last()['params'];
-        $this->assertSame('true', (string) $last['cancel_at_period_end']);
-        $this->assertTrue($this->agency->fresh()->cancel_at_period_end);
+        $this->assertSame(2, (int) $last['items'][0]['quantity']);
+        $this->assertSame('false', (string) $last['cancel_at_period_end']);
+        $this->assertFalse($this->agency->fresh()->cancel_at_period_end);
+        $this->assertSame(2, $this->agency->fresh()->continuingSeats());
 
-        Notification::assertSentTo($this->principal, AgencyEndingAtRenewal::class, function (AgencyEndingAtRenewal $notice) {
-            $mail = $notice->toMail($this->principal)->render();
-
-            return str_contains($mail, (string) config('portal.registration.individual_url'));
-        });
-        $this->get(route('member.agency'))->assertSee('will not renew');
+        Notification::assertNothingSentTo($this->principal, AgencyEndingAtRenewal::class);
+        $this->get(route('member.agency'))->assertDontSee('will not renew')->assertSee('billed for at least 2 members');
     }
 
     public function test_a_scheduled_removal_can_be_canceled_before_the_renewal(): void

@@ -51,12 +51,17 @@ class AgencyRegistrationWizardTest extends TestCase
         'mobile_phone' => '512-555-0199',
         'npn' => '18273645',
         'license_state' => 'TX',
+        'license_number' => 'TX-1001',
+        'license_types' => ['Life', 'Health'],
         'authority_confirmed' => true,
     ];
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        // The license copy rule has its own tests (AgencyLicenseCopyTest).
+        config(['agency.require_license_copy' => false]);
 
         config(['portal.registration.enabled' => true]);
 
@@ -387,9 +392,25 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertSee('2 people · Agency · $149 each · $298 a year')
             ->assertSee('Partner rate applied.');
 
+        // The client's partner rate for 50+ is $129 (the same as the founding tier rate): still the partner rate.
         $wizard->set('tier.tier', 'agency_50plus')
             ->assertSee('$129 each')
-            ->assertSee("Your agency's rate is lower than the partner rate, so we applied it.");
+            ->assertSee('Partner rate applied.');
+    }
+
+    public function test_with_a_partner_code_screen_2_shows_one_card_for_2_to_49_people(): void
+    {
+        PartnerCode::factory()->create(['code' => 'MGA-7']);
+
+        $this->wizardAt(2, ['partner' => 'MGA-7'])
+            ->assertSeeInOrder(['Agency & Agency Plus', '49 people', '$149', 'Partner rate', 'Agency Enterprise', '50+ people', '$129', 'Partner rate'])
+            ->assertSeeHtml('class="tiers tiers-two"')
+            ->set('tier.tier', 'agency_10to49')
+            ->assertSeeHtml('value="agency_10to49"');
+
+        // Without a code (another browser): the three tiers.
+        $this->flushSession();
+        $this->wizardAt(2)->assertSee(['Agency Plus', '49 people'])->assertDontSee('Agency & Agency Plus');
     }
 
     // Screen 3 · Agency
@@ -575,8 +596,9 @@ class AgencyRegistrationWizardTest extends TestCase
                 'principal.title' => 'required',
                 'principal.email' => 'required',
                 'principal.mobile_phone' => 'required',
-                'principal.npn' => 'required',
                 'principal.license_state' => 'required',
+                'principal.license_number' => 'required',
+                'principal.license_types' => 'required',
                 'principal.authority_confirmed' => 'accepted',
             ])
             ->assertHasNoErrors('principal.sms_consent')
@@ -744,7 +766,7 @@ class AgencyRegistrationWizardTest extends TestCase
                 'Membership type', 'Agency membership', 'Tier', 'Agency', 'Price per person', '$159 a year', 'Founding rate, locked while you stay a member',
                 'Legal name', 'Lone Star Benefits Group LLC', 'Agency type', 'Health and Life', 'Legal address', '400 Congress Ave, Suite 210, Austin, TX 78701',
                 'Main phone', '(512) 555-0142', 'Billing email', 'billing@lonestarbenefits.example',
-                'Dana Whitfield', 'Owner', 'dana@lonestarbenefits.example', '18273645', 'Texas',
+                'Dana Whitfield', 'Owner', 'dana@lonestarbenefits.example', 'License', 'TX-1001', 'Texas', 'Life, Health', 'NPN', '18273645',
                 '2 people: 1 licensed producer (the principal included), 1 agency employee', 'Priya Nair', 'Agency employee',
                 'Total for the year', '$318', 'Credit cards add 2.9%; debit cards and bank transfers (ACH) do not.',
             ])
@@ -1007,9 +1029,9 @@ class AgencyRegistrationWizardTest extends TestCase
 
     // Screen 5 · People
 
-    private const PRODUCER = ['type' => 'licensed_producer', 'first_name' => 'Marcus', 'last_name' => 'Reyes', 'email' => 'Marcus@LoneStarBenefits.example', 'npn' => '20304050', 'license_state' => 'TX'];
+    private const PRODUCER = ['type' => 'licensed_producer', 'first_name' => 'Marcus', 'last_name' => 'Reyes', 'email' => 'Marcus@LoneStarBenefits.example', 'npn' => '20304050', 'license_state' => 'TX', 'license_number' => 'TX-2002', 'license_types' => ['Life'], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => ''];
 
-    private const EMPLOYEE = ['type' => 'agency_employee', 'first_name' => 'Priya', 'last_name' => 'Nair', 'email' => 'priya@lonestarbenefits.example', 'npn' => '', 'license_state' => ''];
+    private const EMPLOYEE = ['type' => 'agency_employee', 'first_name' => 'Priya', 'last_name' => 'Nair', 'email' => 'priya@lonestarbenefits.example', 'npn' => '', 'license_state' => '', 'license_number' => '', 'license_types' => [], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => ''];
 
     /**
      * @param  array<string, string>  $person
@@ -1024,22 +1046,24 @@ class AgencyRegistrationWizardTest extends TestCase
      */
     private function rows(int $count, int $from = 1): array
     {
-        return array_map(fn (int $i) => ['type' => 'agency_employee', 'first_name' => 'Person', 'last_name' => (string) $i, 'email' => "person{$i}@lonestarbenefits.example", 'npn' => '', 'license_state' => ''], range($from, $from + $count - 1));
+        return array_map(fn (int $i) => ['type' => 'agency_employee', 'first_name' => 'Person', 'last_name' => (string) $i, 'email' => "person{$i}@lonestarbenefits.example", 'npn' => '', 'license_state' => '', 'license_number' => '', 'license_types' => [], 'license_type_other' => '', 'license_file' => '', 'license_file_name' => ''], range($from, $from + $count - 1));
     }
 
-    public function test_the_principal_is_person_1_and_continue_needs_a_second_person(): void
+    public function test_a_principal_alone_may_continue_and_pays_the_two_member_minimum(): void
     {
         config(['portal.registration.individual_url' => 'https://www.properx.example/join']);
 
         $this->wizardAt(5)
-            ->assertSeeInOrder(['Your people', '1 person', 'Dana Whitfield', 'Principal', 'Licensed producer', 'dana@lonestarbenefits.example', 'NPN 18273645', 'Texas', 'Change on step 4'])
-            ->assertSee('Agency membership needs at least 2 people.')
-            ->assertSeeHtml('href="https://www.properx.example/join">switch to individual membership</a>')
-            ->assertSeeHtml('disabled aria-describedby="people-minimum"')
-            ->assertSee('Add at least one more person to see your tier and price.')
+            ->assertSeeInOrder(['Your people', '1 person', 'Dana Whitfield', 'Principal', 'Licensed producer', 'dana@lonestarbenefits.example', 'Texas', 'Change on step 4'])
+            ->assertSee('Add your W2 employees.')
+            ->assertSee('Minimum 2 members: $159 × 2')
+            ->assertSee('1 person · Agency · minimum 2 members at $159 · $318 a year')
+            ->assertSeeHtml('href="https://www.properx.example/join">Apply for individual membership</a>')
+            ->assertDontSeeHtml('disabled aria-describedby="people-minimum"')
             ->call('next')
-            ->assertHasErrors(['people.rows' => 'min'])
-            ->assertSet('step', 5);
+            ->assertHasNoErrors()
+            ->assertSet('step', 6)
+            ->assertSee('Minimum 2 members: $159 × 2');
     }
 
     public function test_people_are_added_and_priced_by_the_actual_headcount(): void
@@ -1077,9 +1101,9 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertHasErrors(['people.entry.type' => 'required', 'people.entry.first_name' => 'required', 'people.entry.last_name' => 'required', 'people.entry.email' => 'required'])
             ->assertSee('Choose licensed producer or agency employee.');
 
-        $this->addPerson($wizard, ['npn' => '', 'license_state' => '', 'email' => 'not-an-email'] + self::PRODUCER)
-            ->assertHasErrors(['people.entry.npn' => 'required', 'people.entry.license_state' => 'required', 'people.entry.email' => 'email'])
-            ->assertSee('Enter the NPN of this licensed producer.')
+        $this->addPerson($wizard, ['npn' => '', 'license_state' => '', 'license_number' => '', 'license_types' => [], 'email' => 'not-an-email'] + self::PRODUCER)
+            ->assertHasErrors(['people.entry.license_state' => 'required', 'people.entry.license_number' => 'required', 'people.entry.license_types' => 'required', 'people.entry.email' => 'email'])
+            ->assertHasNoErrors('people.entry.npn')
             ->assertSee('Choose the resident license state.')
             ->assertSet('people.rows', []);
 
@@ -1236,7 +1260,7 @@ class AgencyRegistrationWizardTest extends TestCase
 
         $wizard->set('people.rows', $this->rows(59))->call('removePerson', 0)
             ->assertSee('59 people · Agency Enterprise · $129 each · $7,611 a year')
-            ->assertSee("Your agency's rate is lower than the partner rate, so we applied it.");
+            ->assertSee('Partner rate applied.');
     }
 
     public function test_the_list_has_an_upper_limit(): void
@@ -1283,7 +1307,7 @@ class AgencyRegistrationWizardTest extends TestCase
 
         Livewire::test(Wizard::class)
             ->assertSet('people.rows', [
-                ['type' => 'agency_employee', 'first_name' => '', 'last_name' => '', 'email' => 'a@b.example', 'npn' => '', 'license_state' => ''],
+                ['type' => 'agency_employee', 'email' => 'a@b.example'] + PeopleForm::ROW,
                 PeopleForm::ROW,
             ])
             ->assertSet('people.editing', -1);
@@ -1291,7 +1315,7 @@ class AgencyRegistrationWizardTest extends TestCase
 
     // Screen 5 · CSV
 
-    private const CSV_HEADER = "type,first_name,last_name,email,npn,state\r\n";
+    private const CSV_HEADER = "type,first_name,last_name,email,npn,state,license_number,license_type\r\n";
 
     private function upload(Testable $wizard, string $csv, string $name = 'people.csv'): Testable
     {
@@ -1305,7 +1329,9 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertHeader('Content-Disposition', 'attachment; filename="properx-agency-people.csv"');
 
         $this->assertSame(
-            "\xEF\xBB\xBF".self::CSV_HEADER."licensed_producer,Jordan,Lee,jordan.lee@youragency.com,12345678,TX\r\nagency_employee,Sam,Rivera,sam.rivera@youragency.com,,\r\n",
+            "\xEF\xBB\xBFtype,first_name,last_name,email,npn,state,license_number,license_type\r\n"
+            ."licensed_producer,Jordan,Lee,jordan.lee@youragency.com,12345678,TX,TX-1234567,Life; Health\r\n"
+            ."agency_employee,Sam,Rivera,sam.rivera@youragency.com,,,,\r\n",
             $response->getContent(),
         );
         $this->assertContains('throttle:agency-registration', Route::getRoutes()->getByName('join.agency.people-template')->middleware());
@@ -1317,18 +1343,18 @@ class AgencyRegistrationWizardTest extends TestCase
     public function test_a_valid_csv_adds_everyone_with_the_same_rules_as_the_form(): void
     {
         // Byte order mark, friendly spellings, state names, a column order of its own, blank lines.
-        $csv = "\xEF\xBB\xBF".'Email,First Name,Last Name,Type,NPN,State'."\r\n"
-            ."Marcus@LoneStarBenefits.example,Marcus,Reyes,Licensed producer,20304050,texas\r\n"
+        $csv = "\xEF\xBB\xBF".'Email,First Name,Last Name,Type,NPN,State,License #,License Types'."\r\n"
+            ."Marcus@LoneStarBenefits.example,Marcus,Reyes,Licensed producer,20304050,texas,tx-2002,life\r\n"
             ."\r\n"
-            ."priya@lonestarbenefits.example,Priya,Nair,employee,99999999,CA\r\n"
-            ."\"owen@lonestarbenefits.example\",\"Owen, Jr.\",Brooks,producer,30405060,OK\r\n";
+            ."priya@lonestarbenefits.example,Priya,Nair,employee,99999999,CA,X-1,Health\r\n"
+            ."\"owen@lonestarbenefits.example\",\"Owen, Jr.\",Brooks,producer,,OK,OK 445,\"Health; Pet insurance\"\r\n";
 
         $this->upload($this->wizardAt(5), $csv)
             ->assertHasNoErrors()
             ->assertSet('people.rows', [
                 ['email' => 'marcus@lonestarbenefits.example'] + self::PRODUCER,
                 self::EMPLOYEE,
-                ['type' => 'licensed_producer', 'first_name' => 'Owen, Jr.', 'last_name' => 'Brooks', 'email' => 'owen@lonestarbenefits.example', 'npn' => '30405060', 'license_state' => 'OK'],
+                ['type' => 'licensed_producer', 'first_name' => 'Owen, Jr.', 'last_name' => 'Brooks', 'email' => 'owen@lonestarbenefits.example', 'npn' => '', 'license_state' => 'OK', 'license_number' => 'OK 445', 'license_types' => ['Health', 'Other'], 'license_type_other' => 'Pet insurance', 'license_file' => '', 'license_file_name' => ''],
             ])
             ->assertSet('people.problems', [])
             ->assertSet('importOk', true)
@@ -1351,10 +1377,10 @@ class AgencyRegistrationWizardTest extends TestCase
     {
         $csv = self::CSV_HEADER
             ."agency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n"   // row 2: fine
-            ."licensed_producer,Marcus,Reyes,,20304050,TX\r\n"                   // row 3: no email
-            ."licensed_producer,Owen,Brooks,owen@lonestarbenefits.example,,\r\n" // row 4: no NPN or state
-            ."contractor,Lena,Ortiz,lena@lonestarbenefits.example,,\r\n"         // row 5: unknown type
-            ."licensed_producer,Ana,Diaz,ana@lonestarbenefits.example,123,ZZ\r\n"; // row 6: short NPN, unknown state
+            ."licensed_producer,Marcus,Reyes,,20304050,TX,TX-2002,Life\r\n"              // row 3: no email
+            ."licensed_producer,Owen,Brooks,owen@lonestarbenefits.example,,,,\r\n"       // row 4: no state, license number or type
+            ."contractor,Lena,Ortiz,lena@lonestarbenefits.example,,\r\n"                 // row 5: unknown type
+            ."licensed_producer,Ana,Diaz,ana@lonestarbenefits.example,123,ZZ,A1,Life\r\n"; // row 6: short NPN, unknown state
 
         $wizard = $this->upload($this->wizardAt(5), $csv)
             ->assertSet('people.rows', [self::EMPLOYEE])
@@ -1364,10 +1390,10 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertDispatched('join-focus', id: 'problems-title')
             ->assertSet('people.problems.0.line', 3)
             ->assertSet('people.problems.0.errors', ['email' => 'The email field is required.'])
-            ->assertSet('people.problems.1.errors', ['npn' => 'Enter the NPN of this licensed producer.', 'license_state' => 'Choose the resident license state.'])
+            ->assertSet('people.problems.1.errors', ['license_state' => 'Choose the resident license state.', 'license_number' => 'Enter the license number of this licensed producer.', 'license_types' => 'Choose at least one license type.'])
             ->assertSet('people.problems.2.errors', ['type' => 'Choose licensed producer or agency employee.'])
             ->assertSet('people.problems.3.errors', ['npn' => 'The NPN must be 7 to 10 digits, numbers only.', 'license_state' => 'Choose the resident license state.'])
-            ->assertSeeInOrder(['Rows to fix', 'Row 3', 'Marcus Reyes', 'Email: The email field is required.', 'Row 4', 'NPN: Enter the NPN of this licensed producer.', 'Row 5', 'Person type: Choose licensed producer or agency employee.', 'Row 6']);
+            ->assertSeeInOrder(['Rows to fix', 'Row 3', 'Marcus Reyes', 'Email: The email field is required.', 'Row 4', 'State: Choose the resident license state.', 'Row 5', 'Person type: Choose licensed producer or agency employee.', 'Row 6']);
 
         // The rows are fixed or skipped before going on.
         $wizard->call('next')
@@ -1379,7 +1405,7 @@ class AgencyRegistrationWizardTest extends TestCase
     public function test_a_row_is_fixed_in_the_form_or_skipped(): void
     {
         $csv = self::CSV_HEADER
-            ."licensed_producer,Marcus,Reyes,,20304050,TX\r\n"
+            ."licensed_producer,Marcus,Reyes,,20304050,TX,TX-2002,Life\r\n"
             ."agency_employee,Lena,Ortiz,,,\r\n"
             ."agency_employee,Sam,Cole,,,\r\n";
 
@@ -1422,9 +1448,9 @@ class AgencyRegistrationWizardTest extends TestCase
             ."agency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n"           // row 2: added
             ."agency_employee,Priya,Patel,PRIYA@lonestarbenefits.example,,\r\n"          // row 3: same email as row 2
             ."agency_employee,Dana,Copy,dana@lonestarbenefits.example,,\r\n"             // row 4: the principal's email
-            ."licensed_producer,Kim,Ito,kim@lonestarbenefits.example,18273645,TX\r\n"    // row 5: the principal's NPN
+            ."licensed_producer,Kim,Ito,kim@lonestarbenefits.example,18273645,TX,K1,Life\r\n" // row 5: the principal's NPN
             ."agency_employee,Tom,Hall,taken@lonestarbenefits.example,,\r\n"             // row 6: in the portal
-            ."licensed_producer,Ann,Lowe,ann@lonestarbenefits.example,55555555,TX\r\n";  // row 7: NPN in the portal
+            ."licensed_producer,Ann,Lowe,ann@lonestarbenefits.example,55555555,TX,A7,Life\r\n"; // row 7: NPN in the portal
 
         $this->upload($this->wizardAt(5), $csv)
             ->assertSet('people.rows', [self::EMPLOYEE])
@@ -1437,7 +1463,7 @@ class AgencyRegistrationWizardTest extends TestCase
 
     public function test_uploading_the_same_file_again_adds_no_one_twice(): void
     {
-        $csv = self::CSV_HEADER."licensed_producer,Marcus,Reyes,marcus@lonestarbenefits.example,20304050,TX\r\nagency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n";
+        $csv = self::CSV_HEADER."licensed_producer,Marcus,Reyes,marcus@lonestarbenefits.example,20304050,TX,TX-2002,Life\r\nagency_employee,Priya,Nair,priya@lonestarbenefits.example,,\r\n";
 
         $wizard = $this->upload($this->wizardAt(5), $csv)->assertCount('people.rows', 2);
 
@@ -1498,7 +1524,7 @@ class AgencyRegistrationWizardTest extends TestCase
 
     public function test_rows_to_fix_are_kept_in_the_draft(): void
     {
-        $this->upload($this->wizardAt(5), self::CSV_HEADER."licensed_producer,Marcus,Reyes,,20304050,TX\r\n")
+        $this->upload($this->wizardAt(5), self::CSV_HEADER."licensed_producer,Marcus,Reyes,,20304050,TX,TX-2002,Life\r\n")
             ->call('fixProblem', 0)
             ->call('back');
 

@@ -130,9 +130,11 @@ class MembershipRenewals
             }
 
             $principal->notifyNow(new RenewalReminder(RenewalReminder::AGENCY, $type->days(), $agency->paid_through_at->toDateString(), [
-                'people' => $agency->billingHeadcount(),
+                // People who stay, and the members the renewal bills (at least the minimum).
+                'people' => $agency->continuingHeadcount(),
+                'seats' => $agency->continuingSeats(),
                 'tier' => $agency->tier?->label(),
-                'amount' => $facts['amount'] ?? ($agency->currentRate() === null ? null : $agency->currentRate() * $agency->billingHeadcount()),
+                'amount' => $facts['amount'] ?? ($agency->currentRate() === null ? null : $agency->currentRate() * $agency->continuingSeats()),
                 'method' => $facts['method'] ?? null,
             ]));
 

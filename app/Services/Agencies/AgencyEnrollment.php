@@ -13,7 +13,9 @@ use App\Models\Agency;
 use App\Models\AgencyRegistrationDraft;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
+use App\Models\PendingLicenseFile;
 use App\Models\User;
+use App\Support\LicenseTypes;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -87,16 +89,16 @@ class AgencyEnrollment
             'paid_through_at' => $paidThrough,
             'status' => AgencyStatus::Active,
             // The Billing panel from the first payment on, not only from later webhooks: the
-            // subscription bills the snapshot's headcount; the payment is the latest event so far
-            // (an older event arriving later changes no status, AgencyStripeEvents).
-            'billed_headcount' => (int) $quote['headcount'],
+            // subscription bills the snapshot's members (at least the minimum); the payment is the latest
+            // event so far (an older event arriving later changes no status, AgencyStripeEvents).
+            'billed_headcount' => (int) ($quote['seats'] ?? $quote['headcount']),
             'payment_event_at' => $paidAt,
             'paid_event_at' => $paidAt,
         ])->save();
 
         $principal = $snapshot['principal'];
         $people = [
-            ['type' => PersonType::LicensedProducer->value, 'first_name' => $principal['first_name'], 'last_name' => $principal['last_name'], 'email' => $principal['email'], 'npn' => $principal['npn'], 'license_state' => $principal['license_state'], 'phone' => $principal['mobile_phone'] ?? null, 'principal' => true],
+            ['type' => PersonType::LicensedProducer->value, 'first_name' => $principal['first_name'], 'last_name' => $principal['last_name'], 'email' => $principal['email'], 'npn' => $principal['npn'] ?? '', 'license_state' => $principal['license_state'], 'license_number' => $principal['license_number'] ?? '', 'license_types' => $principal['license_types'] ?? [], 'license_type_other' => $principal['license_type_other'] ?? '', 'license_file' => $principal['license_file'] ?? '', 'phone' => $principal['mobile_phone'] ?? null, 'principal' => true],
             ...array_map(fn (array $row) => $row + ['phone' => null, 'principal' => false], $snapshot['people']['rows'] ?? []),
         ];
 
@@ -104,7 +106,7 @@ class AgencyEnrollment
         $skipped = 0;
 
         foreach ($people as $person) {
-            $user = $this->createPerson($agency, $person);
+            $user = $this->createPerson($agency, $person, [PendingLicenseFile::OWNER_DRAFT, $draft->getKey()]);
 
             if ($user === null) {
                 $skipped++;
@@ -128,6 +130,7 @@ class AgencyEnrollment
             'tier' => $quote['tier'],
             'rate_type' => $quote['rate_type'],
             'headcount' => $quote['headcount'],
+            'seats' => $quote['seats'] ?? null,
             'partner_rate_applied' => (bool) ($quote['partner_rate_applied'] ?? false),
             'amount' => $quote['subtotal'],
             'surcharge' => $quote['surcharge'],
@@ -146,17 +149,20 @@ class AgencyEnrollment
 
     /**
      * Also used when a principal adds people later (AgencyRosterChanges). Null when the email or
-     * the NPN was taken in the meantime.
+     * the NPN was taken in the meantime. A licensed producer's license copy (a PendingLicenseFile of
+     * $fileOwner) becomes their License Document, pending review.
      *
      * @param  array<string, mixed>  $person
+     * @param  array{0: string, 1: int}|null  $fileOwner
      */
-    public function createPerson(Agency $agency, array $person): ?User
+    public function createPerson(Agency $agency, array $person, ?array $fileOwner = null): ?User
     {
         $email = Str::lower(trim((string) $person['email']));
         $isProducer = $person['type'] === PersonType::LicensedProducer->value;
+        $npn = $isProducer ? trim((string) ($person['npn'] ?? '')) : '';
 
         if (User::query()->where('email', $email)->exists()
-            || ($isProducer && MemberProfile::query()->whereBlindIndex('npn', (string) $person['npn'])->exists())) {
+            || ($npn !== '' && MemberProfile::query()->whereBlindIndex('npn', $npn)->exists())) {
             return null;
         }
 
@@ -172,8 +178,10 @@ class AgencyEnrollment
             'first_name' => $person['first_name'],
             'last_name' => $person['last_name'],
             'phone' => $person['phone'],
-            'npn' => $isProducer ? $person['npn'] : null,
+            'npn' => $npn === '' ? null : $npn,
             'license_state' => $isProducer ? $person['license_state'] : null,
+            'license_number' => $isProducer && filled($person['license_number'] ?? null) ? $person['license_number'] : null,
+            'license_type' => $isProducer ? LicenseTypes::forProfile((array) ($person['license_types'] ?? []), (string) ($person['license_type_other'] ?? '')) : null,
             'agency_id' => $agency->getKey(),
             'agency_role' => $person['principal'] ? AgencyRole::Principal : AgencyRole::Member,
             'person_type' => $person['type'],
@@ -183,6 +191,9 @@ class AgencyEnrollment
         ]);
         $profile->user()->associate($user);
         $profile->save(); // MemberProfileObserver audits agency_member_added.
+
+        $file = $isProducer && $fileOwner !== null ? PendingLicenseFile::findFor((string) ($person['license_file'] ?? ''), $fileOwner[0], $fileOwner[1]) : null;
+        $file?->attachTo($user, ['license_number' => $profile->license_number, 'license_state' => $profile->license_state]);
 
         return $user;
     }
@@ -204,7 +215,7 @@ class AgencyEnrollment
      * What the principal's welcome email shows: amounts and plan, nothing else.
      *
      * @param  array<string, mixed>  $snapshot
-     * @return array{subtotal: int, surcharge: int, total: int, tier: string, rate_type: string, headcount: int, partner_rate_applied: bool}
+     * @return array{subtotal: int, surcharge: int, total: int, tier: string, rate_type: string, headcount: int, seats: int, rate: int, partner_rate_applied: bool}
      */
     private static function receipt(array $snapshot): array
     {
@@ -217,6 +228,8 @@ class AgencyEnrollment
             'tier' => (string) $quote['tier'],
             'rate_type' => (string) $quote['rate_type'],
             'headcount' => (int) $quote['headcount'],
+            'seats' => (int) ($quote['seats'] ?? $quote['headcount']),
+            'rate' => (int) ($quote['rate'] ?? 0),
             'partner_rate_applied' => (bool) ($quote['partner_rate_applied'] ?? false),
         ];
     }

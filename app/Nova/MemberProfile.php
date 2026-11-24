@@ -192,8 +192,8 @@ class MemberProfile extends Resource
     }
 
     /**
-     * License number, type and expiry date are not collected for agency people (Agency spec
-     * 3.5): hidden for them, the columns kept for individual members (expand-then-contract).
+     * The license expiry date is not collected for agency people (Agency spec 3.5): hidden for
+     * them, the column kept for individual members (expand-then-contract).
      */
     private static function individualLicenseOnly(Field $field): Field
     {
@@ -203,6 +203,20 @@ class MemberProfile extends Resource
             ->resolveUsing(fn ($value, $resource) => $resource->agency_id !== null ? null : $value)
             ->hideFromDetail($inAgency)
             ->hideWhenUpdating($inAgency);
+    }
+
+    /**
+     * License number and types: agencies' licensed producers give them on enrollment (the
+     * client's go-live rule); agency employees hold no license.
+     */
+    private static function noLicenseForEmployees(Field $field): Field
+    {
+        $employee = fn (NovaRequest $request, $resource) => $resource->isAgencyEmployee();
+
+        return $field
+            ->resolveUsing(fn ($value, $resource) => $resource->isAgencyEmployee() ? null : $value)
+            ->hideFromDetail($employee)
+            ->hideWhenUpdating($employee);
     }
 
     /**
@@ -224,7 +238,7 @@ class MemberProfile extends Resource
                 }
             }),
 
-            self::individualLicenseOnly(Text::make('License Number')->rules('nullable', 'max:50')->sortable()),
+            self::noLicenseForEmployees(Text::make('License Number')->rules('nullable', 'max:50')->sortable()),
 
             Select::make('License State')
                 ->options(UsStates::ALL)
@@ -250,7 +264,7 @@ class MemberProfile extends Resource
 
             // Members hold several ("Life, Health", from the application or the profile page): the
             // stored value stays on the list, or saving this form would blank it.
-            self::individualLicenseOnly(Select::make('License Type')
+            self::noLicenseForEmployees(Select::make('License Type')
                 ->options(collect(\App\Models\MemberProfile::LICENSE_TYPES)->push($this->resource?->license_type)->filter()->unique()->mapWithKeys(fn (string $type) => [$type => $type])->all())
                 ->rules('nullable', 'max:100')
                 ->filterable()),

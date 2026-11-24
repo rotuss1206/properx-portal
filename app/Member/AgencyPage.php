@@ -9,6 +9,7 @@ use App\Enums\PersonType;
 use App\Models\Agency;
 use App\Models\MemberProfile;
 use App\Models\User;
+use App\Services\Agencies\AgencyPricingService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -67,7 +68,9 @@ final class AgencyPage
             },
             'paid_through' => $agency->paid_through_at,
             'continuing' => $agency->continuingHeadcount(),
-            'ends_at_renewal' => $agency->continuingHeadcount() < (int) config('agency.minimum_headcount'),
+            // The renewal bills at least the minimum: the people billed fewer than that pay for it anyway.
+            'renewal_seats' => $agency->continuingSeats(),
+            'minimum_applies' => AgencyPricingService::billedPeople($agency->continuingHeadcount(), $agency->employeeCount(continuing: true)) < (int) config('agency.minimum_headcount'),
         ];
     }
 

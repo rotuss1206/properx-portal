@@ -258,6 +258,18 @@ function properx_portal_settings_page() {
 		checked( $settings['approval_email_enabled'], true, false )
 	);
 
+	echo '<h3>Welcome email links</h3><p class="ppx-hint">Used by the "Agent welcome" notification of the application form (merge tags {properx_health_enrollment_url} and {properx_provider_search_url}). A section whose link is empty is left out of the email.</p>';
+
+	foreach ( PROPERX_PORTAL_WELCOME_LINKS as $key => $label ) {
+		printf(
+			'<label class="ppx-label" for="ppx-%1$s">%2$s</label><input type="url" id="ppx-%1$s" name="%3$s" value="%4$s" placeholder="https://">',
+			esc_attr( str_replace( '_', '-', $key ) ),
+			esc_html( $label ),
+			esc_attr( $key ),
+			esc_attr( $settings[ $key ] )
+		);
+	}
+
 	echo '<p style="margin-top:20px"><button type="submit" name="properx_portal_save" value="1" class="button primary">Save settings</button></p></form>';
 
 	echo '<h3>Test connection</h3><p class="ppx-hint">Sends a signed request that changes nothing and says in plain words what is wrong. Saving the settings runs it too.</p><form method="post">';

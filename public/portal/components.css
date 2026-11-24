@@ -460,6 +460,8 @@ select.ppx-field__input { padding-right: 40px; background: var(--ppx-surface) ur
 
 .ppx-notice--danger { background: var(--ppx-badge-danger-bg); color: var(--ppx-badge-danger-fg); }
 
+.ppx-notice--info { background: var(--ppx-blue-50); color: var(--ppx-navy-700); }
+
 /* Payment banner above every member-area page: text, then the pay button (wraps on phones). */
 .ppx-membership-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Member;
 
 use App\Enums\PaymentStatus;
+use App\Enums\PersonType;
 use App\Enums\ReminderType;
 use App\Enums\VerificationStatus;
 use App\Member\MemberMenu;
@@ -162,7 +163,8 @@ class MemberLinksTest extends TestCase
         $this->assertContains($this->pathOf(route('member.agency')), $paths);
         $this->assertContains('/member/library', $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
-        $this->assertNotContains('/member/license-documents', $paths);
+        // A licensed producer (the go-live rule).
+        $this->assertContains('/member/license-documents', $paths);
     }
 
     public function test_every_link_opens_for_other_agency_people(): void
@@ -176,7 +178,11 @@ class MemberLinksTest extends TestCase
         $this->assertContains($this->pathOf(route('member.billing')), $paths);
         $this->assertNotContains($this->pathOf(route('member.agency')), $paths);
         $this->assertNotContains('/nova/resources/license-documents', $paths);
-        $this->assertNotContains('/member/license-documents', $paths);
+        $this->assertContains('/member/license-documents', $paths);
+
+        // Agency employees hold no license.
+        $person->memberProfile->forceFill(['person_type' => PersonType::AgencyEmployee, 'npn' => null, 'license_state' => null, 'license_verification' => null])->saveQuietly();
+        $this->assertNotContains('/member/license-documents', $this->paths($this->assertEveryLinkOpens($person->fresh())));
     }
 
     public function test_every_link_opens_for_a_canceled_membership_with_closed_pages_left_out(): void
@@ -341,8 +347,8 @@ class MemberLinksTest extends TestCase
     {
         $principal = $this->agency(2)->principal()->first();
 
-        $this->actingAs($principal)->get('/nova/resources/license-documents')->assertRedirect(route('member.dashboard'));
-        $this->get('/member/license-documents')->assertNotFound();
+        $this->actingAs($principal)->get('/nova/resources/license-documents')->assertRedirect(route('member.license-documents'));
+        $this->get('/member/license-documents')->assertOk();
     }
 
     public function test_the_reminders_unsubscribe_link_opens_the_notification_preferences(): void

@@ -7,6 +7,7 @@ use App\Enums\AgencyStatus;
 use App\Enums\AgencyTier;
 use App\Enums\AgencyType;
 use App\Enums\MemberStatus;
+use App\Enums\PersonType;
 use App\Enums\RateType;
 use App\Enums\Role;
 use App\Exceptions\IneligiblePrincipalException;
@@ -105,8 +106,8 @@ class Agency extends Model
     }
 
     /**
-     * Why $user cannot lead this agency, or null if they can: a licensed producer with an NPN
-     * (individual members count as licensed) on this agency's roster. An agency without
+     * Why $user cannot lead this agency, or null if they can: a licensed producer (the NPN is
+     * optional; individual members count as licensed) on this agency's roster. An agency without
      * people yet (just created) may take an individual member who is on no agency.
      */
     public function principalProblem(?User $user): ?string
@@ -117,8 +118,8 @@ class Agency extends Model
             return 'The principal must be a member with a member profile.';
         }
 
-        if ($profile->isAgencyEmployee() || blank($profile->npn)) {
-            return 'The principal must be a licensed producer with an NPN; agency employees cannot lead an agency.';
+        if ($profile->isAgencyEmployee()) {
+            return 'The principal must be a licensed producer; agency employees cannot lead an agency.';
         }
 
         if ($profile->agency_id !== null && $profile->agency_id !== $this->getKey()) {
@@ -258,12 +259,13 @@ class Agency extends Model
 
         $rate = $this->tier->rate($this->rate_type);
 
-        return $this->partnerCode?->isValid(now()) ? min($rate, (int) config('agency.partner_rate')) : $rate;
+        return $this->partnerCode?->isValid(now()) ? min($rate, AgencyPricingService::partnerRate($this->tier)) : $rate;
     }
 
     public function partnerRateApplies(): bool
     {
-        return $this->tier !== null && $this->rate_type !== null && $this->currentRate() < $this->tier->rate($this->rate_type);
+        return $this->tier !== null && $this->rate_type !== null && ($this->partnerCode?->isValid(now()) ?? false)
+            && AgencyPricingService::partnerRate($this->tier) <= $this->tier->rate($this->rate_type);
     }
 
     /**
@@ -279,6 +281,26 @@ class Agency extends Model
     public function continuingHeadcount(): int
     {
         return $this->continuingMembers()->count();
+    }
+
+    /**
+     * Agency employees on the roster (all, or only those staying after the next renewal).
+     */
+    public function employeeCount(bool $continuing = false): int
+    {
+        if (! $this->exists) {
+            return 0;
+        }
+
+        return ($continuing ? $this->continuingMembers() : $this->members())->where('person_type', PersonType::AgencyEmployee->value)->count();
+    }
+
+    /**
+     * Members the next renewal bills: the people who stay, never fewer than the minimum.
+     */
+    public function continuingSeats(): int
+    {
+        return AgencyPricingService::billableSeats($this->continuingHeadcount(), $this->employeeCount(continuing: true));
     }
 
     /**

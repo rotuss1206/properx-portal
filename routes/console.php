@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AgencyRegistrationDraft;
+use App\Models\PendingLicenseFile;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -57,8 +58,9 @@ Schedule::command('app:send-staff-summary')
     ->withoutOverlapping(5)
     ->onOneServer();
 
-// Unfinished agency enrollments are kept for portal.registration.draft_days after their last save.
-Schedule::command('model:prune', ['--model' => [AgencyRegistrationDraft::class]])
+// Unfinished agency enrollments are kept for portal.registration.draft_days after their last save;
+// license copies uploaded for people never created go with their files.
+Schedule::command('model:prune', ['--model' => [AgencyRegistrationDraft::class, PendingLicenseFile::class]])
     ->dailyAt('01:30')
     ->timezone(config('portal.schedule_timezone'))
     ->onOneServer();

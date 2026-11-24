@@ -88,6 +88,10 @@ function wp_date( $format, $timestamp ) {
 	return gmdate( $format, $timestamp );
 }
 
+function is_admin() {
+	return false;
+}
+
 function current_user_can( $capability ) {
 	return true;
 }
@@ -98,6 +102,10 @@ function check_admin_referer( $action ) {
 
 function wp_unslash( $value ) {
 	return $value;
+}
+
+function sanitize_text_field( $value ) {
+	return trim( preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( (string) $value ) ) );
 }
 
 function wp_nonce_field( $action ) {
@@ -132,7 +140,8 @@ class WP_Error {
 function wp_remote_post( $url, $args ) {
 	$GLOBALS['wp_requests'][] = array( $url, $args );
 
-	return $GLOBALS['wp_response'];
+	// A list of answers, one per request, when a test needs them to differ.
+	return empty( $GLOBALS['wp_responses'] ) ? $GLOBALS['wp_response'] : array_shift( $GLOBALS['wp_responses'] );
 }
 
 function wp_remote_retrieve_response_code( $response ) {
@@ -169,6 +178,18 @@ class GFAPI {
 
 	public static function get_forms() {
 		return array_values( $GLOBALS['gf_forms'] ?? array() );
+	}
+
+	public static function update_entry_field( $entry_id, $input_id, $value ) {
+		$GLOBALS['gf_entries'][ $entry_id ][ (string) $input_id ] = $value;
+
+		return true;
+	}
+
+	public static function send_notifications( $form, $entry, $event = 'form_submission' ) {
+		$GLOBALS['gf_sent_events'][] = array( (int) $entry['id'], $event );
+
+		return array();
 	}
 
 	public static function get_feeds( $feed_ids = null, $form_id = null, $addon_slug = null ) {
@@ -223,13 +244,69 @@ function gform_update_meta( $entry_id, $key, $value ) {
 	$GLOBALS['entry_meta'][ $entry_id ][ $key ] = $value;
 }
 
+function gform_delete_meta( $entry_id, $key ) {
+	unset( $GLOBALS['entry_meta'][ $entry_id ][ $key ] );
+}
+
+const DAY_IN_SECONDS = 86400;
+
+function wp_upload_dir( $time = null, $create = true ) {
+	return array( 'basedir' => $GLOBALS['wp_upload_basedir'] );
+}
+
+function wp_mkdir_p( $dir ) {
+	return is_dir( $dir ) || mkdir( $dir, 0777, true );
+}
+
+function trailingslashit( $path ) {
+	return rtrim( $path, '/\\' ) . '/';
+}
+
+function wp_delete_file( $file ) {
+	if ( is_file( $file ) ) {
+		unlink( $file );
+	}
+}
+
+function wp_generate_password( $length = 12, $special = true ) {
+	return substr( bin2hex( random_bytes( $length ) ), 0, $length );
+}
+
+function sanitize_file_name( $name ) {
+	return preg_replace( '/[^A-Za-z0-9._-]/', '-', $name );
+}
+
+function wp_basename( $path ) {
+	return basename( $path );
+}
+
+function wp_next_scheduled( $hook ) {
+	return false;
+}
+
+function wp_schedule_event( $timestamp, $recurrence, $hook ) {
+	return true;
+}
+
+class GFFormsModel {
+	public static function get_physical_file_path( $url, $entry_id = null ) {
+		return $GLOBALS['gf_upload_paths'][ $url ] ?? '';
+	}
+
+	public static function get_entry_meta_table_name() {
+		return '';
+	}
+}
+
 $plugin = dirname( __DIR__ ) . '/properx-portal';
 
 define( 'PROPERX_PORTAL_PLUGIN_FILE', $plugin . '/properx-portal.php' );
 
 require_once $plugin . '/includes/settings.php';
+require_once $plugin . '/includes/welcome-email.php';
 require_once $plugin . '/includes/checklist.php';
 require_once $plugin . '/includes/connector.php';
+require_once $plugin . '/includes/license-copy.php';
 require_once $plugin . '/includes/cancellation.php';
 require_once $plugin . '/includes/agency-handoff.php';
 require_once $plugin . '/includes/apply-form.php';

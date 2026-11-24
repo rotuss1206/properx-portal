@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Certificates\CertificateGeneratorService;
 use App\Services\Certificates\CertificateOptions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesPortalUsers;
 use Tests\TestCase;
@@ -203,7 +204,7 @@ class CertificatePageTest extends TestCase
         $this->travelTo('2026-11-05 15:00:00');
         $html = $this->pdf();
 
-        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">Nov 5, 2026</', $html);
+        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">\s*Nov 5, 2026\s*</', $html);
         $this->assertStringNotContainsString('Date issued', $html);
         $this->assertStringNotContainsString('cert-sign-rule', $html);
         $this->assertStringNotContainsString('Issued Nov', $html);
@@ -215,7 +216,7 @@ class CertificatePageTest extends TestCase
         $this->travelTo('2026-11-05 15:00:00');
         $html = $this->pdf(['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']]);
 
-        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">R\. Alvarez</', $html);
+        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">\s*R\. Alvarez\s*</', $html);
         $this->assertStringNotContainsString('Membership Secretary', $html);
         $this->assertStringContainsString('Issued Nov 5, 2026 · Verify authenticity at', strip_tags($html));
     }
@@ -319,12 +320,124 @@ class CertificatePageTest extends TestCase
         $this->assertMatchesRegularExpression('/\.cert-qr \{[^}]*width: '.preg_quote(CertificateGeneratorService::points(60)).'/', $styles);
     }
 
-    public function test_a_signature_image_can_be_set_by_file_name(): void
+    public function test_the_second_signatory_and_their_signature_come_from_the_environment(): void
     {
-        config(['portal.certificates.signature_image' => resource_path('views/pdf/images/logo-color.png')]);
+        $config = $this->portalConfigWith([
+            'CERTIFICATE_SECOND_SIGNATORY_NAME' => 'Anne Glorioso',
+            'CERTIFICATE_SECOND_SIGNATORY_TITLE' => 'Founder and CEO',
+            'CERTIFICATE_SIGNATURE_IMAGE' => 'signature-anne-glorioso.png',
+        ]);
 
-        $this->assertStringContainsString('cert-sign-image', $this->pdf());
-        $this->assertStringContainsString('cert-sign-image', $this->preview());
+        $this->assertSame(['name' => 'Anne Glorioso', 'title' => 'Founder and CEO'], $config['member_area']['certificate']['second_signatory']);
+        $this->assertSame(resource_path('views/pdf/images/signature-anne-glorioso.png'), $config['certificates']['signature_image']);
+
+        $this->travelTo('2026-11-05 15:00:00');
+        config([
+            'portal.member_area.certificate.second_signatory' => $config['member_area']['certificate']['second_signatory'],
+            'portal.certificates.signature_image' => $config['certificates']['signature_image'],
+        ]);
+        $image = 'data:image/png;base64,'.base64_encode((string) file_get_contents($config['certificates']['signature_image']));
+
+        // PDF: her signature bottom right, no line or title; the date moves to the bottom line.
+        $pdf = $this->pdf();
+        $this->assertMatchesRegularExpression('/cert-sign-right">\s*<img class="cert-sign-image" src="'.preg_quote($image, '/').'" alt="Signature of Anne Glorioso">/', $pdf);
+        $this->assertStringNotContainsString('Founder and CEO', $pdf);
+        $this->assertStringContainsString('Issued Nov 5, 2026 · Verify authenticity at', strip_tags($pdf));
+
+        // Preview: the signature over the line, the title under it.
+        $preview = $this->preview();
+        $this->assertMatchesRegularExpression('/cert-sign-right">.*?alt="Signature of Anne Glorioso".*?cert-sign-rule.*?Founder and CEO/s', $preview);
+
+        // The first signature stays the Executive Director's name in type.
+        $this->assertSame(1, substr_count($pdf, 'cert-sign-image'));
+        $this->assertMatchesRegularExpression('/cert-sign-left">[^<]+</', $pdf);
+    }
+
+    public function test_without_the_environment_there_is_no_second_signatory_and_no_image(): void
+    {
+        $config = $this->portalConfigWith([
+            'CERTIFICATE_SECOND_SIGNATORY_NAME' => '',
+            'CERTIFICATE_SECOND_SIGNATORY_TITLE' => '',
+            'CERTIFICATE_SIGNATURE_IMAGE' => '',
+        ]);
+
+        $this->assertNull($config['member_area']['certificate']['second_signatory']);
+        $this->assertNull($config['certificates']['signature_image']);
+    }
+
+    public function test_the_signature_is_used_only_with_a_second_signatory(): void
+    {
+        config(['portal.certificates.signature_image' => resource_path('views/pdf/images/signature-anne-glorioso.png')]);
+
+        $this->assertStringNotContainsString('cert-sign-image', $this->pdf());
+        $this->assertStringNotContainsString('cert-sign-image', $this->preview());
+    }
+
+    public function test_a_second_signatory_without_an_image_is_set_in_type(): void
+    {
+        $html = $this->preview(['portal.member_area.certificate.second_signatory' => ['name' => 'Anne Glorioso', 'title' => 'Founder and CEO']]);
+
+        $this->assertStringNotContainsString('cert-sign-image', $html);
+        $this->assertMatchesRegularExpression('/cert-sign-right">\s*<div class="cert-sign-name">Anne Glorioso</', $html);
+    }
+
+    public function test_a_replaced_signature_file_is_not_served_from_the_cache(): void
+    {
+        $file = storage_path('framework/testing/signature-'.uniqid().'.png');
+        File::ensureDirectoryExists(dirname($file));
+        File::copy(resource_path('views/pdf/images/signature-anne-glorioso.png'), $file);
+        config([
+            'portal.member_area.certificate.second_signatory' => ['name' => 'Anne Glorioso', 'title' => 'Founder and CEO'],
+            'portal.certificates.signature_image' => $file,
+        ]);
+        $profile = $this->member()->memberProfile;
+        $generator = app(CertificateGeneratorService::class);
+
+        try {
+            $first = $generator->generate($profile)->path;
+            $this->assertSame($first, $generator->generate($profile)->path, 'unchanged: the cached file');
+
+            File::copy(resource_path('views/pdf/images/logo-color.png'), $file);
+            $this->assertNotSame($first, $generator->generate($profile)->path);
+        } finally {
+            File::delete($file);
+        }
+    }
+
+    public function test_the_shipped_signature_is_a_transparent_png_inside_the_pdf_chroot(): void
+    {
+        $path = resource_path('views/pdf/images/signature-anne-glorioso.png');
+        $this->assertFileExists($path);
+        $this->assertStringStartsWith(str_replace('\\', '/', config('dompdf.options.chroot')), str_replace('\\', '/', $path));
+
+        $image = imagecreatefrompng($path);
+        $this->assertSame(127, imagecolorsforindex($image, imagecolorat($image, 0, 0))['alpha'], 'the corner is transparent');
+    }
+
+    /**
+     * config/portal.php read again with these environment values (and restored afterwards).
+     *
+     * @param  array<string, string>  $values
+     * @return array<string, mixed>
+     */
+    private function portalConfigWith(array $values): array
+    {
+        $previous = [];
+        foreach ($values as $name => $value) {
+            $previous[$name] = [$_ENV[$name] ?? null, $_SERVER[$name] ?? null, getenv($name)];
+            $_ENV[$name] = $_SERVER[$name] = $value;
+            putenv("{$name}={$value}");
+        }
+
+        try {
+            return require config_path('portal.php');
+        } finally {
+            foreach ($previous as $name => [$env, $server, $process]) {
+                $env === null ? $_ENV[$name] = '' : $_ENV[$name] = $env;
+                $server === null ? $_SERVER[$name] = '' : $_SERVER[$name] = $server;
+                $process === false ? putenv($name) : putenv("{$name}={$process}");
+            }
+        }
     }
 
     public function test_the_pdf_is_one_letter_portrait_page(): void

@@ -43,11 +43,7 @@
     </div>
 
     <div class="cert-sign cert-sign-left">
-        @if ($signatureImage)
-            <div class="cert-sign-name"><img class="cert-sign-image" src="{{ $signatureImage }}" alt="Signature of {{ $signatoryName }}"></div>
-        @else
-            <div class="cert-sign-name">{{ $signatoryName }}</div>
-        @endif
+        <div class="cert-sign-name">{{ $signatoryName }}</div>
         <div class="cert-sign-rule"></div>
         <div class="cert-sign-title">{{ $signatoryTitle }}</div>
     </div>
@@ -56,7 +52,9 @@
 
     {{-- The second signature, or the date of issue in its place. --}}
     <div class="cert-sign cert-sign-right">
-        @if ($secondSignatoryName)
+        @if ($secondSignatureImage)
+            <div class="cert-sign-name"><img class="cert-sign-image" src="{{ $secondSignatureImage }}" alt="Signature of {{ $secondSignatoryName }}"></div>
+        @elseif ($secondSignatoryName)
             <div class="cert-sign-name">{{ $secondSignatoryName }}</div>
         @else
             <div class="cert-sign-name" data-ppx-cert="issued">{{ $issuedOnLabel }}</div>

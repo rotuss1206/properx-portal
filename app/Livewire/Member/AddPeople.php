@@ -8,6 +8,7 @@ use App\Livewire\AgencyRegistration\PeopleForm;
 use App\Livewire\AgencyRegistration\PrincipalForm;
 use App\Member\AgencyPage;
 use App\Models\Agency;
+use App\Models\PendingLicenseFile;
 use App\Services\Agencies\AgencyRosterChanges;
 use App\Services\Agencies\CheckoutException;
 use App\Services\Agencies\RosterChangeException;
@@ -15,6 +16,7 @@ use App\Support\UsStates;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * "Add people" on /member/agency (Agency spec 8.1, G3): the principal lists new people one at a
@@ -26,7 +28,7 @@ use Livewire\Component;
  */
 class AddPeople extends Component
 {
-    use ManagesPeopleList;
+    use ManagesPeopleList, WithFileUploads;
 
     public PeopleForm $people;
 
@@ -87,6 +89,16 @@ class AddPeople extends Component
 
     protected function peopleSaved(): void {}
 
+    /**
+     * License copies of people being added belong to the agency until they are created.
+     *
+     * @return array{0: string, 1: int}
+     */
+    protected function licenseFileOwner(): array
+    {
+        return [PendingLicenseFile::OWNER_AGENCY, $this->agency()->getKey()];
+    }
+
     protected function peopleCountText(): string
     {
         $count = count($this->people->rows);
@@ -115,6 +127,19 @@ class AddPeople extends Component
             return;
         }
 
+        // Every licensed producer needs a license copy before the agency pays (LicenseCopy).
+        $missing = array_values(array_unique([...$people->missingLicenseCopies(), ...array_map(
+            fn (array $row) => trim($row['first_name'].' '.$row['last_name']),
+            array_filter($people->rows, fn (array $row) => $row['license_file'] !== '' && PendingLicenseFile::findFor($row['license_file'], PendingLicenseFile::OWNER_AGENCY, $this->agency()->getKey()) === null),
+        )]));
+
+        if ($missing !== []) {
+            $this->message = 'Upload a copy of the license for '.implode(', ', $missing).' first.';
+            $this->focus('add-people-message');
+
+            return;
+        }
+
         if ($people->problems !== [] || ! $people->entryIsEmpty()) {
             $this->message = $people->problems !== []
                 ? 'Fix or skip the rows from your CSV first.'
@@ -134,7 +159,7 @@ class AddPeople extends Component
         $people->validate($people->rules(), $people->messages(), $people->validationAttributes());
 
         try {
-            $quote = app(AgencyRosterChanges::class)->quote($this->agency(), count($people->rows));
+            $quote = app(AgencyRosterChanges::class)->quote($this->agency(), count($people->rows), addedEmployees: AgencyRosterChanges::kinds($people->rows)['employees']);
         } catch (RosterChangeException $e) {
             $this->message = $e->getMessage();
             $this->focus('add-people-message');
@@ -146,6 +171,8 @@ class AddPeople extends Component
             'added' => $quote->added,
             'before' => $quote->headcountBefore,
             'after' => $quote->headcountAfter,
+            'seats_before' => $quote->seatsBefore,
+            'seats_after' => $quote->seatsAfter,
             'tier_before' => $quote->tierBefore->label(),
             'tier_after' => $quote->tierAfter->label(),
             'tier_changes' => $quote->tierChanges(),

@@ -60,8 +60,20 @@ const PROPERX_PORTAL_FORM_FIELDS = array(
 	27 => 'select',
 );
 
-/** Removed: "License Type(s) Held". Old entries keep their values. */
-const PROPERX_PORTAL_REMOVED_FIELDS = array( 17 => 'checkbox' );
+/** Removed fields (none since 2.3.0: "License Type(s) Held", field 17, stays and gets "Other"). */
+const PROPERX_PORTAL_REMOVED_FIELDS = array();
+
+/** The license types held, as the portal lists them (App\Support\LicenseTypes). */
+const PROPERX_PORTAL_LICENSE_TYPE_COLUMNS = '3';
+
+const PROPERX_PORTAL_LICENSE_TYPES = array( 'Life', 'Health', 'Property & Casualty', 'Annuity', 'Variable', 'Other' );
+
+/** The confirmation after "Just me" (go-live requirements, "Revised"). */
+const PROPERX_PORTAL_CONFIRMATION = '<h3>Membership Application Submitted Successfully!</h3>'
+	. '<p>Thank you for applying to join ProPerX Alliance!</p>'
+	. '<p>We\'ve received your application, and our team will verify your active insurance license using the license number you provided. Watch your inbox for a welcome email with your next steps, including how to log in to your member portal and start accessing your benefits.</p>'
+	. '<p>Please note: Membership is exclusively available to actively licensed insurance professionals.</p>'
+	. '<p>We look forward to welcoming you to ProPerX Alliance!</p>';
 
 const PROPERX_PORTAL_OPTION_BACKUPS = 'properx_portal_form_backups';
 const PROPERX_PORTAL_BACKUPS_KEPT   = 5;
@@ -78,13 +90,51 @@ function properx_portal_condition( $joining_id, $value, array $extra = array() )
 }
 
 /**
- * The new fields, in their order, with the id each will get.
+ * The partner code's settings (at the top, for both kinds of application). A form's own partner code
+ * field (live: "Partner Code" above the agreements) is given the same ones instead of a second field.
+ *
+ * @return array<string, mixed>
+ */
+function properx_portal_partner_code_settings() {
+	return array(
+		'label'                => 'Partner code (optional)',
+		'adminLabel'           => 'ppx_partner_code',
+		'description'          => 'From an MGA or FMO partner. Leave blank if you don\'t have one.',
+		'maxLength'            => 50,
+		'inputName'            => 'code',
+		'allowsPrepopulate'    => true,
+		'cssClass'             => 'ppx-partner-code',
+		'layoutGridColumnSpan' => 6,
+		// Partner codes are longer than five characters: no input mask.
+		'inputMask'            => false,
+		'inputMaskValue'       => '',
+		'inputMaskIsCustom'    => false,
+	);
+}
+
+/** The license number's settings; a form's own "Resident License Number" field is given the same ones. */
+function properx_portal_license_number_settings() {
+	return array(
+		'label'                => 'License number',
+		'adminLabel'           => 'ppx_license_number',
+		'isRequired'           => true,
+		'maxLength'            => 50,
+		'description'          => 'As printed on your resident insurance license. We use it to verify your license is active.',
+		'layoutGridColumnSpan' => 12,
+	);
+}
+
+/**
+ * The new fields, in their order, with the id each will get. Without the partner code when the form
+ * has its own (it is moved to the top instead).
  *
  * @return list<array<string, mixed>>
  */
-function properx_portal_new_top_fields( $next_id ) {
+function properx_portal_new_top_fields( $next_id, $with_partner_code = true ) {
 	$joining = $next_id;
 	$agency  = fn ( array $field ) => $field + array( 'conditionalLogic' => properx_portal_condition( $joining, PROPERX_PORTAL_JOINING_AGENCY ) );
+	$partner = array( 'type' => 'text' ) + properx_portal_partner_code_settings();
+	unset( $partner['inputMask'], $partner['inputMaskValue'], $partner['inputMaskIsCustom'] );
 	$fields  = array(
 		array(
 			'type'              => 'radio',
@@ -100,17 +150,7 @@ function properx_portal_new_top_fields( $next_id ) {
 				array( 'text' => 'My agency (2 or more people)', 'value' => PROPERX_PORTAL_JOINING_AGENCY, 'isSelected' => false, 'price' => '' ),
 			),
 		),
-		array(
-			'type'                 => 'text',
-			'label'                => 'Partner code (optional)',
-			'adminLabel'           => 'ppx_partner_code',
-			'description'          => 'From an MGA or FMO partner. Leave blank if you don\'t have one.',
-			'maxLength'            => 50,
-			'inputName'            => 'code',
-			'allowsPrepopulate'    => true,
-			'cssClass'             => 'ppx-partner-code',
-			'layoutGridColumnSpan' => 6,
-		),
+		$with_partner_code ? $partner : null,
 		$agency(
 			array(
 				'type'       => 'html',
@@ -149,9 +189,201 @@ function properx_portal_new_top_fields( $next_id ) {
 		),
 	);
 
+	$fields = array_values( array_filter( $fields ) );
+
 	foreach ( $fields as $i => $field ) {
 		$fields[ $i ] = $field + array( 'id' => $next_id + $i, 'isRequired' => false, 'cssClass' => '', 'description' => '' );
 	}
+
+	return $fields;
+}
+
+/**
+ * The next free field id: above every field and above the form's own counter (ids of deleted fields
+ * may still hold old entries' values).
+ *
+ * @param list<array<string, mixed>> $fields
+ */
+function properx_portal_next_field_id( array $fields, $floor = 0 ) {
+	return max( (int) $floor, 1 + max( array_map( fn ( $field ) => (int) $field['id'], $fields ) ) );
+}
+
+/**
+ * Index of the first field the test accepts, or -1.
+ *
+ * @param list<array<string, mixed>> $fields
+ */
+function properx_portal_find_field( array $fields, callable $test ) {
+	foreach ( $fields as $i => $field ) {
+		if ( $test( $field ) ) {
+			return $i;
+		}
+	}
+
+	return -1;
+}
+
+/** A field the helper does not own (no "ppx_" Admin Field Label). */
+function properx_portal_is_foreign_field( array $field ) {
+	return 0 !== strpos( (string) ( $field['adminLabel'] ?? '' ), 'ppx_' );
+}
+
+/** The form's own license number field (live: "Resident License Number", text), not the NPN. */
+function properx_portal_is_own_license_number( array $field ) {
+	$label = wp_strip_all_tags( (string) ( $field['label'] ?? '' ) );
+
+	return 'text' === ( $field['type'] ?? '' ) && 14 !== (int) $field['id'] && properx_portal_is_foreign_field( $field )
+		&& preg_match( '/\blicen[cs]e\s*(number|no\b|#)/i', $label ) && ! preg_match( '/\bNPN\b|producer/i', $label );
+}
+
+/** The form's own partner code field (live: "Partner Code", text, filled from ?partner=). */
+function properx_portal_is_own_partner_code( array $field ) {
+	return 'text' === ( $field['type'] ?? '' ) && properx_portal_is_foreign_field( $field )
+		&& ( preg_match( '/\bpartner\s*code\b/i', wp_strip_all_tags( (string) ( $field['label'] ?? '' ) ) ) || 'partner' === (string) ( $field['inputName'] ?? '' ) );
+}
+
+/**
+ * Whether any entry has a value in the field (all entries, also spam and trash). Unknown counts as yes,
+ * so a field is never deleted on a guess.
+ */
+function properx_portal_field_has_values( $form_id, $field_id ) {
+	if ( ! class_exists( 'GFAPI' ) || ! method_exists( 'GFAPI', 'count_entries' ) || $form_id <= 0 ) {
+		return true;
+	}
+
+	$count = GFAPI::count_entries(
+		(int) $form_id,
+		array( 'field_filters' => array( array( 'key' => (string) $field_id, 'operator' => 'isnot', 'value' => '' ) ) )
+	);
+
+	return ! is_numeric( $count ) || (int) $count > 0;
+}
+
+/**
+ * A second copy of a field the helper added before the form's own one was known: deleted while no entry
+ * has a value in it, otherwise kept for those entries, hidden from the page (administrative) and renamed so
+ * that nothing reads it any more.
+ *
+ * @param list<array<string, mixed>> $fields
+ * @param list<string>               $changes
+ * @return list<array<string, mixed>>
+ */
+function properx_portal_drop_duplicate_field( array $fields, $at, callable $has_values, array &$changes, $instead ) {
+	$field = $fields[ $at ];
+	$name  = wp_strip_all_tags( (string) ( $field['label'] ?? '' ) );
+
+	if ( ! $has_values( (int) $field['id'] ) ) {
+		array_splice( $fields, $at, 1 );
+		$changes[] = sprintf( 'Field %d "%s" removed: %s (no entry has a value in it)', $field['id'], $name, $instead );
+
+		return $fields;
+	}
+
+	$field['adminLabel'] = $field['adminLabel'] . '_old';
+	$field['visibility'] = 'administrative';
+	$field['isRequired'] = false;
+	$fields[ $at ]       = $field;
+	$changes[]           = sprintf( 'Field %d "%s": hidden from the page and renamed "%s" (%s; kept for the entries that have a value in it)', $field['id'], $name, $field['adminLabel'], $instead );
+
+	return $fields;
+}
+
+/**
+ * Step 1b: one partner code, at the top under "Who's joining?". A form's own partner code field (live:
+ * field 34 "Partner Code" near the payment, filled from ?partner=) becomes it, keeping its id and its
+ * entries; a copy the helper added earlier goes.
+ *
+ * @param list<array<string, mixed>> $fields
+ * @param list<string>               $changes
+ * @return list<array<string, mixed>>
+ */
+function properx_portal_plan_partner_code( array $fields, callable $has_values, array &$changes ) {
+	$own = properx_portal_find_field( $fields, 'properx_portal_is_own_partner_code' );
+
+	if ( $own < 0 ) {
+		return $fields;
+	}
+
+	$added = properx_portal_index_of( $fields, 'adminLabel', 'ppx_partner_code' );
+
+	if ( $added >= 0 ) {
+		$fields = properx_portal_drop_duplicate_field( $fields, $added, $has_values, $changes, sprintf( 'the form\'s own field %d "Partner Code" is the partner code now', $fields[ $own ]['id'] ) );
+		$own    = properx_portal_find_field( $fields, 'properx_portal_is_own_partner_code' );
+	}
+
+	$field = $fields[ $own ];
+
+	foreach ( properx_portal_partner_code_settings() as $property => $value ) {
+		properx_portal_set( $field, $property, $value, $changes );
+	}
+
+	array_splice( $fields, $own, 1 );
+	array_splice( $fields, properx_portal_index_of( $fields, 'adminLabel', 'ppx_joining' ) + 1, 0, array( $field ) );
+	$changes[] = sprintf( 'Field %d "%s": moved to the top, under "Who\'s joining?" (the only partner code; links with ?partner= still fill it)', $field['id'], $field['label'] );
+
+	return $fields;
+}
+
+/**
+ * Step 3c: the license block in one order and one layout, whatever the form had: the license number (full
+ * width), the NPN beside the expiration date, the state (its select half the width, apply.css), the
+ * license types, "Other" and the copy. Rows are Gravity Forms' layout groups: a field that should stand
+ * alone gets a group of its own.
+ *
+ * @param list<array<string, mixed>> $fields
+ * @param list<string>               $changes
+ * @return list<array<string, mixed>>
+ */
+function properx_portal_plan_license_layout( array $fields, array &$changes ) {
+	$keys  = array( array( 'adminLabel', 'ppx_license_number' ), array( 'id', 14 ), array( 'id', 15 ), array( 'id', 16 ), array( 'adminLabel', 'ppx_license_types' ), array( 'adminLabel', 'ppx_license_type_other' ), array( 'adminLabel', PROPERX_PORTAL_LICENSE_COPY_LABEL ) );
+	$at    = array_map( fn ( $key ) => properx_portal_index_of( $fields, $key[0], $key[1] ), $keys );
+	$found = array_values( array_filter( $at, fn ( $i ) => $i >= 0 ) );
+
+	if ( count( $found ) !== count( $keys ) ) {
+		return $fields;
+	}
+
+	if ( range( min( $found ), min( $found ) + count( $found ) - 1 ) !== $found ) {
+		$block = array_map( fn ( $i ) => $fields[ $i ], $found );
+		$start = min( $found );
+		$rest  = array_values( array_diff_key( $fields, array_flip( $found ) ) );
+		array_splice( $rest, $start, 0, $block );
+		$fields    = $rest;
+		$changes[] = 'License fields in this order: ' . implode( ', ', array_map( fn ( $field ) => sprintf( '%d "%s"', $field['id'], wp_strip_all_tags( (string) $field['label'] ) ), $block ) );
+	}
+
+	$index = fn ( $key ) => properx_portal_index_of( $fields, $key[0], $key[1] );
+	$alone = function ( $i, $span ) use ( &$fields, &$changes ) {
+		$field  = $fields[ $i ];
+		$group  = (string) ( $field['layoutGroupId'] ?? '' );
+		$shared = '' === $group || count( array_filter( $fields, fn ( $other ) => (string) ( $other['layoutGroupId'] ?? '' ) === $group ) ) > 1;
+
+		properx_portal_set( $field, 'layoutGridColumnSpan', $span, $changes );
+
+		if ( $shared ) {
+			properx_portal_set( $field, 'layoutGroupId', substr( md5( 'ppx-row-' . $field['id'] ), 0, 8 ), $changes );
+		}
+
+		$fields[ $i ] = $field;
+	};
+
+	$alone( $index( $keys[0] ), 12 );
+
+	// The NPN and the expiration date: one row, half and half.
+	$npn   = $index( $keys[1] );
+	$group = (string) ( $fields[ $npn ]['layoutGroupId'] ?? '' );
+	$with  = array_filter( $fields, fn ( $other ) => '' !== $group && (string) ( $other['layoutGroupId'] ?? '' ) === $group && ! in_array( (int) $other['id'], array( 14, 15 ), true ) );
+
+	if ( '' === $group || array() !== $with ) {
+		$group = substr( md5( 'ppx-row-14' ), 0, 8 );
+	}
+
+	foreach ( array( $npn, $index( $keys[2] ) ) as $i ) {
+		properx_portal_set( $fields[ $i ], 'layoutGridColumnSpan', 6, $changes );
+		properx_portal_set( $fields[ $i ], 'layoutGroupId', $group, $changes );
+	}
+
+	$alone( $index( $keys[3] ), 12 );
 
 	return $fields;
 }
@@ -211,6 +443,8 @@ function properx_portal_describe( $property, $value ) {
 			return 'conditional logic: show if ' . implode( ' and ', $rules );
 		case 'choices':
 			return 'choices: ' . implode( ' / ', array_map( fn ( $choice ) => $choice['value'], $value ) );
+		case 'inputs':
+			return 'inputs: ' . implode( ', ', array_map( fn ( $input ) => $input['id'] . ' ' . $input['label'], $value ) );
 		case 'isRequired':
 			return $value ? 'required' : 'not required';
 		case 'content':
@@ -226,12 +460,15 @@ function properx_portal_describe( $property, $value ) {
  * The whole change, worked out on a copy of the form (arrays, as Gravity Forms exports them).
  *
  * @param array<string, mixed> $form
+ * @param callable|null        $has_values Whether entries have a value in a field (by id); Gravity Forms' count by default.
  * @return array{form: array<string, mixed>, changes: list<string>, problems: list<string>}
  */
-function properx_portal_plan_form_changes( array $form ) {
-	$changes  = array();
-	$problems = array();
-	$fields   = array_values( (array) ( $form['fields'] ?? array() ) );
+function properx_portal_plan_form_changes( array $form, $has_values = null ) {
+	$changes    = array();
+	$problems   = array();
+	$fields     = array_values( (array) ( $form['fields'] ?? array() ) );
+	$floor      = (int) ( $form['nextFieldId'] ?? 0 );
+	$has_values = is_callable( $has_values ) ? $has_values : fn ( $field_id ) => properx_portal_field_has_values( (int) ( $form['id'] ?? 0 ), (int) $field_id );
 
 	// The form must be the application form: every field the changes rely on, with its type.
 	foreach ( PROPERX_PORTAL_FORM_FIELDS as $id => $type ) {
@@ -252,14 +489,16 @@ function properx_portal_plan_form_changes( array $form ) {
 	$joining_at = properx_portal_index_of( $fields, 'adminLabel', 'ppx_joining' );
 
 	if ( $joining_at < 0 ) {
-		$next   = 1 + max( array_map( fn ( $field ) => (int) $field['id'], $fields ) );
-		$new    = properx_portal_new_top_fields( $next );
+		$new    = properx_portal_new_top_fields( properx_portal_next_field_id( $fields, $floor ), properx_portal_find_field( $fields, 'properx_portal_is_own_partner_code' ) < 0 );
 		$fields = array_merge( $new, $fields );
 
 		foreach ( $new as $field ) {
 			$changes[] = sprintf( 'New field %d "%s" (%s) at the top%s', $field['id'], wp_strip_all_tags( $field['label'] ), $field['type'], empty( $field['conditionalLogic'] ) ? '' : ', shown for "My agency"' );
 		}
 	}
+
+	// 1b. One partner code: the form's own field (live: "Partner Code" near the payment), moved up.
+	$fields = properx_portal_plan_partner_code( $fields, $has_values, $changes );
 
 	$joining_id = (int) $fields[ properx_portal_index_of( $fields, 'adminLabel', 'ppx_joining' ) ]['id'];
 	$individual = properx_portal_condition( $joining_id, PROPERX_PORTAL_JOINING_INDIVIDUAL );
@@ -276,10 +515,17 @@ function properx_portal_plan_form_changes( array $form ) {
 
 	// 3. The order summary, after the payment details.
 	if ( properx_portal_index_of( $fields, 'adminLabel', 'ppx_order_summary' ) < 0 ) {
-		$next = 1 + max( array_map( fn ( $field ) => (int) $field['id'], $fields ) );
+		$next = properx_portal_next_field_id( $fields, $floor );
 		array_splice( $fields, properx_portal_index_of( $fields, 'id', 19 ) + 1, 0, array( properx_portal_order_summary_field( $next, $joining_id ) ) );
 		$changes[] = sprintf( 'New field %d "Order summary" (html) after field 19, shown for "Just me"', $next );
 	}
+
+	// 3b. The license (plugin 2.3.0, go-live requirements): the license number, required, before the
+	// NPN, which becomes optional; the license types with "Other" and its words; a copy of the license.
+	$fields = properx_portal_plan_license_fields( $fields, $joining_id, $changes, $has_values, $floor );
+
+	// 3c. The license block's order and rows, the same on every form.
+	$fields = properx_portal_plan_license_layout( $fields, $changes );
 
 	// 4. The existing fields: shown for "Just me" only, with their new texts.
 	foreach ( $fields as $i => $field ) {
@@ -291,9 +537,15 @@ function properx_portal_plan_form_changes( array $form ) {
 
 		switch ( $id ) {
 			case 14:
-				properx_portal_set( $field, 'adminLabel', 'ppx_npn', $changes );
+				// Live names it "agent_npn" (something there may read it): kept; the plugin knows both.
+				if ( '' === (string) ( $field['adminLabel'] ?? '' ) ) {
+					properx_portal_set( $field, 'adminLabel', 'ppx_npn', $changes );
+				}
+
 				properx_portal_set( $field, 'maxLength', 10, $changes );
-				properx_portal_set( $field, 'description', 'The number NIPR assigned to your insurance license, 7 to 10 digits. We use it to verify your license is active.', $changes );
+				properx_portal_set( $field, 'isRequired', false, $changes );
+				properx_portal_set( $field, 'label', 'NPN (National Producer Number) (optional)', $changes );
+				properx_portal_set( $field, 'description', 'The number NIPR assigned to your insurance license, 7 to 10 digits, if you have it.', $changes );
 				break;
 			case 16:
 				properx_portal_set( $field, 'label', 'Resident license state', $changes );
@@ -358,6 +610,15 @@ function properx_portal_plan_form_changes( array $form ) {
 
 	$form['fields'] = $fields;
 
+	// Gravity Forms' own counter for the next field: above every field, so a field added later in the form
+	// editor never takes the id of one added here.
+	$next_field_id = properx_portal_next_field_id( $fields );
+
+	if ( (int) ( $form['nextFieldId'] ?? 0 ) < $next_field_id ) {
+		$form['nextFieldId'] = $next_field_id;
+		$changes[]           = sprintf( 'Next field id: %d (above every field)', $next_field_id );
+	}
+
 	// 5. Emails about an individual application only go for "Just me".
 	foreach ( (array) ( $form['notifications'] ?? array() ) as $key => $notification ) {
 		if ( 'ppxpaymentmismatch' !== $key && ( $notification['conditionalLogic'] ?? null ) != $individual ) {
@@ -396,6 +657,73 @@ function properx_portal_plan_form_changes( array $form ) {
 		}
 	}
 
+	// 5c. The agent welcome (go-live requirements): to the applicant once the payment is made (card) or
+	// started (ACH), on the plugin's own event (includes/welcome-email.php), from the sender of the
+	// applicant's existing email. Added once; afterwards it is the client's to edit.
+	if ( ! isset( $form['notifications'][ PROPERX_PORTAL_WELCOME_NOTIFICATION ] ) ) {
+		$sender = array( 'from' => '{admin_email}', 'fromName' => 'ProPerX Alliance' );
+
+		foreach ( (array) ( $form['notifications'] ?? array() ) as $notification ) {
+			if ( 'field' === ( $notification['toType'] ?? '' ) && ! empty( $notification['from'] ) ) {
+				$sender = array( 'from' => $notification['from'], 'fromName' => (string) ( $notification['fromName'] ?? '' ) );
+				break;
+			}
+		}
+
+		$form['notifications'][ PROPERX_PORTAL_WELCOME_NOTIFICATION ] = array(
+			'id'                => PROPERX_PORTAL_WELCOME_NOTIFICATION,
+			'name'              => 'Agent welcome',
+			'isActive'          => true,
+			'event'             => PROPERX_PORTAL_ACCEPTED_EVENT,
+			'toType'            => 'field',
+			'to'                => '7',
+			'from'              => $sender['from'],
+			'fromName'          => $sender['fromName'],
+			'subject'           => PROPERX_PORTAL_WELCOME_SUBJECT,
+			'message'           => properx_portal_welcome_message(),
+			'conditionalLogic'  => $individual,
+			'disableAutoformat' => false,
+		);
+		$changes[] = 'Notification "Agent welcome": the client\'s welcome to the applicant once the payment is made (card) or started (ACH), "Just me" only; links from the plugin\'s settings';
+	}
+
+	// 5c2. Emails only once paid (go-live decisions): the agent welcome on the plugin's event (an earlier
+	// version of these changes put it on "Form is submitted"); the staff email on "Subscription Created";
+	// "User Pending Confirmation" off, the agent welcome replaces it. Nothing else depends on it.
+	foreach ( (array) ( $form['notifications'] ?? array() ) as $key => $notification ) {
+		$event = (string) ( $notification['event'] ?? '' );
+
+		if ( PROPERX_PORTAL_WELCOME_NOTIFICATION === $key ) {
+			if ( 'form_submission' === $event ) {
+				$form['notifications'][ $key ]['event'] = PROPERX_PORTAL_ACCEPTED_EVENT;
+				$changes[] = 'Notification "Agent welcome": event "ProPerX: application paid or bank payment started" (not on submission)';
+			}
+
+			continue;
+		}
+
+		if ( 'ppxpaymentmismatch' === $key ) {
+			continue;
+		}
+
+		if ( 'email' === ( $notification['toType'] ?? '' ) && 'form_submission' === $event ) {
+			$form['notifications'][ $key ]['event'] = 'create_subscription';
+			$changes[] = sprintf( 'Notification "%s": event "Subscription Created" (paid applications only)', $notification['name'] );
+		} elseif ( 'field' === ( $notification['toType'] ?? '' ) && ( ! isset( $notification['isActive'] ) || ! empty( $notification['isActive'] ) ) ) {
+			$form['notifications'][ $key ]['isActive'] = false;
+			$changes[] = sprintf( 'Notification "%s": inactive (the agent welcome replaces it)', $notification['name'] );
+		}
+	}
+
+	// 5d. The confirmation after "Just me": the client's revised wording.
+	foreach ( (array) ( $form['confirmations'] ?? array() ) as $key => $confirmation ) {
+		if ( ! empty( $confirmation['isDefault'] ) && ( 'message' !== ( $confirmation['type'] ?? '' ) || PROPERX_PORTAL_CONFIRMATION !== ( $confirmation['message'] ?? '' ) ) ) {
+			$form['confirmations'][ $key ]['type']    = 'message';
+			$form['confirmations'][ $key ]['message'] = PROPERX_PORTAL_CONFIRMATION;
+			$changes[] = sprintf( 'Confirmation "%s": the client\'s revised text ("Membership Application Submitted Successfully! …")', $confirmation['name'] );
+		}
+	}
+
 	// 6. "My agency" while the handoff is off: its own confirmation.
 	$fallback = array(
 		'id'                => 'ppxagencyfallback',
@@ -430,6 +758,168 @@ function properx_portal_plan_form_changes( array $form ) {
 	}
 
 	return array( 'form' => $form, 'changes' => $changes, 'problems' => array() );
+}
+
+/**
+ * The license fields of "Just me" (step 3b): new ones go in by Admin Field Label, field 17 (the
+ * live form's "License Type(s) Held") is kept and gets "Other".
+ *
+ * @param list<array<string, mixed>> $fields
+ * @param list<string>               $changes
+ * @return list<array<string, mixed>>
+ */
+function properx_portal_plan_license_fields( array $fields, $joining_id, array &$changes, $has_values = null, $floor = 0 ) {
+	$individual = properx_portal_condition( $joining_id, PROPERX_PORTAL_JOINING_INDIVIDUAL );
+	$has_values = is_callable( $has_values ) ? $has_values : fn ( $field_id ) => true;
+	$next_id    = function () use ( &$fields, $floor ) {
+		return properx_portal_next_field_id( $fields, $floor );
+	};
+	$insert     = function ( array $field, $after_id, $where ) use ( &$fields, &$changes ) {
+		$at = properx_portal_index_of( $fields, 'id', $after_id );
+		array_splice( $fields, $at < 0 ? count( $fields ) : $at + 1, 0, array( $field ) );
+		$changes[] = sprintf( 'New field %d "%s" (%s) %s, shown for "Just me"', $field['id'], $field['label'], $field['type'], $where );
+	};
+
+	// The license number, required, right before the NPN: the form's own field when it has one (live:
+	// "Resident License Number"), otherwise a new one. A copy the helper added before goes.
+	$own = properx_portal_find_field( $fields, 'properx_portal_is_own_license_number' );
+
+	if ( $own >= 0 ) {
+		$added = properx_portal_index_of( $fields, 'adminLabel', 'ppx_license_number' );
+
+		if ( $added >= 0 ) {
+			$fields = properx_portal_drop_duplicate_field( $fields, $added, $has_values, $changes, sprintf( 'the form\'s own field %d "%s" is the license number now', $fields[ $own ]['id'], wp_strip_all_tags( (string) $fields[ $own ]['label'] ) ) );
+			$own    = properx_portal_find_field( $fields, 'properx_portal_is_own_license_number' );
+		}
+
+		$field = $fields[ $own ];
+
+		foreach ( properx_portal_license_number_settings() + array( 'conditionalLogic' => $individual ) as $property => $value ) {
+			properx_portal_set( $field, $property, $value, $changes );
+		}
+
+		$fields[ $own ] = $field;
+	} elseif ( properx_portal_index_of( $fields, 'adminLabel', 'ppx_license_number' ) < 0 ) {
+		$id = $next_id();
+		array_splice(
+			$fields,
+			properx_portal_index_of( $fields, 'id', 14 ),
+			0,
+			array( array( 'id' => $id, 'type' => 'text', 'cssClass' => '', 'conditionalLogic' => $individual ) + properx_portal_license_number_settings() )
+		);
+		$changes[] = sprintf( 'New field %d "License number" (text, required) before field 14, shown for "Just me"', $id );
+	}
+
+	// The license types: field 17 when the form still has it, otherwise a new one after field 16.
+	$types_at = properx_portal_index_of( $fields, 'adminLabel', 'ppx_license_types' );
+
+	if ( $types_at < 0 ) {
+		$types_at = properx_portal_index_of( $fields, 'id', 17 );
+
+		if ( $types_at >= 0 && 'checkbox' === $fields[ $types_at ]['type'] ) {
+			properx_portal_set( $fields[ $types_at ], 'adminLabel', 'ppx_license_types', $changes );
+		} else {
+			$insert(
+				array(
+					'id'               => $next_id(),
+					'type'             => 'checkbox',
+					'label'            => 'License type(s) held',
+					'adminLabel'       => 'ppx_license_types',
+					'isRequired'       => true,
+					'cssClass'         => '',
+					'description'      => '',
+					'choices'          => array(),
+					'inputs'           => array(),
+					'conditionalLogic' => $individual,
+				),
+				16,
+				'after field 16'
+			);
+			$types_at = properx_portal_index_of( $fields, 'adminLabel', 'ppx_license_types' );
+		}
+	}
+
+	$types = $fields[ $types_at ];
+	$used  = array();
+
+	foreach ( (array) ( $types['inputs'] ?? array() ) as $input ) {
+		$used[ (string) $input['label'] ] = (string) $input['id'];
+	}
+
+	$choices = array();
+	$inputs  = array();
+	$number  = 1;
+
+	foreach ( PROPERX_PORTAL_LICENSE_TYPES as $type ) {
+		// Existing inputs keep their ids (old entries' values); new ones take the next free number
+		// (Gravity Forms skips multiples of 10).
+		if ( ! isset( $used[ $type ] ) ) {
+			while ( in_array( $types['id'] . '.' . $number, $used, true ) || 0 === $number % 10 ) {
+				++$number;
+			}
+
+			$used[ $type ] = $types['id'] . '.' . $number;
+		}
+
+		$choices[] = array( 'text' => $type, 'value' => $type, 'isSelected' => false, 'price' => '' );
+		$inputs[]  = array( 'id' => $used[ $type ], 'label' => $type, 'name' => '' );
+	}
+
+	properx_portal_set( $types, 'label', 'License type(s) held', $changes );
+	properx_portal_set( $types, 'isRequired', true, $changes );
+	properx_portal_set( $types, 'choices', $choices, $changes );
+	properx_portal_set( $types, 'inputs', $inputs, $changes );
+	properx_portal_set( $types, 'conditionalLogic', $individual, $changes );
+	// The same look whether the field is the live form's 17 or a new one: three columns, "Other" closing
+	// the second row, across the full width.
+	properx_portal_set( $types, 'enableDisplayInColumns', true, $changes );
+	properx_portal_set( $types, 'displayColumns', PROPERX_PORTAL_LICENSE_TYPE_COLUMNS, $changes );
+	properx_portal_set( $types, 'displayAlignment', 'horizontal', $changes );
+	properx_portal_set( $types, 'layoutGridColumnSpan', 12, $changes );
+	$fields[ $types_at ] = $types;
+
+	// "Other": its words, shown when "Other" is ticked.
+	if ( properx_portal_index_of( $fields, 'adminLabel', 'ppx_license_type_other' ) < 0 ) {
+		$insert(
+			array(
+				'id'               => $next_id(),
+				'type'             => 'text',
+				'label'            => 'Other license type',
+				'adminLabel'       => 'ppx_license_type_other',
+				'isRequired'       => true,
+				'maxLength'        => 100,
+				'cssClass'         => '',
+				'description'      => '',
+				'conditionalLogic' => properx_portal_condition( $joining_id, PROPERX_PORTAL_JOINING_INDIVIDUAL, array( array( 'fieldId' => (string) $types['id'], 'operator' => 'is', 'value' => 'Other' ) ) ),
+			),
+			$types['id'],
+			'after the license types (when "Other" is ticked)'
+		);
+	}
+
+	// A copy of the license, kept encrypted until the portal has it (includes/license-copy.php).
+	if ( properx_portal_index_of( $fields, 'adminLabel', PROPERX_PORTAL_LICENSE_COPY_LABEL ) < 0 ) {
+		$insert(
+			array(
+				'id'                => $next_id(),
+				'type'              => 'fileupload',
+				'label'             => 'Copy of your license',
+				'adminLabel'        => PROPERX_PORTAL_LICENSE_COPY_LABEL,
+				'isRequired'        => true,
+				'allowedExtensions' => 'pdf,jpg,jpeg,png',
+				'maxFileSize'       => 10,
+				'multipleFiles'     => false,
+				'maxFiles'          => '',
+				'cssClass'          => '',
+				'description'       => 'A photo or scan of your current resident insurance license: PDF, JPG or PNG, up to 10 MB. It speeds up the verification of your license.',
+				'conditionalLogic'  => $individual,
+			),
+			(int) $fields[ properx_portal_index_of( $fields, 'adminLabel', 'ppx_license_type_other' ) ]['id'],
+			'after "Other license type" (PDF, JPG, PNG, up to 10 MB)'
+		);
+	}
+
+	return $fields;
 }
 
 /**

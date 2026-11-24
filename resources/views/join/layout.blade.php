@@ -56,6 +56,7 @@
         .price dt { color: var(--muted); } .price dd { margin: 0; font-weight: 600; text-align: right; }
         .price .total { font-size: 22px; font-weight: 700; color: var(--navy); }
         .price .summary { font-size: 13px; color: #374151; margin: 8px 0 0; }
+        .minimum-line { margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; background: #eef4fb; color: var(--navy); font-size: 13px; font-weight: 600; }
         .price .estimate { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
         .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #fdf6e3; color: #7a5c12; }
         .notice-ok { background: var(--ok-bg); color: var(--ok); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 10px 0 0; }
@@ -91,7 +92,7 @@
 
         /* Choice and tier cards */
         .choices, .tiers { display: grid; gap: 12px; }
-        @media (min-width: 640px) { .choices { grid-template-columns: 1fr 1fr; } .tiers { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 640px) { .choices { grid-template-columns: 1fr 1fr; } .tiers { grid-template-columns: repeat(3, 1fr); } .tiers.tiers-two { grid-template-columns: 1fr 1fr; } }
         .choice, .tier { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 16px; border: 2px solid var(--line);
                          border-radius: 10px; background: #fff; color: inherit; text-decoration: none; cursor: pointer; }
         .choice input, .tier input { position: absolute; opacity: 0; }
@@ -133,6 +134,15 @@
         .person-actions { display: flex; gap: 8px; }
         .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #eef2f7; color: #334155; }
         .tag-principal { background: var(--navy); color: #fff; }
+        .tag-needed { background: #fff3cf; color: #7a4f00; font-weight: 600; }
+        .tag-ok { background: #e6f4ea; color: #1e6b34; }
+        .license-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 0; font-size: 13px; }
+        .license-file { color: var(--muted); word-break: break-all; }
+        .upload-small { position: relative; cursor: pointer; }
+        .checks-inline { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 6px; }
+        .check-inline { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; }
+        .license-types legend, .license-copy > label { font-weight: 600; }
+        .license-copy input[type=file] { display: block; margin-top: 6px; }
         .tag-editing { background: #dbeafe; color: #1e3a8a; }
         .btn-small { font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;
                      color: var(--navy); cursor: pointer; }

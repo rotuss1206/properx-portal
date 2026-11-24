@@ -105,25 +105,30 @@ class AgencyStaffToolsTest extends TestCase
         $this->assertNull($dakota['Resident State']);
     }
 
-    public function test_agency_people_do_not_see_the_old_license_fields_but_individual_members_do(): void
+    public function test_agency_producers_show_license_number_and_type_but_no_expiry_and_employees_none(): void
     {
-        [$agency, $principal] = $this->agencyWithEmployee();
+        [$agency, $principal, , $employee] = $this->agencyWithEmployee();
         $individual = $this->member();
 
         $this->actingAs($this->staff(Role::MembershipCoordinator));
+        $fields = fn (User $user, string $path = '') => collect($this->getJson("/nova-api/member-profiles/{$user->memberProfile->id}{$path}")->assertOk()->json($path === '' ? 'resource.fields' : 'fields'))->pluck('attribute');
 
-        $agencyFields = collect($this->getJson("/nova-api/member-profiles/{$principal->memberProfile->id}")->assertOk()->json('resource.fields'))->pluck('attribute');
-        $this->assertNotContains('license_number', $agencyFields);
-        $this->assertNotContains('license_type', $agencyFields);
-        $this->assertNotContains('license_expires_at', $agencyFields);
-        $this->assertContains('npn', $agencyFields);
+        $producerFields = $fields($principal);
+        $this->assertContains('license_number', $producerFields);
+        $this->assertContains('license_type', $producerFields);
+        $this->assertNotContains('license_expires_at', $producerFields);
+        $this->assertContains('npn', $producerFields);
+        $this->assertContains('license_number', $fields($principal, '/update-fields'));
+        $this->assertNotContains('license_expires_at', $fields($principal, '/update-fields'));
 
-        $individualFields = collect($this->getJson("/nova-api/member-profiles/{$individual->memberProfile->id}")->assertOk()->json('resource.fields'))->pluck('attribute');
+        $employeeFields = $fields($employee);
+        $this->assertNotContains('license_number', $employeeFields);
+        $this->assertNotContains('license_type', $employeeFields);
+        $this->assertNotContains('license_number', $fields($employee, '/update-fields'));
+
+        $individualFields = $fields($individual);
         $this->assertContains('license_number', $individualFields);
         $this->assertContains('license_expires_at', $individualFields);
-
-        $updateFields = collect($this->getJson("/nova-api/member-profiles/{$principal->memberProfile->id}/update-fields")->assertOk()->json('fields'))->pluck('attribute');
-        $this->assertNotContains('license_number', $updateFields);
     }
 
     public function test_employees_have_no_license_status(): void
@@ -216,10 +221,10 @@ class AgencyStaffToolsTest extends TestCase
 
         $this->assertSame($principal->id, $agency->fresh()->principal_user_id);
 
+        // The NPN is optional now (client's answer): a licensed producer without one may lead an agency.
         $withoutNpn = $this->member();
         $withoutNpn->memberProfile->update(['npn' => null]);
-        $this->expectException(IneligiblePrincipalException::class);
-        Agency::factory()->create(['principal_user_id' => $withoutNpn->id]);
+        $this->assertNull(Agency::factory()->make()->principalProblem($withoutNpn->fresh()));
     }
 
     // 3. Tier and rate type

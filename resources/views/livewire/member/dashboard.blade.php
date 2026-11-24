@@ -31,7 +31,13 @@
                         @endif
                     </p>
                     @if ($license['reason'])
-                        <p class="ppx-stat__note">{{ $license['reason'] }} <a href="{{ route('member.profile', ['edit' => 'business']) }}">Update your NPN or state</a></p>
+                        <p class="ppx-stat__note">{{ $license['reason'] }}
+                            @if ($license['fixByDocument'] ?? false)
+                                <a href="{{ route('member.profile', ['edit' => 'business']) }}">Update your NPN</a> or <a href="{{ route('member.license-documents.upload') }}">upload a new license document</a>
+                            @else
+                                <a href="{{ route('member.profile', ['edit' => 'business']) }}">Update your NPN or state</a>
+                            @endif
+                        </p>
                     @endif
                 @else
                     <p class="ppx-stat__value">Not applicable</p>

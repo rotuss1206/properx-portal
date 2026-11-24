@@ -160,6 +160,11 @@ class LicenseVerification extends Resource
             // Encrypted at rest: shown, searchable by exact value, not sortable.
             Text::make('NPN', 'npn')->copyable(),
 
+            // Encrypted at rest as well; agencies' producers give number and types on enrollment.
+            Text::make('License Number', 'license_number')->copyable(),
+
+            Text::make('License Type', 'license_type')->onlyOnDetail(),
+
             Select::make('State', 'license_state')
                 ->options(UsStates::ALL)
                 ->displayUsingLabels()

@@ -509,25 +509,25 @@ class ProfileTest extends TestCase
 
     // Agency people
 
-    public function test_agency_people_edit_npn_and_state_only_and_see_their_agency(): void
+    public function test_agency_producers_read_their_license_and_edit_only_the_npn(): void
     {
         $person = $this->agencyPerson();
         $profile = $person->memberProfile;
-        $number = $profile->license_number;
+        $profile->forceFill(['license_number' => 'TX-2002', 'license_type' => 'Life, Other: Surplus lines', 'license_state' => 'TX'])->saveQuietly();
 
+        // The go-live rule: number, state and types read-only, a new license goes in as a document.
         $this->actingAs($person)->get(route('member.profile'))->assertOk()
             ->assertSee($profile->agency->legal_name)
             ->assertSee('National Producer Number')
-            ->assertSee('Resident state')
-            ->assertDontSee('License number')
+            ->assertSeeInOrder(['License number', 'TX-2002', 'License type', 'Life, Other: Surplus lines', 'Resident state', 'Texas'])
+            ->assertSee('To update your license,')
+            ->assertSee('href="'.route('member.license-documents').'"', false)
+            ->assertDontSee(route('member.profile', ['edit' => 'license']), false)
             ->assertDontSee('Expiration date');
 
         $this->get(route('member.profile', ['edit' => 'license']))->assertOk()
-            ->assertSee('name="license_state"', false)
-            ->assertDontSee('name="npn"', false)
-            ->assertDontSee('license_type[]', false)
-            ->assertDontSee('name="license_number"', false)
-            ->assertDontSee('name="license_expires_at"', false);
+            ->assertDontSee('name="license_state"', false)
+            ->assertDontSee('name="license_number"', false);
 
         $this->get(route('member.profile', ['edit' => 'business']))->assertOk()
             ->assertSee('name="npn"', false)
@@ -537,18 +537,15 @@ class ProfileTest extends TestCase
             ->assertRedirect(route('member.profile').'#business');
 
         $this->patch(route('member.profile.license'), [
-            'npn' => '34567890',
             'license_state' => 'OH',
             'license_number' => 'FORGED',
             'license_type' => ['Life'],
-            'license_expires_at' => '2099-01-01',
             'confirm_review' => '1',
-        ])->assertRedirect(route('member.profile').'#license');
+        ])->assertForbidden();
 
         $profile->refresh();
         $this->assertSame('23456789', $profile->npn);
-        $this->assertSame('OH', $profile->license_state);
-        $this->assertSame($number, $profile->license_number);
+        $this->assertSame(['TX', 'TX-2002'], [$profile->license_state, $profile->license_number]);
     }
 
     public function test_agency_people_still_edit_their_contact_details_and_firm(): void

@@ -247,3 +247,325 @@
 	font-weight: 400;
 	font-size: 0.85em;
 }
+
+/*
+ * Go-live polish (docs/wordpress/changes.md, item 12): prices struck through, no founding badge, the
+ * "(optional)" marker, no character counters, inputs alike (address included), the license copy control,
+ * payment choices as cards, the surcharge product never shown, the Payment Element without a jump.
+ */
+
+/* Gravity Forms' reset clears <s>; the standard price stands struck through before today's. */
+.ppx-apply .ppx-plan-price s,
+.ppx-apply .ppx-choice-price s {
+	margin: 0 4px 0 0;
+	color: var(--ppx-muted) !important;
+	font-weight: 400 !important;
+	text-decoration: line-through !important;
+	text-decoration-thickness: 2px !important;
+}
+
+.ppx-apply .ppx-plan-price s {
+	font-size: 0.85em;
+}
+
+/* The theme's "Founding member rate · ends 12/31/2026" badge: the plan's description says it. */
+.ppx-apply .membership-plan .gchoice label::after,
+.ppx-apply .ppx-plan .gchoice label::after {
+	content: none !important;
+	display: none !important;
+}
+
+/* "(Optional)" as the "(Required)" marker, in a quiet colour. */
+.ppx-apply .ppx-optional {
+	margin-left: 4px;
+	color: var(--ppx-muted);
+	font-size: 12px;
+	font-weight: 500;
+	text-transform: uppercase;
+}
+
+/* No "X of N max characters" (the script is off too); the inputs keep their maximum length. */
+.ppx-apply .ginput_counter,
+.ppx-apply .charleft {
+	display: none !important;
+}
+
+/* Descriptions sit below the inputs, so inputs side by side start at the same height. */
+.ppx-apply .field_description_below .gfield_description:not(.validation_message) {
+	margin-top: 6px;
+}
+
+/* Address: Google's address search box looks like the other inputs (its inside is Google's own). Its
+   suggestions open below it, inside the element: no fixed height or overflow here, or they are cut off. */
+.ppx-apply gmp-place-autocomplete {
+	position: relative;
+	z-index: 20;
+	box-sizing: border-box;
+	border: 1px solid #cdd6df !important;
+	border-radius: 9px !important;
+	background: #fff !important;
+	box-shadow: 0 1px 4px rgba(18, 25, 97, 0.08);
+	color-scheme: light;
+}
+
+.ppx-apply gmp-place-autocomplete:focus-within {
+	border-color: var(--ppx-blue) !important;
+	box-shadow: 0 0 0 3px rgba(31, 90, 166, 0.18);
+}
+
+/* The license copy: a button and the file's name in one box, as tall and round as the other inputs. */
+.ppx-apply .ppx-file {
+	position: relative;
+	display: block;
+}
+
+.ppx-apply .ppx-file input[type="file"] {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	margin: -1px !important;
+	padding: 0 !important;
+	overflow: hidden !important;
+	clip: rect(0 0 0 0) !important;
+	border: 0 !important;
+	opacity: 0;
+}
+
+.ppx-apply .ppx-file__box {
+	box-sizing: border-box;
+	display: flex !important;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	height: 43px;
+	margin: 0 !important;
+	padding: 0 15px 0 5px !important;
+	border: 1px solid #cdd6df;
+	border-radius: 9px;
+	background: #fff;
+	box-shadow: 0 1px 4px rgba(18, 25, 97, 0.08);
+	color: #3b4656;
+	font-size: 15px !important;
+	font-weight: 400 !important;
+	text-transform: none !important;
+	cursor: pointer;
+}
+
+.ppx-apply .ppx-file__button {
+	flex: none;
+	padding: 6px 14px;
+	border-radius: 6px;
+	background: var(--ppx-soft);
+	color: var(--ppx-navy);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.ppx-apply .ppx-file__name {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--ppx-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ppx-apply .ppx-file.is-chosen .ppx-file__name {
+	color: #1c2a3a;
+}
+
+.ppx-apply .ppx-file input[type="file"]:focus-visible + .ppx-file__box {
+	border-color: var(--ppx-blue);
+	box-shadow: 0 0 0 3px rgba(31, 90, 166, 0.25);
+}
+
+.ppx-apply .ppx-file__box:hover {
+	border-color: #9fb0c4;
+}
+
+.ppx-apply .ppx-file.is-invalid .ppx-file__box,
+.ppx-apply .gfield_error .ppx-file__box {
+	border-color: #c02b0a;
+}
+
+.ppx-apply .ppx-file__error {
+	display: block;
+	color: #c02b0a;
+	font-size: 13px;
+}
+
+.ppx-apply .ppx-file__error:not(:empty) {
+	margin-top: 6px;
+}
+
+/* Payment: three equal cards in a row (stacked on phones), as "Who's joining?". */
+.ppx-apply .gfield.ppx-payment .gfield_radio {
+	display: grid !important;
+	grid-template-columns: 1fr;
+	gap: 12px;
+}
+
+@media (min-width: 641px) {
+	.ppx-apply .gfield.ppx-payment .gfield_radio {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+.ppx-apply .gfield.ppx-payment .gchoice {
+	box-sizing: border-box;
+	position: relative;
+	display: flex !important;
+	align-items: flex-start;
+	gap: 10px;
+	width: auto !important;
+	min-width: 0;
+	max-width: 100%;
+	margin: 0 !important;
+	padding: 16px 18px !important;
+	border: 1px solid var(--ppx-line) !important;
+	border-radius: 8px;
+	background: #fff !important;
+	cursor: pointer;
+}
+
+.ppx-apply .gfield.ppx-payment .gchoice:has(input:checked) {
+	border: 2px solid var(--ppx-navy) !important;
+	padding: 15px 17px !important;
+	background: var(--ppx-soft) !important;
+}
+
+.ppx-apply .gfield.ppx-payment .gchoice input {
+	position: static !important;
+	display: inline-block !important;
+	flex: none;
+	width: 18px !important;
+	height: 18px !important;
+	margin: 3px 0 0 !important;
+	opacity: 1 !important;
+	transform: none !important;
+	-webkit-appearance: radio !important;
+	appearance: auto !important;
+	accent-color: var(--ppx-navy);
+}
+
+.ppx-apply .gfield.ppx-payment .gchoice input::before,
+.ppx-apply .gfield.ppx-payment .gchoice label::before,
+.ppx-apply .gfield.ppx-payment .gchoice label::after {
+	display: none !important;
+	content: none !important;
+}
+
+.ppx-apply .gfield.ppx-payment .gchoice label {
+	display: block !important;
+	min-width: 0;
+	max-width: none;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	background: none !important;
+	box-shadow: none !important;
+	color: var(--ppx-navy) !important;
+	font-weight: 700;
+	white-space: normal !important;
+	cursor: pointer;
+}
+
+.ppx-apply .gfield.ppx-payment .ppx-choice-note {
+	display: block !important;
+	margin: 4px 0 0;
+}
+
+/* The surcharge product: it feeds the total and the summary only. */
+.ppx-apply .gfield.ppx-hidden-product {
+	display: none !important;
+}
+
+/* While Stripe builds the payment form again, the element's box keeps its height (the description below
+   stays put) and Stripe's skeleton stays hidden. */
+.ppx-apply .gfield.ppx-payment-loading {
+	/* Gravity Forms Stripe hides the field until it has built the element again: its place stays. */
+	display: block !important;
+}
+
+.ppx-apply .gfield.ppx-payment-loading .ginput_container {
+	position: relative;
+	visibility: hidden;
+}
+
+.ppx-apply .gfield.ppx-payment-loading .ginput_container::after {
+	content: "Loading the secure payment form…";
+	position: absolute;
+	top: 45%;
+	left: 0;
+	right: 0;
+	visibility: visible;
+	color: var(--ppx-muted);
+	font-size: 14px;
+	text-align: center;
+}
+
+/* The whole card chooses it (apply.js): it reacts as a whole. */
+.ppx-apply .gfield.ppx-joining .gchoice:hover,
+.ppx-apply .gfield.ppx-payment .gchoice:hover {
+	border-color: var(--ppx-blue) !important;
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice:has(input:focus-visible),
+.ppx-apply .gfield.ppx-payment .gchoice:has(input:focus-visible) {
+	outline: 3px solid rgba(31, 90, 166, 0.35);
+	outline-offset: 2px;
+}
+
+.ppx-apply .gfield.ppx-joining .gchoice label,
+.ppx-apply .gfield.ppx-payment .gchoice label {
+	flex: 1 1 auto;
+}
+
+/* "Resident license state" (an address field asking only for the state): half the width on wide screens,
+   the full width on phones, whatever the page's own styles. */
+.ppx-apply .gfield.ppx-state-only .ginput_container_address {
+	display: block !important;
+}
+
+.ppx-apply .gfield.ppx-state-only .address_state {
+	display: block !important;
+	width: 100% !important;
+	max-width: 100% !important;
+}
+
+/* Half of a full-width row only: in a half-width cell (a form that pairs it with another field) the select
+   takes its whole cell. */
+@media (min-width: 641px) {
+	.ppx-apply .gfield.ppx-state-only.gfield--width-full .address_state {
+		width: calc(50% - 8px) !important;
+		max-width: calc(50% - 8px) !important;
+	}
+}
+
+/* The license copy: its description already names the file types and the size, so Gravity Forms' own
+   "Accepted file types: …" line would say it twice. */
+.ppx-apply .gfield.ppx-license-copy .gform_fileupload_rules {
+	display: none !important;
+}
+
+/* A license copy Gravity Forms kept after a failed submission: its name is in our box (apply.js), so
+   Gravity Forms' own preview list would say it twice. */
+.ppx-apply .gfield.ppx-license-copy.ppx-file-kept .ginput_preview_list {
+	display: none !important;
+}
+
+/* Errors after a failed submission: under the input (apply-form.php), red, upright, the same for every
+   field. The theme draws every .gfield_description grey and italic, error messages included. */
+.ppx-apply .gfield .gfield_description.validation_message:not(:empty) {
+	margin-top: 6px;
+	color: #c02b0a !important;
+	font-style: normal !important;
+	font-weight: 500;
+	font-size: 13px;
+}
+
+.ppx-apply .gfield_error .ppx-file__box,
+.ppx-apply .gfield_error input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.ppx-apply .gfield_error select {
+	border-color: #c02b0a !important;
+}

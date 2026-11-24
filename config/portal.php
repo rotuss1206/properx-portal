@@ -114,7 +114,8 @@ return [
         'preview_max_kilobytes' => 5120,
 
         'agency_people' => [
-            // Agency people hold NPN + resident state only; no license document uploads.
+            // The dashboard's upload panel stays the individual members'. Agencies' licensed producers
+            // upload on the License documents page; agency employees hold no license.
             'license_upload' => false,
         ],
 
@@ -197,8 +198,9 @@ return [
         'directory' => 'certificates',
         'cache_hours' => 24,
 
-        // File name of a PNG of the Executive Director's real signature in resources/views/pdf/images,
-        // once the client provides it. Until then the name is set in Lora, as in the mockup.
+        // File name of a PNG of the second signatory's signature (CERTIFICATE_SECOND_SIGNATORY_NAME) in
+        // resources/views/pdf/images, transparent, trimmed to the ink. Used only with a second signatory; without
+        // it that name is set in Lora, as in the mockup. The first signature is always the name set in Lora.
         'signature_image' => env('CERTIFICATE_SIGNATURE_IMAGE') ? resource_path('views/pdf/images/'.env('CERTIFICATE_SIGNATURE_IMAGE')) : null,
     ],
 
@@ -294,6 +296,20 @@ return [
         // minutes, and at most this many a principal sends in an hour.
         'principal_resend_minutes' => 60,
         'principal_resends_per_hour' => 20,
+    ],
+
+    /*
+    | The agency owner's welcome (go-live requirements, "Agency owner welcome"), sent as soon as the
+    | enrollment is paid, next to the receipt with the account setup link. The client's text.
+    */
+    'agency_welcome' => [
+        // [Portal Login Link]; the portal's own sign-in page when unset.
+        'login_url' => env('AGENCY_WELCOME_LOGIN_URL'),
+        // The small group health enrollment application. A path in the image (relative to the
+        // application's root) or absolute; missing or unreadable: the email goes without it.
+        'attachment' => env('AGENCY_WELCOME_ATTACHMENT'),
+        // The email asks the owner to reply with the completed application.
+        'reply_to' => env('AGENCY_WELCOME_REPLY_TO'),
     ],
 
     /*

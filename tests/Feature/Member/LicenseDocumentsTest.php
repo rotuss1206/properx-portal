@@ -4,6 +4,7 @@ namespace Tests\Feature\Member;
 
 use App\Enums\LicenseVerification;
 use App\Enums\PaymentStatus;
+use App\Enums\PersonType;
 use App\Enums\Role;
 use App\Enums\VerificationStatus;
 use App\Member\DocumentList;
@@ -527,8 +528,8 @@ class LicenseDocumentsTest extends TestCase
 
         $this->actingAs($this->member())->get(route('member.license-documents.preview', $document))->assertForbidden();
 
-        $principal = $this->agency(2)->principal()->first();
-        $this->actingAs($principal)->get(route('member.license-documents.preview', $this->stored($principal, 'image/png', 'x')))->assertNotFound();
+        $employee = $this->agencyEmployee();
+        $this->actingAs($employee)->get(route('member.license-documents.preview', $this->stored($employee, 'image/png', 'x')))->assertNotFound();
 
         $member->memberProfile->forceFill(['payment_status' => PaymentStatus::Canceled, 'payment_status_updated_at' => now()->subMonth()])->save();
         $this->actingAs($member->fresh())->get(route('member.license-documents.preview', $document))->assertNotFound();
@@ -726,9 +727,28 @@ class LicenseDocumentsTest extends TestCase
 
     // Who may
 
-    public function test_agency_people_have_no_page_and_no_menu_item(): void
+    public function test_agencies_producers_have_the_page_and_upload_there_but_not_on_the_dashboard(): void
     {
         foreach ([$this->agency(2)->principal()->first(), $this->agencyPerson()] as $person) {
+            $this->actingAs($person);
+            $this->get(route('member.license-documents'))->assertOk();
+            $this->get(route('member.license-documents.upload'))->assertOk();
+            $this->post(route('member.license-documents.store'), ['file' => $this->pdf(), ...self::PAGE_FROM])->assertRedirect();
+            $this->assertSame(1, LicenseDocument::query()->where('user_id', $person->getKey())->count());
+        }
+    }
+
+    private function agencyEmployee(): User
+    {
+        $person = $this->agencyPerson();
+        $person->memberProfile->forceFill(['person_type' => PersonType::AgencyEmployee, 'npn' => null, 'license_state' => null, 'license_verification' => null])->saveQuietly();
+
+        return $person->fresh();
+    }
+
+    public function test_agency_employees_have_no_page_and_no_menu_item(): void
+    {
+        foreach ([$this->agencyEmployee()] as $person) {
             $document = $this->document($person, VerificationStatus::Pending);
 
             $this->actingAs($person);

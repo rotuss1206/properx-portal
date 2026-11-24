@@ -112,7 +112,7 @@ final class Overview
     }
 
     /**
-     * @return array{applicable: bool, label: string, variant: string, npn: ?string, state: ?string, reason: ?string}
+     * @return array{applicable: bool, label: string, variant: string, npn: ?string, state: ?string, reason: ?string, fixByDocument?: bool}
      */
     public function license(): array
     {
@@ -136,6 +136,9 @@ final class Overview
             'state' => UsStates::ALL[$profile->license_state] ?? $profile->license_state,
             // Staff's reason; correcting the NPN or state sends the license back to review.
             'reason' => $verification === LicenseVerification::NeedsAttention ? $profile->license_verification_note : null,
+            // Agencies' producers read their license in the profile and send a new one as a license
+            // document (which also sends it back to review); the NPN stays theirs to edit.
+            'fixByDocument' => $profile->agency_id !== null,
         ];
     }
 

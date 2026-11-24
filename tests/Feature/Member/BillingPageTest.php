@@ -79,7 +79,7 @@ class BillingPageTest extends TestCase
 
         $response = $this->actingAs($this->principal)->get(route('member.billing'))->assertOk();
 
-        $response->assertSeeInOrder(['Current plan', 'Active', 'Agency Plus membership', 'Founding rate', '$149', '/ person / year', 'Next payment', 'People', '3 people', 'Total', '$447 / year']);
+        $response->assertSeeInOrder(['Current plan', 'Active', 'Agency Plus membership', 'Founding rate', '$149', '/ person / year', 'Next payment', 'People', '3 billed members', 'Total', '$447 / year']);
         $response->assertSee('Visa ending 4242')->assertSee('Expires 08 / 2027')->assertSee('Manage payment method');
         $response->assertSeeInOrder(['INV-0002', 'Due', 'Pay', 'INV-0001', '$460.00', 'Paid', 'PDF']);
         $response->assertSee('href="https://pay.stripe.com/invoice/in_1/pdf"', false);

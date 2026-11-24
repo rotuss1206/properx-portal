@@ -54,7 +54,8 @@ final class ProfilePage
             return ['security'];
         }
 
-        return $this->holdsLicense() ? self::SECTIONS : ['contact', 'business', 'security'];
+        // Agencies' producers read their license here and send a new one as a license document.
+        return $this->fullLicense() ? self::SECTIONS : ['contact', 'business', 'security'];
     }
 
     public function holdsLicense(): bool

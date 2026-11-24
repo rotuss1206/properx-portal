@@ -12,15 +12,15 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Support\HtmlString;
 
 /**
- * To the principal once the agency is enrolled (Agency spec 7): welcome, the receipt (dues, the
- * credit card surcharge on its own line, tier, people, renewal date) and their own one-time link
- * to set a password and two-factor sign-in. Sent at once (notifyNow), never queued: the token
+ * To the principal once the agency is enrolled (Agency spec 7), right after the client's welcome
+ * (AgencyOwnerWelcome): the receipt (dues, the credit card surcharge on its own line, tier, people,
+ * renewal date) and their own one-time link to set a password and two-factor sign-in. Sent at once (notifyNow), never queued: the token
  * exists only in this email. No names or agency details. Wording: docs/agency-emails.md.
  */
 class AgencyWelcome extends Notification
 {
     /**
-     * @param  array{subtotal: int, surcharge: int, total: int, tier: string, rate_type: string, headcount: int, partner_rate_applied?: bool}  $receipt
+     * @param  array{subtotal: int, surcharge: int, total: int, tier: string, rate_type: string, headcount: int, seats?: int, rate?: int, partner_rate_applied?: bool}  $receipt
      */
     public function __construct(
         private readonly string $token,
@@ -40,8 +40,8 @@ class AgencyWelcome extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Welcome to ProPerX Alliance: your agency is enrolled')
-            ->greeting('Welcome to ProPerX Alliance')
+            ->subject('Your ProPerX Alliance receipt and account setup')
+            ->greeting('Your agency is enrolled')
             ->line('Thank you: your agency is enrolled and your payment has been received.')
             ->line(new HtmlString($this->receiptTable()))
             ->line('Your membership renews automatically each year; we will email you '.RenewalDays::phrase().' before.')
@@ -64,8 +64,16 @@ class AgencyWelcome extends Notification
         $rows = [
             ['Membership', trim(($tier?->label() ?? '').', '.$rate, ', ')],
             ['People', (string) $this->receipt['headcount']],
-            ['Membership dues for the year', Money::format($this->receipt['subtotal'])],
         ];
+
+        // The two-member minimum: a principal alone pays for two (AgencyPricingService::billableSeats).
+        $seats = (int) ($this->receipt['seats'] ?? $this->receipt['headcount']);
+
+        if ($seats !== (int) $this->receipt['headcount'] && ($this->receipt['rate'] ?? 0) > 0) {
+            $rows[] = [$seats > (int) $this->receipt['headcount'] ? 'Minimum '.$seats.' members' : 'Billed members', Money::format((int) $this->receipt['rate']).' × '.$seats];
+        }
+
+        $rows[] = ['Membership dues for the year', Money::format($this->receipt['subtotal'])];
 
         if ($this->receipt['surcharge'] > 0) {
             $rows[] = ['Credit card surcharge', Money::format($this->receipt['surcharge'])];

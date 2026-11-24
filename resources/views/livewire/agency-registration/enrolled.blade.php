@@ -31,6 +31,9 @@
             <h3 class="section-title">Receipt</h3>
             <dl class="payment-summary">
                 <dt>Paid with</dt><dd>{{ $receipt['label'] ?? '—' }}</dd>
+                @if (! empty($receipt['minimum_line']))
+                    <dt>Billed</dt><dd>{{ $receipt['minimum_line'] }}</dd>
+                @endif
                 <dt>Membership dues for the year</dt><dd>{{ \App\Support\Money::format((int) ($receipt['subtotal'] ?? 0)) }}</dd>
                 @if (($receipt['surcharge'] ?? 0) > 0)
                     <dt>Credit card surcharge</dt><dd>{{ \App\Support\Money::format((int) $receipt['surcharge']) }}</dd>

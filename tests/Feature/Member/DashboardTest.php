@@ -318,8 +318,10 @@ class DashboardTest extends TestCase
     {
         $agency = $this->agency(2);
         $person = $agency->members()->where('user_id', '!=', $agency->principal_user_id)->first()->user;
+        // Producers upload on the License documents page; agency employees hold no license.
+        $person->memberProfile->forceFill(['person_type' => PersonType::AgencyEmployee, 'npn' => null, 'license_state' => null, 'license_verification' => null])->saveQuietly();
 
-        $this->actingAs($person)->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'document_type' => 'resident'])->assertForbidden();
+        $this->actingAs($person->fresh())->post(route('member.license-documents.store'), ['file' => $this->pdf(), 'document_type' => 'resident'])->assertForbidden();
 
         $restricted = $this->member();
         $restricted->memberProfile->forceFill(['payment_status' => PaymentStatus::Canceled, 'payment_status_updated_at' => now()->subMonth()])->save();

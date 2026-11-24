@@ -3,26 +3,31 @@
 namespace App\Livewire\AgencyRegistration;
 
 use App\Enums\PersonType;
+use App\Support\LicenseTypes;
 use App\Support\UsStates;
 use Illuminate\Support\Str;
 
 /**
  * The People screen's spreadsheet (Agency spec 5.4, Option B): a template to download and the
  * rows of an uploaded CSV. The text arrives in the Livewire call (public/portal/join-csv.js
- * reads the file in the browser) and is parsed in memory; no file is written anywhere.
+ * reads the file in the browser) and is parsed in memory; no file is written anywhere. License
+ * copies cannot travel in a CSV: each producer's copy is uploaded on the list afterwards (LicenseCopy).
  */
 final class PeopleCsv
 {
     public const MAX_BYTES = 1024 * 1024;
 
-    public const COLUMNS = ['type', 'first_name', 'last_name', 'email', 'npn', 'state'];
+    public const COLUMNS = ['type', 'first_name', 'last_name', 'email', 'npn', 'state', 'license_number', 'license_type'];
+
+    /** A file of the earlier template (without the license columns) is still read. */
+    public const REQUIRED_COLUMNS = ['type', 'first_name', 'last_name', 'email', 'npn', 'state'];
 
     private const BOM = "\xEF\xBB\xBF";
 
     /** The template's sample rows; left in an upload, they are skipped rather than enrolled. */
     public const EXAMPLES = [
-        ['licensed_producer', 'Jordan', 'Lee', 'jordan.lee@youragency.com', '12345678', 'TX'],
-        ['agency_employee', 'Sam', 'Rivera', 'sam.rivera@youragency.com', '', ''],
+        ['licensed_producer', 'Jordan', 'Lee', 'jordan.lee@youragency.com', '12345678', 'TX', 'TX-1234567', 'Life; Health'],
+        ['agency_employee', 'Sam', 'Rivera', 'sam.rivera@youragency.com', '', '', '', ''],
     ];
 
     /**
@@ -75,8 +80,13 @@ final class PeopleCsv
         try {
             $header = fgetcsv($stream, null, $delimiter, '"', '');
             $columns = array_map(fn ($cell) => Str::of((string) $cell)->trim()->lower()->replace([' ', '-'], '_')->toString(), $header ?: []);
-            $columns = array_map(fn (string $column) => $column === 'license_state' ? 'state' : $column, $columns);
-            $missing = array_diff(self::COLUMNS, $columns);
+            $columns = array_map(fn (string $column) => match ($column) {
+                'license_state' => 'state',
+                'license_types', 'license_type(s)', 'type_of_license' => 'license_type',
+                'license', 'license_no', 'license_#' => 'license_number',
+                default => $column,
+            }, $columns);
+            $missing = array_diff(self::REQUIRED_COLUMNS, $columns);
 
             if ($missing !== []) {
                 throw new PeopleCsvException('The first row must name the columns '.implode(', ', self::COLUMNS).'. Missing: '.implode(', ', $missing).'. Download the template to start.');
@@ -89,13 +99,13 @@ final class PeopleCsv
 
             while (($cells = fgetcsv($stream, null, $delimiter, '"', '')) !== false) {
                 $line++;
-                $values = array_map(fn (string $column) => trim((string) ($cells[$positions[$column]] ?? '')), array_combine(self::COLUMNS, self::COLUMNS));
+                $values = array_map(fn (string $column) => isset($positions[$column]) ? trim((string) ($cells[$positions[$column]] ?? '')) : '', array_combine(self::COLUMNS, self::COLUMNS));
 
                 if (implode('', $values) === '') {
                     continue;
                 }
 
-                if (in_array(array_values($values), self::EXAMPLES, true)) {
+                if (self::isExample($values)) {
                     $examples++;
 
                     continue;
@@ -119,11 +129,32 @@ final class PeopleCsv
     }
 
     /**
+     * One of the template's sample rows, also as the older six-column template wrote them.
+     *
+     * @param  array<string, string>  $values
+     */
+    private static function isExample(array $values): bool
+    {
+        $required = count(self::REQUIRED_COLUMNS);
+
+        foreach (self::EXAMPLES as $example) {
+            $extra = array_slice(array_values($values), $required);
+
+            if (array_slice(array_values($values), 0, $required) === array_slice($example, 0, $required)
+                && ($extra === array_slice($example, $required) || implode('', $extra) === '')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * A CSV row in the People form's shape. Friendly spellings of the type ("Licensed producer",
      * "employee") and state names are understood; anything else is left for the form's rules.
      *
      * @param  array<string, string>  $values
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private static function toPerson(array $values): array
     {
@@ -145,6 +176,9 @@ final class PeopleCsv
             'email' => $values['email'],
             'npn' => $values['npn'],
             'license_state' => $state,
+            'license_number' => $values['license_number'],
+            'license_types' => ($license = LicenseTypes::fromText($values['license_type']))['types'],
+            'license_type_other' => $license['other'],
         ];
     }
 }

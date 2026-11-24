@@ -20,8 +20,8 @@
         @if (session('status'))
             <p class="ppx-notice ppx-notice--success" role="status">{{ session('status') }}</p>
         @endif
-        @if ($summary['ends_at_renewal'] && $summary['paid_through'])
-            <p class="ppx-notice ppx-notice--warning" role="status">An agency membership needs at least {{ config('agency.minimum_headcount') }} people. With the removals planned, your agency's membership ends on {{ $summary['paid_through']->format('F j, Y') }} and will not renew. Everyone has been offered individual membership. Keep someone to continue.</p>
+        @if ($summary['minimum_applies'])
+            <p class="ppx-notice ppx-notice--info" role="status">Your agency is billed for at least {{ config('agency.minimum_headcount') }} members. Adding your W2 employees or another producer up to that number costs nothing extra.</p>
         @endif
         @if (session('agency_error'))
             <p class="ppx-notice ppx-notice--danger" role="alert">{{ session('agency_error') }}</p>
@@ -152,7 +152,7 @@
                                                 <p class="ppx-docs__confirm-title">Remove {{ $person['name'] }} from the agency?</p>
                                                 <p class="ppx-docs__confirm-text">They keep their access until your renewal on {{ $removalDate->format('F j, Y') }}, then leave the agency. Your renewal bills one person fewer; nothing is refunded or credited for this year. They are emailed a link to apply as an individual member.</p>
                                                 @if ($lastOnes)
-                                                    <p class="ppx-notice ppx-notice--warning">After this, fewer than {{ config('agency.minimum_headcount') }} people stay: your agency's membership ends on {{ $removalDate->format('F j, Y') }} and will not renew. Everyone is offered individual membership.</p>
+                                                    <p class="ppx-notice ppx-notice--info">Your agency is always billed for at least {{ config('agency.minimum_headcount') }} members, so the renewal amount stays the same.</p>
                                                 @endif
                                                 <label class="ppx-form__label" for="reason-{{ $person['id'] }}">Why does {{ $person['name'] }} leave?</label>
                                                 <select class="ppx-field__input ppx-agency__reason-select" id="reason-{{ $person['id'] }}" name="reason" required>

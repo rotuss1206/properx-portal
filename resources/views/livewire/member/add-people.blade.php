@@ -9,7 +9,8 @@
     $people = $this->people;
     $editing = isset($people->rows[$people->editing]);
     $isProducer = ($people->entry['type'] ?? '') === \App\Enums\PersonType::LicensedProducer->value;
-    $fields = ['type' => 'Person type', 'first_name' => 'First name', 'last_name' => 'Last name', 'email' => 'Email', 'npn' => 'NPN', 'license_state' => 'State'];
+    $fields = ['type' => 'Person type', 'first_name' => 'First name', 'last_name' => 'Last name', 'email' => 'Email', 'npn' => 'NPN', 'license_state' => 'State', 'license_number' => 'License number', 'license_types' => 'License type', 'license_type_other' => 'Other license type', 'license_file' => 'License copy'];
+    $entryTypes = (array) ($people->entry['license_types'] ?? []);
     $field = fn (string $name) => $errors->first('people.entry.'.$name);
 @endphp
 <div class="ppx-add">
@@ -33,7 +34,20 @@
                         <li @class(['ppx-add__person', 'has-error' => $rowErrors->isNotEmpty(), 'is-editing' => $people->editing === $index]) wire:key="person-{{ $index }}">
                             <span class="ppx-add__text">
                                 <span class="ppx-agency__person">{{ $name }} <x-ppx.badge :variant="$row['type'] === 'agency_employee' ? 'neutral' : 'success'" :dot="false">{{ $personTypes[$row['type']] ?? $row['type'] }}</x-ppx.badge></span>
-                                <span class="ppx-agency__email">{{ $row['email'] }}@if ($row['npn'] !== '') · NPN {{ $row['npn'] }}@endif @if ($row['license_state'] !== '') · {{ $states[$row['license_state']] ?? $row['license_state'] }}@endif</span>
+                                <span class="ppx-agency__email">{{ $row['email'] }}@if ($row['npn'] !== '') · NPN {{ $row['npn'] }}@endif @if ($row['license_state'] !== '') · {{ $states[$row['license_state']] ?? $row['license_state'] }}@endif @if ($row['license_number'] !== '') · License {{ $row['license_number'] }}@endif</span>
+                                @if ($row['type'] === \App\Enums\PersonType::LicensedProducer->value)
+                                    <span class="ppx-add__license">
+                                        @if ($row['license_file'] !== '')
+                                            <x-ppx.badge variant="success" :dot="false">License copy</x-ppx.badge> {{ $row['license_file_name'] }}
+                                        @elseif (\App\Support\LicenseCopy::required())
+                                            <x-ppx.badge variant="warning" :dot="false">{{ \App\Support\LicenseCopy::NEEDED }}</x-ppx.badge>
+                                        @endif
+                                        <label class="ppx-link ppx-add__upload">{{ $row['license_file'] !== '' ? 'Replace copy' : 'Upload license copy' }}<span class="ppx-visually-hidden"> for {{ $name }}</span>
+                                            <input class="ppx-visually-hidden" type="file" wire:model="rowLicenseUploads.{{ $index }}" accept="{{ \App\Services\Documents\DocumentVault::acceptedExtensions() }}">
+                                        </label>
+                                        @error('people.rows.'.$index.'.license_file')<span class="ppx-field__error">{{ $message }}</span>@enderror
+                                    </span>
+                                @endif
                                 @foreach ($rowErrors as $key => $error)
                                     <span class="ppx-agency__reason">{{ $fields[$key] }}: {{ $error }}</span>
                                 @endforeach
@@ -101,7 +115,7 @@
                         <label class="ppx-form__label" for="people-entry-npn">Individual NPN</label>
                         <div class="ppx-form__control">
                             <input class="ppx-field__input" id="people-entry-npn" inputmode="numeric" maxlength="10" wire:model="people.entry.npn" wire:keydown.enter.prevent="savePerson" autocomplete="off" @if ($field('npn')) aria-invalid="true" @endif>
-                            @if ($field('npn'))<p class="ppx-field__error">{{ $field('npn') }}</p>@else<p class="ppx-field__hint">7 to 10 digits.</p>@endif
+                            @if ($field('npn'))<p class="ppx-field__error">{{ $field('npn') }}</p>@else<p class="ppx-field__hint">Optional: 7 to 10 digits, if they have it.</p>@endif
                         </div>
                     </div>
                     <div class="ppx-form__row">
@@ -114,6 +128,40 @@
                                 @endforeach
                             </select>
                             @if ($field('license_state'))<p class="ppx-field__error">{{ $field('license_state') }}</p>@endif
+                        </div>
+                    </div>
+                    <div class="ppx-form__row">
+                        <label class="ppx-form__label" for="people-entry-license_number">License number</label>
+                        <div class="ppx-form__control">
+                            <input class="ppx-field__input" id="people-entry-license_number" maxlength="50" wire:model="people.entry.license_number" wire:keydown.enter.prevent="savePerson" autocomplete="off" @if ($field('license_number')) aria-invalid="true" @endif>
+                            @if ($field('license_number'))<p class="ppx-field__error">{{ $field('license_number') }}</p>@endif
+                        </div>
+                    </div>
+                    <div class="ppx-form__row" role="group" aria-labelledby="people-entry-license_types-label">
+                        <span class="ppx-form__label" id="people-entry-license_types-label">License type(s) held</span>
+                        <div class="ppx-form__control ppx-add__types">
+                            @foreach (\App\Support\LicenseTypes::choices() as $i => $choice)
+                                <label class="ppx-check"><input type="checkbox" wire:model.live="people.entry.license_types" value="{{ $choice }}" id="people-entry-license_types-{{ $i }}"> {{ $choice }}</label>
+                            @endforeach
+                            @if ($field('license_types'))<p class="ppx-field__error">{{ $field('license_types') }}</p>@endif
+                        </div>
+                    </div>
+                    @if (in_array(\App\Support\LicenseTypes::OTHER, $entryTypes, true))
+                        <div class="ppx-form__row">
+                            <label class="ppx-form__label" for="people-entry-license_type_other">Other license type</label>
+                            <div class="ppx-form__control">
+                                <input class="ppx-field__input" id="people-entry-license_type_other" maxlength="100" wire:model="people.entry.license_type_other" autocomplete="off">
+                                @if ($field('license_type_other'))<p class="ppx-field__error">{{ $field('license_type_other') }}</p>@endif
+                            </div>
+                        </div>
+                    @endif
+                    <div class="ppx-form__row">
+                        <label class="ppx-form__label" for="people-entry-license_file">Copy of the license</label>
+                        <div class="ppx-form__control">
+                            @if (($people->entry['license_file_name'] ?? '') !== '')<p class="ppx-field__hint"><x-ppx.badge variant="success" :dot="false">Uploaded</x-ppx.badge> {{ $people->entry['license_file_name'] }}</p>@endif
+                            <input id="people-entry-license_file" type="file" wire:model="licenseUpload" accept="{{ \App\Services\Documents\DocumentVault::acceptedExtensions() }}">
+                            <p class="ppx-field__hint" wire:loading wire:target="licenseUpload">Uploading…</p>
+                            @if ($field('license_file'))<p class="ppx-field__error">{{ $field('license_file') }}</p>@else<p class="ppx-field__hint">PDF, JPG or PNG, up to 10 MB. ProPerX checks it before the license is verified.</p>@endif
                         </div>
                     </div>
                 @endif
@@ -152,6 +200,11 @@
                     {{ $review['added'] }} {{ $review['added'] === 1 ? 'person' : 'people' }} to add
                     ({{ $review['producers'] }} {{ $review['producers'] === 1 ? 'producer' : 'producers' }}, {{ $review['employees'] }} {{ $review['employees'] === 1 ? 'employee' : 'employees' }}):
                     your agency goes from {{ $review['before'] }} to {{ $review['after'] }} people.
+                    @if (($review['seats_after'] ?? 0) === ($review['seats_before'] ?? -1))
+                        Your agency is already billed for {{ $review['seats_after'] }} members (the minimum), so they add nothing to the price.
+                    @elseif (($review['seats_after'] ?? 0) !== $review['after'])
+                        Billed members: {{ $review['seats_before'] }} → {{ $review['seats_after'] }}.
+                    @endif
                 </p>
                 @if ($review['tier_changes'])
                     <p class="ppx-notice ppx-notice--success">Your agency moves up to {{ $review['tier_after'] }}: everyone's rate becomes {{ Money::format($review['rate']) }} a year now, prorated below for the rest of the year.</p>

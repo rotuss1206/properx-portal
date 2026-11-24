@@ -33,7 +33,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 12;
+    private const TEMPLATE_VERSION = 13;
 
     /**
      * The PDF's design (docs/design/Certificate.jpg) draws the Letter page 816 px wide; the page is 612 pt.
@@ -291,7 +291,7 @@ class CertificateGeneratorService
         return $data + [
             'preview' => false,
             'qrCode' => $this->qrCode($data['verificationUrl']),
-            'signatureImage' => $this->signatureImage(),
+            'secondSignatureImage' => $data['secondSignatoryName'] !== null ? $this->signatureImage() : null,
             'logoImage' => self::embedded('logo-color.png', 'image/png'),
             'sealImage' => self::embedded('seal.svg', 'image/svg+xml'),
             'linkImage' => self::embedded('link.svg', 'image/svg+xml'),
@@ -420,7 +420,11 @@ class CertificateGeneratorService
      */
     private function fingerprint(array $data): string
     {
-        return sha1(json_encode([self::TEMPLATE_VERSION, $data, $this->signatureImagePath()]));
+        // The signature's contents, not only its name: a replaced file makes new certificates at once.
+        $path = $this->signatureImagePath();
+        $signature = $path !== null && is_file($path) ? sha1_file($path) : null;
+
+        return sha1(json_encode([self::TEMPLATE_VERSION, $data, $signature]));
     }
 
     private function qrCode(string $url): string
@@ -440,7 +444,7 @@ class CertificateGeneratorService
     }
 
     /**
-     * The real signature, once the client provides it; until then the name is set in Lora.
+     * The second signatory's own signature (portal.certificates.signature_image); without it the name is set in Lora.
      */
     private function signatureImage(): ?string
     {

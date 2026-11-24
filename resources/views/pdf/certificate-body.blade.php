@@ -60,17 +60,17 @@
         </div>
     @endif
 
-    <div class="cert-sign cert-sign-left">
-        @if ($signatureImage)
-            <img class="cert-sign-image" src="{{ $signatureImage }}" alt="Signature of {{ $signatoryName }}">
-        @else
-            {{ $signatoryName }}
-        @endif
-    </div>
+    <div class="cert-sign cert-sign-left">{{ $signatoryName }}</div>
 
     <div class="cert-seal"><img class="cert-seal-content" src="{{ $sealImage }}" alt="Official seal"></div>
 
-    <div class="cert-sign cert-sign-right">{{ $secondSignatoryName ?: $issuedOnLabel }}</div>
+    <div class="cert-sign cert-sign-right">
+        @if ($secondSignatureImage)
+            <img class="cert-sign-image" src="{{ $secondSignatureImage }}" alt="Signature of {{ $secondSignatoryName }}">
+        @else
+            {{ $secondSignatoryName ?: $issuedOnLabel }}
+        @endif
+    </div>
 
     <div class="cert-line cert-footer">
         <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">@if ($secondSignatoryName)Issued {{ $issuedOnLabel }} ·@endif Verify authenticity at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · <span class="cert-footer-id">Certificate ID {{ $certificateCode }}</span>

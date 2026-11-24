@@ -45,7 +45,8 @@ final class MemberMenu
     }
 
     /**
-     * Agency people hold NPN and resident state only (no license document uploads). Billing is
+     * License documents: individual members and agencies' licensed producers (their enrollment's
+     * license copy is there, and a new license goes there), never agency employees. Billing is
      * everyone's: the principal manages the agency's, other agency people learn who pays
      * (App\Member\BillingPage). "My agency" is the principal's only. License documents and the
      * library close while the membership is restricted (Spec 7).
@@ -56,7 +57,7 @@ final class MemberMenu
         $inAgency = $profile?->agency_id !== null;
 
         return match ($key) {
-            'license-documents' => (! $inAgency || (bool) config('portal.member_area.agency_people.license_upload'))
+            'license-documents' => (! $inAgency || ! $profile->isAgencyEmployee() || (bool) config('portal.member_area.agency_people.license_upload'))
                 && $user->can('viewAny', LicenseDocument::class),
             'agency' => AgencyPage::visible($user),
             'library' => $user->can('viewAny', LibraryDocument::class),

@@ -105,8 +105,8 @@ class AgencyCheckout
 
             $item = $quote->partnerRateApplied
                 // The partner rate has no price of its own: the same product at that amount.
-                ? ['price_data' => ['currency' => config('agency.currency'), 'product' => $this->catalog->agencyProductId(), 'unit_amount' => $quote->rate, 'recurring' => ['interval' => 'year']], 'quantity' => $quote->headcount]
-                : ['price' => $this->catalog->priceId($quote->tier, $quote->rateType), 'quantity' => $quote->headcount];
+                ? ['price_data' => ['currency' => config('agency.currency'), 'product' => $this->catalog->agencyProductId(), 'unit_amount' => $quote->rate, 'recurring' => ['interval' => 'year']], 'quantity' => $quote->seats]
+                : ['price' => $this->catalog->priceId($quote->tier, $quote->rateType), 'quantity' => $quote->seats];
 
             $params = [
                 'customer' => $customerId,

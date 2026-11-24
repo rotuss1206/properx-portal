@@ -116,7 +116,7 @@ class SignInDestinationTest extends TestCase
     public function test_a_member_section_closed_to_agency_people_leads_home(): void
     {
         $this->assertLandsOn('/member/license-documents', true, 'member', '/member/license-documents');
-        $this->assertLandsOn(self::MEMBER_HOME_ON, true, 'principal', '/member/license-documents');
+        $this->assertLandsOn('/member/license-documents', true, 'principal', '/member/license-documents');
         $this->assertLandsOn(self::MEMBER_HOME_ON, true, 'employee', '/member/license-documents');
     }
 

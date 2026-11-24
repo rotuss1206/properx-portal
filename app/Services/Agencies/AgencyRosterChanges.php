@@ -15,9 +15,9 @@ use App\Jobs\SendAgencyInvitation;
 use App\Models\Agency;
 use App\Models\AuditLog;
 use App\Models\MemberProfile;
+use App\Models\PendingLicenseFile;
 use App\Models\User;
 use App\Notifications\AgencyPeopleAdded;
-use App\Notifications\Member\AgencyEndingAtRenewal;
 use App\Notifications\Member\AgencyRemovalScheduled;
 use App\Notifications\Member\MovedToAgency;
 use App\Services\Memberships\RejoinRule;
@@ -80,7 +80,7 @@ class AgencyRosterChanges
      *
      * @throws RosterChangeException when the agency cannot add people now
      */
-    public function quote(Agency $agency, int $added, ?int $prorationDate = null): AgencyAdditionQuote
+    public function quote(Agency $agency, int $added, ?int $prorationDate = null, int $addedEmployees = 0): AgencyAdditionQuote
     {
         if ($added < 1) {
             throw new RosterChangeException('Add at least one person first.');
@@ -102,7 +102,11 @@ class AgencyRosterChanges
 
         $before = $agency->continuingHeadcount();
         $after = $before + $added;
-        $tierAfter = AgencyTier::forHeadcount($after);
+        // Billed members: the minimum may already cover the new people (a principal alone pays for two).
+        $employeesBefore = $agency->employeeCount(continuing: true);
+        $seatsBefore = AgencyPricingService::billableSeats($before, $employeesBefore);
+        $seatsAfter = AgencyPricingService::billableSeats($after, $employeesBefore + $addedEmployees);
+        $tierAfter = AgencyTier::forHeadcount(max($after, (int) config('agency.minimum_headcount')));
         // Adding never moves an agency down a tier.
         $tierAfter = $tierAfter->minHeadcount() < $agency->tier->minHeadcount() ? $agency->tier : $tierAfter;
         $prorationDate ??= now()->getTimestamp();
@@ -113,7 +117,7 @@ class AgencyRosterChanges
                 'customer' => $agency->stripe_customer_id,
                 'subscription' => $agency->stripe_subscription_id,
                 'subscription_details' => [
-                    'items' => [['id' => $itemId, 'quantity' => $after] + $this->priceParams($agency, $tierAfter)],
+                    'items' => [['id' => $itemId, 'quantity' => $seatsAfter] + $this->priceParams($agency, $tierAfter)],
                     'proration_behavior' => 'always_invoice',
                     'proration_date' => $prorationDate,
                 ],
@@ -157,6 +161,8 @@ class AgencyRosterChanges
             paymentMethod: $method['label'],
             paymentMethodId: $method['id'],
             subscriptionItemId: $itemId,
+            seatsBefore: $seatsBefore,
+            seatsAfter: $seatsAfter,
         );
     }
 
@@ -176,7 +182,7 @@ class AgencyRosterChanges
     {
         return Cache::lock('agency-roster:'.$agency->getKey(), 60)->block(20, function () use ($agency, $rows, $by, $expectedTotal, $prorationDate) {
             $agency->refresh();
-            $quote = $this->quote($agency, count($rows), $prorationDate);
+            $quote = $this->quote($agency, count($rows), $prorationDate, self::kinds($rows)['employees']);
 
             if ($quote->total !== $expectedTotal) {
                 throw new RosterChangeException('The amount is now '.Money::exact($quote->total).'. Please check it and confirm again.');
@@ -188,7 +194,7 @@ class AgencyRosterChanges
                 $people = [];
 
                 foreach ($rows as $row) {
-                    $user = $this->enrollment->createPerson($agency, $row + ['phone' => null, 'principal' => false]);
+                    $user = $this->enrollment->createPerson($agency, $row + ['phone' => null, 'principal' => false], [PendingLicenseFile::OWNER_AGENCY, $agency->getKey()]);
 
                     if ($user !== null) {
                         $people[] = $user;
@@ -200,7 +206,7 @@ class AgencyRosterChanges
                 return $people;
             });
 
-            $agency->forceFill(['tier' => $quote->tierAfter, 'billed_headcount' => $quote->headcountAfter])->saveQuietly();
+            $agency->forceFill(['tier' => $quote->tierAfter, 'billed_headcount' => $quote->seatsAfter])->saveQuietly();
 
             AuditLog::record('agency_people_added', $agency, $by, array_filter([
                 'people' => count($created),
@@ -252,7 +258,7 @@ class AgencyRosterChanges
                 throw new RosterChangeException('This member is already on an agency.');
             }
 
-            $quote = $this->quote($agency, 1, $prorationDate);
+            $quote = $this->quote($agency, 1, $prorationDate, $type === PersonType::AgencyEmployee ? 1 : 0);
 
             if ($quote->total !== $expectedTotal) {
                 throw new RosterChangeException('The amount is now '.Money::exact($quote->total).'. Please run the action again to confirm it.');
@@ -276,7 +282,7 @@ class AgencyRosterChanges
                 $agency->syncHeadcount();
             });
 
-            $agency->forceFill(['tier' => $quote->tierAfter, 'billed_headcount' => $quote->headcountAfter])->saveQuietly();
+            $agency->forceFill(['tier' => $quote->tierAfter, 'billed_headcount' => $quote->seatsAfter])->saveQuietly();
 
             AuditLog::record('member_moved_to_agency', $person, $by, array_filter([
                 'agency_id' => $agency->getKey(),
@@ -304,7 +310,7 @@ class AgencyRosterChanges
         return match (true) {
             $person->agency_id !== null => 'Only individual members can be moved into an agency.',
             $person->user === null || ! $person->user->isMember() => 'Only member accounts can be moved into an agency.',
-            $type === PersonType::LicensedProducer && preg_match(MemberProfile::AGENCY_NPN_PATTERN, (string) $person->npn) !== 1 => 'A licensed producer in an agency needs an NPN of 7 to 10 digits. Correct the NPN on the profile first, or move them as an agency employee.',
+            $type === PersonType::LicensedProducer && filled($person->npn) && preg_match(MemberProfile::AGENCY_NPN_PATTERN, (string) $person->npn) !== 1 => 'A licensed producer in an agency with an NPN needs one of 7 to 10 digits. Correct the NPN on the profile first, or move them as an agency employee.',
             $type === PersonType::LicensedProducer && blank($person->license_state) => 'A licensed producer in an agency needs a resident state. Add it on the profile first.',
             ($until = RejoinRule::blockedUntil($person)) !== null => 'This member canceled their individual membership on '.$person->membership_canceled_at->toFormattedDateString().' and may join again on '.$until->toFormattedDateString().' (24-month rule). If ProPerX approves, lift the wait first (action "Lift rejoin wait").',
             default => null,
@@ -325,7 +331,7 @@ class AgencyRosterChanges
     {
         $key = 'properx-agency-add-'.$agency->getKey().'-'.substr(hash('sha256', json_encode([array_column($rows, 'email'), $quote->total, $quote->prorationDate])), 0, 20);
         $params = [
-            'items' => [['id' => $quote->subscriptionItemId, 'quantity' => $quote->headcountAfter] + $this->priceParams($agency, $quote->tierAfter)],
+            'items' => [['id' => $quote->subscriptionItemId, 'quantity' => $quote->seatsAfter] + $this->priceParams($agency, $quote->tierAfter)],
             'expand' => ['latest_invoice'],
         ];
 
@@ -370,6 +376,7 @@ class AgencyRosterChanges
         $tierRate = $tier->rate($agency->rate_type);
         $rate = $this->rateFor($agency, $tier);
 
+        // The partner rate is set on the agency product (price_data); the tier's own prices otherwise.
         return $rate < $tierRate
             ? ['price_data' => ['currency' => config('agency.currency'), 'product' => $this->catalog->agencyProductId(), 'unit_amount' => $rate, 'recurring' => ['interval' => 'year']]]
             : ['price' => $this->catalog->priceId($tier, $agency->rate_type)];
@@ -379,7 +386,7 @@ class AgencyRosterChanges
     {
         $tierRate = $tier->rate($agency->rate_type);
 
-        return $agency->partnerCode?->isValid(now()) ? min($tierRate, (int) config('agency.partner_rate')) : $tierRate;
+        return $agency->partnerCode?->isValid(now()) ? min($tierRate, AgencyPricingService::partnerRate($tier)) : $tierRate;
     }
 
     /**
@@ -417,21 +424,15 @@ class AgencyRosterChanges
         }
 
         $effective = $agency->paid_through_at && $agency->paid_through_at->isFuture() ? $agency->paid_through_at->copy() : now();
-        $wasContinuing = $agency->continuingHeadcount();
 
         $person->forceFill(['removal_effective_at' => $effective, 'removal_reason' => $reason, 'removal_scheduled_at' => now()])->save();
         AuditLog::record('agency_member_removal_scheduled', $person, $by, ['agency_id' => $agency->getKey(), 'reason' => $reason, 'effective_on' => $effective->toDateString()]);
 
         $person->user?->notify(new AgencyRemovalScheduled($effective->toDateString()));
 
+        // The renewal bills the people who stay, never fewer than the minimum (a principal alone
+        // pays for two), so a removal no longer ends the agency.
         $this->syncRenewal($agency);
-
-        // From now on the agency will not renew: everyone still on it hears so, once.
-        $minimum = (int) config('agency.minimum_headcount');
-
-        if ($wasContinuing >= $minimum && $agency->continuingHeadcount() < $minimum) {
-            $agency->continuingMembers()->with('user')->get()->each(fn (MemberProfile $stays) => $stays->user?->notify(new AgencyEndingAtRenewal($effective->toDateString())));
-        }
     }
 
     public function cancelRemoval(Agency $agency, MemberProfile $person, User $by): void
@@ -493,9 +494,9 @@ class AgencyRosterChanges
     }
 
     /**
-     * Tells Stripe who the next renewal bills: the people who stay, at their tier (which may go
-     * down; the rate type stays), with no proration now. Fewer than the minimum: the subscription
-     * ends with the period instead (and goes on again if removals are canceled).
+     * Tells Stripe who the next renewal bills: the people who stay, never fewer than the minimum
+     * (AgencyPricingService::billableSeats), at their tier (which may go down; the rate type
+     * stays), with no proration now.
      */
     public function syncRenewal(Agency $agency): void
     {
@@ -504,17 +505,10 @@ class AgencyRosterChanges
         }
 
         $continuing = $agency->continuingHeadcount();
-        $minimum = (int) config('agency.minimum_headcount');
 
         try {
-            if ($continuing < $minimum) {
-                $this->stripe()->subscriptions->update($agency->stripe_subscription_id, ['cancel_at_period_end' => true]);
-                $agency->forceFill(['cancel_at_period_end' => true])->saveQuietly();
-
-                return;
-            }
-
-            $this->updateSubscription($agency, $continuing, AgencyTier::forHeadcount($continuing), endsWithPeriod: false);
+            $tier = AgencyTier::forHeadcount(max($continuing, (int) config('agency.minimum_headcount')));
+            $this->updateSubscription($agency, $agency->continuingSeats(), $tier, endsWithPeriod: false);
             $agency->forceFill(['cancel_at_period_end' => false])->saveQuietly();
         } catch (\Throwable $e) {
             // The change in the portal stands (also inside a webhook, which must not fail for it);

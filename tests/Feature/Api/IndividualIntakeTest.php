@@ -305,6 +305,27 @@ class IndividualIntakeTest extends TestCase
         $this->assertSame(0, IntakeSubmission::count());
     }
 
+    public function test_the_new_form_sends_a_license_number_and_other_license_type_and_may_leave_out_the_npn(): void
+    {
+        $this->send($this->payload(['npn' => '', 'license_number' => ' oh-445566 ', 'license_types' => ['Health', 'Other'], 'license_type_other' => 'Surplus lines']))
+            ->assertOk()->assertJsonPath('outcome', 'created');
+
+        $profile = User::where('email', 'new.applicant@example.test')->firstOrFail()->memberProfile;
+        $this->assertNull($profile->npn);
+        $this->assertSame('OH-445566', $profile->license_number);
+        $this->assertSame('Health, Other: Surplus lines', $profile->license_type);
+    }
+
+    public function test_an_npn_or_a_license_number_is_needed(): void
+    {
+        $response = $this->send($this->payload(['npn' => null, 'license_number' => '']))->assertUnprocessable();
+
+        $this->assertEqualsCanonicalizing(['npn', 'license_number'], $response->json('fields'));
+
+        // The earlier form (plugin 2.2.0): an NPN and no license number.
+        $this->send($this->payload(['entry_id' => '102']))->assertOk()->assertJsonPath('outcome', 'created');
+    }
+
     public function test_the_switch_is_off_by_default_and_answers_404(): void
     {
         config(['portal.intake.enabled' => false]);

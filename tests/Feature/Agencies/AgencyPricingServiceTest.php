@@ -80,11 +80,54 @@ class AgencyPricingServiceTest extends TestCase
         $this->assertSame($rate * $headcount, $quote->total);
     }
 
-    public function test_at_least_two_people(): void
+    public function test_a_principal_alone_pays_for_the_two_member_minimum(): void
+    {
+        $quote = $this->pricing->quote(1, $this->foundingDate);
+
+        $this->assertSame(1, $quote->headcount);
+        $this->assertSame(2, $quote->seats);
+        $this->assertSame(AgencyTier::Agency, $quote->tier);
+        $this->assertSame(31800, $quote->subtotal);
+        $this->assertTrue($quote->minimumApplied());
+        $this->assertSame('Minimum 2 members: $159 × 2', $quote->minimumLine());
+        $this->assertSame('1 person · Agency · minimum 2 members at $159 · $318 a year', $quote->summary());
+
+        // Two people: no minimum line.
+        $this->assertFalse($this->pricing->quote(2, $this->foundingDate)->minimumApplied());
+    }
+
+    public function test_nobody_is_not_an_agency(): void
     {
         $this->expectException(HeadcountTooLowException::class);
 
-        $this->pricing->quote(1, $this->foundingDate);
+        $this->pricing->quote(0, $this->foundingDate);
+    }
+
+    public function test_employees_are_billed_like_producers_by_default(): void
+    {
+        $quote = $this->pricing->quote(5, $this->foundingDate, employees: 3);
+
+        $this->assertSame(5, $quote->seats);
+        $this->assertSame(79500, $quote->subtotal);
+    }
+
+    public function test_without_billing_employees_they_count_toward_the_minimum_only(): void
+    {
+        config(['agency.bill_employees' => false]);
+
+        // Principal + 3 employees: one producer billed, the minimum makes it two.
+        $alone = $this->pricing->quote(4, $this->foundingDate, employees: 3);
+        $this->assertSame(1, $alone->billedPeople);
+        $this->assertSame(2, $alone->seats);
+        $this->assertSame(31800, $alone->subtotal);
+        $this->assertTrue($alone->minimumApplied());
+
+        // 3 producers + 9 employees: 3 billed; the tier still follows everyone (12 people).
+        $mixed = $this->pricing->quote(12, $this->foundingDate, employees: 9);
+        $this->assertSame(AgencyTier::AgencyPlus, $mixed->tier);
+        $this->assertSame(3, $mixed->seats);
+        $this->assertSame(44700, $mixed->subtotal);
+        $this->assertSame('12 people · Agency Plus · $149 each for 3 billed · $447 a year', $mixed->summary());
     }
 
     /**
@@ -113,29 +156,50 @@ class AgencyPricingServiceTest extends TestCase
         $this->assertSame(178800, $quote->total);
     }
 
-    public function test_partner_code_caps_the_rate_at_149(): void
+    /**
+     * The client's partner rates: 2 to 49 people $149 (Agency and Agency Plus as one), 50+ $129.
+     *
+     * @return iterable<string, array{int, string, int, int}>
+     */
+    public static function partnerRates(): iterable
     {
-        $code = PartnerCode::factory()->make();
+        yield 'Agency, founding' => [4, 'founding', 14900, 59600];
+        yield 'Agency, standard' => [4, 'standard', 14900, 59600];
+        yield 'Agency Plus, founding' => [12, 'founding', 14900, 178800];
+        yield 'Agency Plus, standard' => [12, 'standard', 14900, 178800];
+        yield 'Enterprise, founding' => [60, 'founding', 12900, 774000];
+        yield 'Enterprise, standard' => [60, 'standard', 12900, 774000];
+        yield 'principal alone' => [1, 'founding', 14900, 29800];
+    }
 
-        // Tier rate above $149: the partner rate applies.
-        $small = $this->pricing->quote(4, $this->foundingDate, $code);
-        $this->assertTrue($small->partnerRateApplied);
-        $this->assertSame(15900, $small->tierRate);
-        $this->assertSame(14900, $small->rate);
-        $this->assertSame(59600, $small->total);
+    #[DataProvider('partnerRates')]
+    public function test_a_partner_code_sets_the_partner_rate_of_the_tier(int $headcount, string $when, int $rate, int $total): void
+    {
+        $quote = $this->pricing->quote($headcount, $when === 'founding' ? $this->foundingDate : $this->standardDate, PartnerCode::factory()->make());
 
-        $standard = $this->pricing->quote(12, $this->standardDate, $code);
-        $this->assertTrue($standard->partnerRateApplied);
-        $this->assertSame(178800, $standard->total);
+        $this->assertTrue($quote->partnerCodeValid);
+        $this->assertTrue($quote->partnerRateApplied);
+        $this->assertSame($rate, $quote->rate);
+        $this->assertSame($total, $quote->total);
+    }
 
-        // Tier rate at or below $149: codes do not stack, the agency rate stays.
-        foreach ([[12, 178800], [60, 774000]] as [$headcount, $total]) {
-            $quote = $this->pricing->quote($headcount, $this->foundingDate, $code);
+    public function test_partner_rates_come_from_the_config(): void
+    {
+        config(['agency.partner_rates.agency_50plus' => 11900]);
 
-            $this->assertTrue($quote->partnerCodeValid);
-            $this->assertFalse($quote->partnerRateApplied);
-            $this->assertSame($total, $quote->total);
-        }
+        $this->assertSame(11900, $this->pricing->quote(60, $this->foundingDate, PartnerCode::factory()->make())->rate);
+        $this->assertSame(11900, AgencyPricingService::partnerRate(AgencyTier::AgencyEnterprise));
+    }
+
+    public function test_a_partner_rate_above_the_tier_rate_does_not_stack(): void
+    {
+        config(['agency.partner_rates.agency_50plus' => 15000]);
+
+        $quote = $this->pricing->quote(60, $this->foundingDate, PartnerCode::factory()->make());
+
+        $this->assertTrue($quote->partnerCodeValid);
+        $this->assertFalse($quote->partnerRateApplied);
+        $this->assertSame(12900, $quote->rate);
     }
 
     public function test_invalid_partner_codes_are_ignored(): void

@@ -15,6 +15,11 @@ class PluginTest extends TestCase {
 		$GLOBALS['wp_salt']    = 'test-salt-one';
 		$GLOBALS['wp_requests'] = array();
 		$GLOBALS['wp_response'] = array( 'code' => 200 );
+		$GLOBALS['wp_upload_basedir'] = sys_get_temp_dir() . '/ppx-uploads-' . uniqid();
+		$GLOBALS['wp_responses'] = array();
+		$GLOBALS['gf_entries']  = array();
+		$GLOBALS['gf_notes']    = array();
+		$GLOBALS['gf_upload_paths'] = array();
 		$_POST                 = array();
 	}
 
@@ -142,11 +147,16 @@ class PluginTest extends TestCase {
 		define( 'WP_UNINSTALL_PLUGIN', 'properx-portal/properx-portal.php' );
 
 		eval( 'function wp_unschedule_hook( $hook ) { $GLOBALS["unscheduled"][] = $hook; }' );
+		$GLOBALS['wp_upload_basedir'] = sys_get_temp_dir() . '/ppx-uninstall-' . getmypid();
+		mkdir( $GLOBALS['wp_upload_basedir'] . '/properx-portal-private', 0777, true );
+		file_put_contents( $GLOBALS['wp_upload_basedir'] . '/properx-portal-private/waiting.bin', 'x' );
+		file_put_contents( $GLOBALS['wp_upload_basedir'] . '/properx-portal-private/.htaccess', 'Require all denied' );
 
 		require dirname( __DIR__ ) . '/properx-portal/uninstall.php';
 
 		$this->assertSame( array( 'somebody_elses' => 1 ), $GLOBALS['wp_options'] );
-		$this->assertSame( array( 'properx_portal_send', 'properx_portal_send_cancellation', 'properx_portal_cron_heartbeat' ), $GLOBALS['unscheduled'] );
+		$this->assertSame( array( 'properx_portal_send', 'properx_portal_send_cancellation', 'properx_portal_cron_heartbeat', 'properx_portal_license_copy_cleanup' ), $GLOBALS['unscheduled'] );
+		$this->assertDirectoryDoesNotExist( $GLOBALS['wp_upload_basedir'] . '/properx-portal-private', 'license copies waiting for the portal go too' );
 	}
 
 	public function test_the_settings_page_leaves_the_header_and_tab_menu_to_gravity_forms(): void {
@@ -856,7 +866,7 @@ class PluginTest extends TestCase {
 		$this->assertStringContainsString( '[properx_pricing view="apply-tiers"]', $this->fieldOf( $form, 'adminLabel', 'ppx_agency_next' )['content'] );
 	}
 
-	public function test_the_individual_fields_show_for_just_me_and_license_types_go(): void {
+	public function test_the_individual_fields_show_for_just_me_and_the_license_comes_first(): void {
 		$form = properx_portal_plan_form_changes( $this->formBefore() )['form'];
 		$just = array( 'fieldId' => '33', 'operator' => 'is', 'value' => 'individual' );
 
@@ -864,8 +874,8 @@ class PluginTest extends TestCase {
 			$this->assertSame( $just, $this->fieldOf( $form, 'id', $id )['conditionalLogic']['rules'][0], "field $id" );
 		}
 
-		$this->assertNull( $this->fieldOf( $form, 'id', 17 ) );
 		$this->assertSame( 'ppx_npn', $this->fieldOf( $form, 'id', 14 )['adminLabel'] );
+		$this->assertFalse( $this->fieldOf( $form, 'id', 14 )['isRequired'], 'the NPN is optional (go-live requirements)' );
 		$this->assertTrue( $this->fieldOf( $form, 'id', 16 )['isRequired'] );
 		$this->assertTrue( $this->fieldOf( $form, 'id', 15 )['isRequired'], 'the license expiration date stays (default until the client decides)' );
 
@@ -930,9 +940,392 @@ class PluginTest extends TestCase {
 	public function test_the_changes_name_fields_and_values_without_entry_data(): void {
 		$changes = properx_portal_plan_form_changes( $this->formBefore() )['changes'];
 
-		$this->assertContains( 'Field 17 "License Type(s) Held" removed (entries keep their values)', $changes );
+		$this->assertContains( 'Field 17 "License type(s) held": choices: Life / Health / Property & Casualty / Annuity / Variable / Other', $changes );
+		$this->assertContains( 'Field 14 "NPN (National Producer Number)": not required', $changes );
 		$this->assertContains( 'New field 33 "Who\'s joining?" (radio) at the top', $changes );
 		$this->assertContains( 'Notification "User Pending Confirmation": send only for "Just me"', $changes );
+	}
+
+	// The license on the application (go-live requirements)
+
+	public function test_the_live_form_keeps_field_17_and_gets_other_a_license_number_and_a_copy(): void {
+		$form  = properx_portal_plan_form_changes( $this->formBefore() )['form'];
+		$types = $this->fieldOf( $form, 'id', 17 );
+
+		$this->assertSame( 'ppx_license_types', $types['adminLabel'] );
+		$this->assertTrue( $types['isRequired'] );
+		$this->assertSame( PROPERX_PORTAL_LICENSE_TYPES, array_column( $types['choices'], 'value' ) );
+		// Old entries keep 17.1 to 17.5; "Other" is new.
+		$this->assertSame( array( '17.1', '17.2', '17.3', '17.4', '17.5', '17.6' ), array_column( $types['inputs'], 'id' ) );
+
+		$number = $this->fieldOf( $form, 'adminLabel', 'ppx_license_number' );
+		$this->assertTrue( $number['isRequired'] );
+		$this->assertSame( $number['id'], $form['fields'][ properx_portal_index_of( $form['fields'], 'id', 14 ) - 1 ]['id'], 'right before the NPN' );
+
+		$other = $this->fieldOf( $form, 'adminLabel', 'ppx_license_type_other' );
+		$this->assertSame( array( 'fieldId' => '17', 'operator' => 'is', 'value' => 'Other' ), $other['conditionalLogic']['rules'][1] );
+		$this->assertSame( $other['id'], $form['fields'][ properx_portal_index_of( $form['fields'], 'id', 17 ) + 1 ]['id'] );
+
+		$copy = $this->fieldOf( $form, 'adminLabel', 'ppx_license_copy' );
+		$this->assertSame( 'fileupload', $copy['type'] );
+		$this->assertSame( 'pdf,jpg,jpeg,png', $copy['allowedExtensions'] );
+		$this->assertSame( 10, $copy['maxFileSize'] );
+		$this->assertFalse( $copy['multipleFiles'] );
+		$this->assertSame( 'individual', $copy['conditionalLogic']['rules'][0]['value'] );
+	}
+
+	public function test_field_17_and_a_new_license_types_field_look_the_same(): void {
+		$layout = fn ( $field ) => array_intersect_key( $field, array_flip( array( 'enableDisplayInColumns', 'displayColumns', 'displayAlignment', 'layoutGridColumnSpan' ) ) );
+		$expected = array( 'enableDisplayInColumns' => true, 'displayColumns' => '3', 'displayAlignment' => 'horizontal', 'layoutGridColumnSpan' => 12 );
+
+		// The live form: field 17 with its own five columns.
+		$live = $this->formBefore();
+		$at   = properx_portal_index_of( $live['fields'], 'id', 17 );
+		$live['fields'][ $at ] += array( 'enableDisplayInColumns' => true, 'displayColumns' => '5', 'displayAlignment' => 'horizontal' );
+		$live = properx_portal_plan_form_changes( $live )['form'];
+		$this->assertEquals( $expected, $layout( $this->fieldOf( $live, 'adminLabel', 'ppx_license_types' ) ) );
+
+		// The copy: field 17 deleted earlier, a new field made by the helper.
+		$copy = $this->formBefore();
+		array_splice( $copy['fields'], properx_portal_index_of( $copy['fields'], 'id', 17 ), 1 );
+		$copy = properx_portal_plan_form_changes( $copy )['form'];
+		$this->assertEquals( $expected, $layout( $this->fieldOf( $copy, 'adminLabel', 'ppx_license_types' ) ) );
+
+		// An already changed form gets the look on the next run, and the run after changes nothing.
+		$old = $live;
+		$i   = properx_portal_index_of( $old['fields'], 'adminLabel', 'ppx_license_types' );
+		unset( $old['fields'][ $i ]['enableDisplayInColumns'], $old['fields'][ $i ]['displayColumns'], $old['fields'][ $i ]['displayAlignment'] );
+		$fixed = properx_portal_plan_form_changes( $old );
+		$this->assertCount( 3, $fixed['changes'] );
+		$this->assertSame( array(), properx_portal_plan_form_changes( $fixed['form'] )['changes'] );
+	}
+
+	private function liveForm( string $which = '' ): array {
+		return json_decode( file_get_contents( __DIR__ . '/fixtures/apply-form-live' . $which . '-2026-11-23.json' ), true );
+	}
+
+	/** Every field with this Admin Field Label. */
+	private function fieldsWith( array $form, string $label ): array {
+		return array_values( array_filter( $form['fields'], fn ( $field ) => $label === ( $field['adminLabel'] ?? '' ) ) );
+	}
+
+	public function test_the_live_form_keeps_its_own_license_number_and_partner_code_fields(): void {
+		$plan = properx_portal_plan_form_changes( $this->liveForm(), fn ( $id ) => false );
+		$form = $plan['form'];
+
+		$this->assertSame( array(), $plan['problems'] );
+
+		// "Resident License Number" (field 33) is the license number: one field, ours in all but its id.
+		$numbers = $this->fieldsWith( $form, 'ppx_license_number' );
+		$this->assertCount( 1, $numbers );
+		$this->assertSame( 33, $numbers[0]['id'] );
+		$this->assertSame( 'License number', $numbers[0]['label'] );
+		$this->assertTrue( $numbers[0]['isRequired'] );
+		$this->assertSame( 'As printed on your resident insurance license. We use it to verify your license is active.', $numbers[0]['description'] );
+		$this->assertSame( 'individual', $numbers[0]['conditionalLogic']['rules'][0]['value'] );
+
+		// "Partner Code" (field 34, near the payment) is the partner code, under "Who's joining?"; no mask.
+		$codes = $this->fieldsWith( $form, 'ppx_partner_code' );
+		$this->assertCount( 1, $codes );
+		$this->assertSame( 34, $codes[0]['id'] );
+		$this->assertSame( array( 'ppx_joining', 'ppx_partner_code', 'ppx_agency_heading' ), array_column( array_slice( $form['fields'], 0, 3 ), 'adminLabel' ) );
+		$this->assertSame( 'code', $codes[0]['inputName'] );
+		$this->assertFalse( $codes[0]['inputMask'] );
+		$this->assertSame( 6, $codes[0]['layoutGridColumnSpan'] );
+
+		// The NPN keeps live's own Admin Field Label.
+		$this->assertSame( 'agent_npn', $this->fieldOf( $form, 'id', 14 )['adminLabel'] );
+
+		// Gravity Forms' counter stays above every field.
+		$this->assertGreaterThan( max( array_column( $form['fields'], 'id' ) ), $form['nextFieldId'] );
+
+		$this->assertSame( array(), properx_portal_plan_form_changes( $form, fn ( $id ) => false )['changes'] );
+	}
+
+	public function test_the_license_block_has_one_order_and_layout_on_live_and_on_the_copy(): void {
+		$block = function ( array $form ) {
+			$labels = array( 'ppx_license_number', 'ppx_license_types', 'ppx_license_type_other', 'ppx_license_copy' );
+			$start  = properx_portal_index_of( $form['fields'], 'adminLabel', 'ppx_license_number' );
+			$rows   = array();
+
+			foreach ( array_slice( $form['fields'], $start, 7 ) as $field ) {
+				$key    = in_array( $field['adminLabel'] ?? '', $labels, true ) ? $field['adminLabel'] : 'field ' . $field['id'];
+				$rows[] = $key . ':' . ( $field['layoutGridColumnSpan'] ?? 12 );
+			}
+
+			$groups = array_map( fn ( $id ) => $this->fieldOf( $form, 'id', $id )['layoutGroupId'], array( 14, 15, 16 ) );
+
+			return array( $rows, $groups[0] === $groups[1], $groups[0] !== $groups[2] );
+		};
+		$expected = array( array( 'ppx_license_number:12', 'field 14:6', 'field 15:6', 'field 16:12', 'ppx_license_types:12', 'ppx_license_type_other:12', 'ppx_license_copy:12' ), true, true );
+
+		$this->assertSame( $expected, $block( properx_portal_plan_form_changes( $this->liveForm(), fn ( $id ) => false )['form'] ) );
+		$this->assertSame( $expected, $block( properx_portal_plan_form_changes( $this->liveForm( '-duplicate' ), fn ( $id ) => false )['form'] ) );
+		$this->assertSame( $expected, $block( properx_portal_plan_form_changes( $this->formBefore() )['form'] ) );
+
+		// The license number stands alone: live had it in one row with the NPN.
+		$live = properx_portal_plan_form_changes( $this->liveForm(), fn ( $id ) => false )['form'];
+		$this->assertNotSame( $this->fieldOf( $live, 'id', 14 )['layoutGroupId'], $this->fieldOf( $live, 'id', 33 )['layoutGroupId'] );
+	}
+
+	public function test_copies_added_by_an_earlier_run_go_when_empty_and_are_hidden_when_entries_use_them(): void {
+		// The live duplicate after the previous helper: its own fields 33 and 34, plus our 46 and 36.
+		$plan = properx_portal_plan_form_changes( $this->liveForm( '-duplicate' ), fn ( $id ) => false );
+
+		$this->assertNull( $this->fieldOf( $plan['form'], 'id', 46 ) );
+		$this->assertNull( $this->fieldOf( $plan['form'], 'id', 36 ) );
+		$this->assertSame( 33, $this->fieldsWith( $plan['form'], 'ppx_license_number' )[0]['id'] );
+		$this->assertSame( 34, $this->fieldsWith( $plan['form'], 'ppx_partner_code' )[0]['id'] );
+		$this->assertSame( array(), properx_portal_plan_form_changes( $plan['form'], fn ( $id ) => false )['changes'] );
+
+		// Entries have values in them: kept for those, hidden from the page, nothing reads them any more.
+		$kept = properx_portal_plan_form_changes( $this->liveForm( '-duplicate' ), fn ( $id ) => true )['form'];
+
+		foreach ( array( 46 => 'ppx_license_number_old', 36 => 'ppx_partner_code_old' ) as $id => $label ) {
+			$field = $this->fieldOf( $kept, 'id', $id );
+			$this->assertSame( $label, $field['adminLabel'] );
+			$this->assertSame( 'administrative', $field['visibility'] );
+			$this->assertFalse( $field['isRequired'] );
+		}
+
+		$this->assertCount( 1, $this->fieldsWith( $kept, 'ppx_license_number' ) );
+		$this->assertCount( 1, $this->fieldsWith( $kept, 'ppx_partner_code' ) );
+		$this->assertSame( array(), properx_portal_plan_form_changes( $kept, fn ( $id ) => true )['changes'] );
+	}
+
+	public function test_a_field_is_never_deleted_when_its_entries_cannot_be_counted(): void {
+		$this->assertTrue( properx_portal_field_has_values( 1, 46 ), 'no count: assume values' );
+	}
+
+	public function test_old_partner_links_still_fill_the_partner_code(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$field = (object) array( 'adminLabel' => 'ppx_partner_code', 'formId' => 1 );
+
+		$_GET['partner'] = 'acme1';
+		$this->assertSame( 'acme1', properx_portal_partner_code_from_link( '', $field, 'code' ) );
+		$this->assertSame( 'PRX', properx_portal_partner_code_from_link( 'PRX', $field, 'code' ), '?code= wins' );
+		$this->assertSame( '', properx_portal_partner_code_from_link( '', (object) array( 'adminLabel' => 'x', 'formId' => 1 ), 'code' ) );
+		unset( $_GET['partner'] );
+		$this->assertSame( '', properx_portal_partner_code_from_link( '', $field, 'code' ) );
+	}
+
+	public function test_the_npn_check_knows_lives_admin_label(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+
+		foreach ( array( 'ppx_npn', 'agent_npn' ) as $label ) {
+			$result = properx_portal_validate_npn( array( 'is_valid' => true, 'message' => '' ), '123', array( 'id' => 1 ), (object) array( 'adminLabel' => $label ) );
+			$this->assertFalse( $result['is_valid'], $label );
+		}
+	}
+
+	public function test_the_state_only_address_gets_its_class(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$inputs = array_map( fn ( $n ) => array( 'id' => '16.' . $n, 'isHidden' => 4 !== $n ), range( 1, 6 ) );
+
+		$this->assertSame( 'gfield ppx-state-only', properx_portal_apply_field_class( 'gfield', (object) array( 'type' => 'address', 'inputType' => '', 'adminLabel' => '', 'inputs' => $inputs ), array( 'id' => 1 ) ) );
+		$this->assertSame( 'gfield', properx_portal_apply_field_class( 'gfield', (object) array( 'type' => 'address', 'inputType' => '', 'adminLabel' => '', 'inputs' => array_map( fn ( $i ) => array( 'isHidden' => false ) + $i, $inputs ) ), array( 'id' => 1 ) ), 'the full address keeps its layout' );
+	}
+
+	public function test_a_form_without_field_17_gets_a_new_license_types_field_after_the_state(): void {
+		$form = $this->formBefore();
+		array_splice( $form['fields'], properx_portal_index_of( $form['fields'], 'id', 17 ), 1 );
+
+		$first  = properx_portal_plan_form_changes( $form );
+		$types  = $this->fieldOf( $first['form'], 'adminLabel', 'ppx_license_types' );
+		$second = properx_portal_plan_form_changes( $first['form'] );
+
+		$this->assertSame( 'checkbox', $types['type'] );
+		$this->assertSame( $types['id'], $first['form']['fields'][ properx_portal_index_of( $first['form']['fields'], 'id', 16 ) + 1 ]['id'] );
+		$this->assertSame( array_map( fn ( $n ) => $types['id'] . '.' . $n, range( 1, 6 ) ), array_column( $types['inputs'], 'id' ) );
+		$this->assertSame( array(), $second['changes'] );
+	}
+
+	public function test_the_confirmation_and_the_agent_welcome_carry_the_client_s_text(): void {
+		$form = properx_portal_plan_form_changes( $this->formBefore() )['form'];
+
+		$default = current( array_filter( $form['confirmations'], fn ( $c ) => ! empty( $c['isDefault'] ) ) );
+		$this->assertSame( PROPERX_PORTAL_CONFIRMATION, $default['message'] );
+		$this->assertStringContainsString( 'verify your active insurance license using the license number you provided', $default['message'] );
+
+		$welcome = $form['notifications'][ PROPERX_PORTAL_WELCOME_NOTIFICATION ];
+		$this->assertSame( 'Welcome to ProPerX Alliance! Your Next Steps', $welcome['subject'] );
+		// Once paid (card) or started (ACH), never on submission: a declined card gets no welcome.
+		$this->assertSame( array( PROPERX_PORTAL_ACCEPTED_EVENT, 'field', '7' ), array( $welcome['event'], $welcome['toType'], $welcome['to'] ) );
+		$this->assertSame( 'individual', $welcome['conditionalLogic']['rules'][0]['value'] );
+		$this->assertStringStartsWith( "Hi {Name (First):5.3},\n\nWelcome to ProPerX Alliance! We're delighted to have you as a member.", $welcome['message'] );
+		foreach ( array( 'For the basic medical plan search, use the prefix GYB.', "Don't see the portal email within 3 business days?", "Anne Glorioso\nFounder and CEO\nProPerX Alliance\n440-776-7379 | hello@properx.org | properx.org" ) as $text ) {
+			$this->assertStringContainsString( $text, $welcome['message'] );
+		}
+
+		// Added once: the client's edits stay when the changes run again.
+		$form['notifications'][ PROPERX_PORTAL_WELCOME_NOTIFICATION ]['message'] = 'Edited by the client';
+		$again = properx_portal_plan_form_changes( $form );
+		$this->assertSame( 'Edited by the client', $again['form']['notifications'][ PROPERX_PORTAL_WELCOME_NOTIFICATION ]['message'] );
+	}
+
+	public function test_only_paid_applications_email_staff_and_the_welcome_replaces_the_pending_email(): void {
+		$plan = properx_portal_plan_form_changes( $this->formBefore() );
+		$byName = array();
+
+		foreach ( $plan['form']['notifications'] as $notification ) {
+			$byName[ $notification['name'] ] = $notification;
+		}
+
+		$this->assertSame( 'create_subscription', $byName['New Membership Request Staff Notification']['event'] );
+		$this->assertFalse( $byName['User Pending Confirmation']['isActive'] );
+		$this->assertContains( 'Notification "New Membership Request Staff Notification": event "Subscription Created" (paid applications only)', $plan['changes'] );
+		$this->assertContains( 'Notification "User Pending Confirmation": inactive (the agent welcome replaces it)', $plan['changes'] );
+		// The staff email's recipients still feed the "payment method differs" email.
+		$this->assertSame( $byName['New Membership Request Staff Notification']['to'], $plan['form']['notifications']['ppxpaymentmismatch']['to'] );
+
+		// A welcome added by an earlier version, on "Form is submitted", moves to the plugin's event.
+		$form = $plan['form'];
+		$form['notifications'][ PROPERX_PORTAL_WELCOME_NOTIFICATION ]['event'] = 'form_submission';
+		$again = properx_portal_plan_form_changes( $form );
+		$this->assertSame( PROPERX_PORTAL_ACCEPTED_EVENT, $again['form']['notifications'][ PROPERX_PORTAL_WELCOME_NOTIFICATION ]['event'] );
+		$this->assertSame( array( 'Notification "Agent welcome": event "ProPerX: application paid or bank payment started" (not on submission)' ), $again['changes'] );
+	}
+
+	public function test_the_welcome_event_goes_once_per_entry_whoever_calls_first(): void {
+		$GLOBALS['gf_sent_events'] = array();
+		$form  = array( 'id' => 1 );
+		$entry = array( 'id' => 77, 'form_id' => 1 );
+
+		$this->assertTrue( properx_portal_send_accepted( $form, $entry ) );
+		$this->assertFalse( properx_portal_send_accepted( $form, $entry ), 'the subscription starting later sends nothing more' );
+		$this->assertSame( array( array( 77, PROPERX_PORTAL_ACCEPTED_EVENT ) ), $GLOBALS['gf_sent_events'] );
+
+		// An entry without its subscription yet (the confirmation asked for before the payment): nothing.
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		properx_portal_accept_on_confirmation( 'Thanks', $form, array( 'id' => 78, 'form_id' => 1, 'transaction_id' => '' ) );
+		$this->assertCount( 1, $GLOBALS['gf_sent_events'] );
+	}
+
+	#[RunInSeparateProcess]
+	#[PreserveGlobalState( false )]
+	public function test_the_welcome_goes_after_the_payment_step_only_when_stripe_says_paid_or_processing(): void {
+		$GLOBALS['gf_sent_events'] = array();
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+
+		eval( 'function gf_stripe() { return new class { public function include_stripe_api() { return new class { public function make_request( $path, $data, $method, $code ) { $GLOBALS["stripe_asked"][] = $path; return array( "latest_invoice" => array( "payment_intent" => array( "status" => $GLOBALS["pi_status"] ) ) ); } }; } }; }' );
+
+		$form = array( 'id' => 1 );
+		foreach ( array( 'requires_payment_method' => 0, 'processing' => 1, 'succeeded' => 1 ) as $status => $sent ) {
+			$GLOBALS['pi_status']      = $status;
+			$GLOBALS['gf_sent_events'] = array();
+			$entry                     = array( 'id' => crc32( $status ), 'form_id' => 1, 'transaction_id' => 'sub_' . $status );
+
+			$this->assertSame( 'Thanks', properx_portal_accept_on_confirmation( 'Thanks', $form, $entry ) );
+			$this->assertCount( $sent, $GLOBALS['gf_sent_events'], $status );
+		}
+
+		$this->assertSame( 'subscriptions/sub_succeeded', end( $GLOBALS['stripe_asked'] ) );
+	}
+
+	public function test_the_welcome_links_come_from_the_settings_and_must_be_https(): void {
+		$errors = properx_portal_apply_settings_form( array( 'health_enrollment_url' => 'https://enroll.example.org/start', 'provider_search_url' => 'http://insecure.example.org' ) );
+
+		$this->assertSame( array( 'Provider search tool link must be a full https:// address.' ), $errors );
+		$this->assertSame( 'https://enroll.example.org/start', properx_portal_welcome_link( 'health_enrollment_url' ) );
+		$this->assertSame( '', properx_portal_welcome_link( 'provider_search_url' ) );
+
+		$this->assertSame( 'go: https://enroll.example.org/start; find: ', properx_portal_replace_welcome_tags( 'go: {properx_health_enrollment_url}; find: {properx_provider_search_url}' ) );
+	}
+
+	public function test_the_payload_carries_the_license_number_types_and_other(): void {
+		$form = properx_portal_plan_form_changes( $this->formBefore() )['form'];
+		$form = (object) array( 'fields' => array_map( fn ( $f ) => (object) $f, $form['fields'] ) );
+		$GLOBALS['gf_forms'][1] = array( 'id' => 1, 'fields' => $form->fields );
+
+		$number = null;
+		$other  = null;
+		foreach ( $form->fields as $field ) {
+			$number = 'ppx_license_number' === ( $field->adminLabel ?? '' ) ? $field->id : $number;
+			$other  = 'ppx_license_type_other' === ( $field->adminLabel ?? '' ) ? $field->id : $other;
+		}
+
+		$payload = properx_portal_payload( array( 'id' => 9, 'form_id' => 1, '14' => '', (string) $number => ' oh-445566 ', '17.2' => 'Health', '17.6' => 'Other', (string) $other => 'Surplus lines' ) );
+
+		$this->assertNull( $payload['npn'] );
+		$this->assertSame( 'OH-445566', $payload['license_number'] );
+		$this->assertSame( array( 'Health', 'Other' ), $payload['license_types'] );
+		$this->assertSame( 'Surplus lines', $payload['license_type_other'] );
+	}
+
+	private function entryWithUpload(): array {
+		$GLOBALS['wp_options'][ PROPERX_PORTAL_OPTION ] = array( 'url' => 'https://portal.test', 'form_id' => 1, 'secret' => properx_portal_encrypt( self::SECRET, properx_portal_encryption_key() ), 'send_enabled' => true );
+
+		$field                  = (object) array( 'id' => 50, 'adminLabel' => 'ppx_license_copy', 'type' => 'fileupload' );
+		$form                   = array( 'id' => 1, 'fields' => array( $field ) );
+		$GLOBALS['gf_forms'][1] = $form;
+		$upload                 = $GLOBALS['wp_upload_basedir'] . '/gravity_forms/1-abc/license.pdf';
+		@mkdir( dirname( $upload ), 0777, true );
+		file_put_contents( $upload, '%PDF-1.4 the license' );
+		$url                    = 'https://site.test/wp-content/uploads/gravity_forms/1-abc/license.pdf';
+		$GLOBALS['gf_upload_paths'][ $url ] = $upload;
+		$entry                  = array( 'id' => 9, 'form_id' => 1, 'status' => 'active', 'payment_status' => 'Active', '50' => $url );
+		$GLOBALS['gf_entries'][9] = $entry;
+
+		return array( properx_portal_take_license_copy( $entry, $form ), $upload );
+	}
+
+	public function test_the_upload_leaves_the_public_folder_at_once_encrypted_and_unlinked(): void {
+		[ $entry, $upload ] = $this->entryWithUpload();
+
+		$this->assertFileDoesNotExist( $upload );
+		$this->assertSame( '', $entry['50'], 'the emails and the confirmation see no link' );
+		$this->assertSame( '', $GLOBALS['gf_entries'][9]['50'] );
+
+		$copy = properx_portal_license_copy( 9 );
+		$path = $GLOBALS['wp_upload_basedir'] . '/properx-portal-private/' . $copy['file'];
+		$this->assertSame( 'license.pdf', $copy['name'] );
+		$this->assertStringNotContainsString( '%PDF', file_get_contents( $path ) );
+		$this->assertSame( '%PDF-1.4 the license', properx_portal_license_copy_contents( 9 ) );
+		$this->assertStringContainsString( 'Require all denied', file_get_contents( $GLOBALS['wp_upload_basedir'] . '/properx-portal-private/.htaccess' ) );
+	}
+
+	public function test_the_copy_follows_the_application_and_is_deleted_once_the_portal_has_it(): void {
+		$this->entryWithUpload();
+		$GLOBALS['wp_response'] = array( 'code' => 200, 'body' => '{"outcome":"stored","license_document_id":5}' );
+
+		properx_portal_deliver( 9 );
+
+		$this->assertSame( 'https://portal.test/api/intake/individual', $GLOBALS['wp_requests'][0][0] );
+		[ $url, $args ] = $GLOBALS['wp_requests'][1];
+		$body = json_decode( $args['body'], true );
+		$this->assertSame( 'https://portal.test/api/intake/license-copy', $url );
+		$this->assertSame( array( 'entry_id' => '9', 'file_name' => 'license.pdf', 'content' => base64_encode( '%PDF-1.4 the license' ) ), $body );
+		$this->assertSame( hash_hmac( 'sha256', $args['headers']['X-Timestamp'] . '.' . $args['body'], self::SECRET ), $args['headers']['X-Signature'] );
+
+		$this->assertNull( properx_portal_license_copy( 9 ) );
+		$this->assertSame( array(), glob( $GLOBALS['wp_upload_basedir'] . '/properx-portal-private/*.bin' ) );
+		$this->assertSame( 'sent', gform_get_meta( 9, PROPERX_PORTAL_META_STATUS ) );
+		$this->assertStringContainsString( 'license copy stored in License Documents', end( $GLOBALS['gf_notes'][9] )[0] );
+		$this->assertStringNotContainsString( 'license.pdf', json_encode( $GLOBALS['gf_notes'] ) );
+	}
+
+	public function test_a_copy_the_portal_cannot_take_yet_waits_for_the_retry(): void {
+		$this->entryWithUpload();
+		$GLOBALS['wp_responses'] = array( array( 'code' => 200, 'body' => '{"outcome":"created"}' ), array( 'code' => 409, 'body' => '{"outcome":"intake_pending"}' ) );
+		$GLOBALS['wp_scheduled'] = array();
+
+		properx_portal_deliver( 9 );
+
+		$this->assertNotNull( properx_portal_license_copy( 9 ), 'kept for the retry' );
+		$this->assertSame( 'failed', gform_get_meta( 9, PROPERX_PORTAL_META_STATUS ) );
+		$this->assertCount( 1, $GLOBALS['wp_scheduled'] );
+		$this->assertStringContainsString( 'license copy: HTTP 409', end( $GLOBALS['gf_notes'][9] )[0] );
+	}
+
+	public function test_a_copy_the_portal_refuses_is_deleted_with_a_note_for_staff(): void {
+		$this->entryWithUpload();
+		$GLOBALS['wp_response'] = array( 'code' => 422, 'body' => '{"fields":["content"]}' );
+
+		$result = properx_portal_send_license_copy( $GLOBALS['gf_entries'][9] );
+
+		$this->assertSame( 'rejected', $result['status'] );
+		$this->assertStringContainsString( 'ask the member to upload it in the portal', $result['reason'] );
+		$this->assertNull( properx_portal_license_copy( 9 ) );
 	}
 
 	// Prices and the founding cutoff
@@ -969,7 +1362,9 @@ class PluginTest extends TestCase {
 		$priced = properx_portal_apply_prices( array( 'id' => 1, 'fields' => $fields ), $before );
 		$plan   = properx_portal_field_by_label( $priced, 'ppx_plan' );
 		$this->assertSame( '$169.00', $plan->choices[0]['price'] );
-		$this->assertStringContainsString( '<s>$199/yr</s>', $plan->choices[0]['text'] );
+		// The standard price struck through, before today's.
+		$this->assertStringContainsString( '<span class="ppx-plan-price"><s>$199/yr</s> $169/yr</span>', $plan->choices[0]['text'] );
+		$this->assertStringContainsString( '<s>$199</s> $169 per year', properx_portal_field_by_label( $priced, 'ppx_joining' )->choices[0]['text'] );
 		$this->assertStringContainsString( 'From $129 per person per year', properx_portal_field_by_label( $priced, 'ppx_joining' )->choices[1]['text'] );
 
 		$fields = array_map( fn ( $field ) => (object) $field, $form['fields'] );
@@ -977,6 +1372,80 @@ class PluginTest extends TestCase {
 		$this->assertSame( '$199.00', properx_portal_field_by_label( $after, 'ppx_plan' )->choices[0]['price'] );
 		$this->assertStringNotContainsString( '<s>', properx_portal_field_by_label( $after, 'ppx_plan' )->choices[0]['text'] );
 		$this->assertStringContainsString( 'From $139', properx_portal_field_by_label( $after, 'ppx_joining' )->choices[1]['text'] );
+		$this->assertStringNotContainsString( '<s>', properx_portal_field_by_label( $after, 'ppx_joining' )->choices[0]['text'] );
+	}
+
+	// The form's look (go-live polish)
+
+	public function test_descriptions_go_below_and_optional_becomes_a_marker(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$business = (object) array( 'id' => 9, 'type' => 'text', 'label' => 'Business/Agency Name', 'description' => 'Optional', 'adminLabel' => '' );
+		$form     = properx_portal_apply_layout( array( 'id' => 1, 'descriptionPlacement' => 'above', 'fields' => array( $business ) ) );
+
+		$this->assertSame( 'below', $form['descriptionPlacement'] );
+		$this->assertSame( 'below', $form['validationPlacement'], 'errors under the inputs, as the descriptions' );
+		// A form drawn again through admin-ajax.php after a failed submission keeps the markers and the control.
+		$this->assertFalse( properx_portal_is_admin_screen() );
+		$this->assertSame( 'Business/Agency Name (optional)', $business->label );
+		$this->assertSame( '', $business->description );
+
+		$label = "<label class='gfield_label' for='input_1_34'><span class='gform-field-label__text'>Partner code (optional)</span></label>";
+		$this->assertSame(
+			"<label class='gfield_label' for='input_1_34'><span class='gform-field-label__text'>Partner code</span><span class=\"ppx-optional\">(Optional)</span></label>",
+			properx_portal_apply_field_content( $label, (object) array( 'id' => 34, 'type' => 'text', 'adminLabel' => 'ppx_partner_code' ), '', 0, 1 )
+		);
+
+		// Other forms are left alone.
+		$this->assertSame( $label, properx_portal_apply_field_content( $label, (object) array( 'id' => 34, 'type' => 'text' ), '', 0, 2 ) );
+	}
+
+	public function test_the_license_copy_gets_its_control_and_the_input_stays(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$field = (object) array( 'id' => 47, 'type' => 'fileupload', 'adminLabel' => 'ppx_license_copy', 'maxFileSize' => 10, 'allowedExtensions' => 'pdf,jpg,jpeg,png' );
+		$html  = properx_portal_apply_field_content( "<div class='ginput_container'><input name='input_47' id='input_1_47' type='file' class='' aria-describedby='gfield_upload_rules_1_47'></div>", $field, '', 0, 1 );
+
+		$this->assertStringContainsString( "<span class=\"ppx-file\" data-ppx-file data-max-bytes=\"10485760\" data-types=\"pdf,jpg,jpeg,png\"><input name='input_47' id='input_1_47' type='file'", $html );
+		$this->assertStringContainsString( '<label class="ppx-file__box" for="input_1_47" aria-hidden="true"><span class="ppx-file__button">Choose file</span><span class="ppx-file__name" data-ppx-file-name>No file chosen</span></label>', $html );
+		$this->assertStringContainsString( '<span class="ppx-file__error" data-ppx-file-error role="alert"></span>', $html );
+	}
+
+	public function test_fields_get_the_classes_the_stylesheet_uses(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$form = array( 'id' => 1 );
+
+		$this->assertSame( 'gfield ppx-payment', properx_portal_apply_field_class( 'gfield', (object) array( 'type' => 'radio', 'inputType' => '', 'adminLabel' => 'ppx_payment_method' ), $form ) );
+		$this->assertSame( 'gfield ppx-plan', properx_portal_apply_field_class( 'gfield', (object) array( 'type' => 'product', 'inputType' => 'radio', 'adminLabel' => 'ppx_plan' ), $form ) );
+		$this->assertSame( 'gfield ppx-hidden-product', properx_portal_apply_field_class( 'gfield', (object) array( 'type' => 'product', 'inputType' => 'calculation', 'adminLabel' => '' ), $form ) );
+		$this->assertSame( 'gfield', properx_portal_apply_field_class( 'gfield', (object) array( 'type' => 'product', 'inputType' => 'calculation', 'adminLabel' => '' ), array( 'id' => 2 ) ) );
+	}
+
+	public function test_the_payment_element_offers_card_and_bank_and_no_counters_show(): void {
+		properx_portal_apply_settings_form( array( 'form_id' => '1' ) );
+		$methods = 'properx_portal_apply_payment_methods';
+		$counter = 'properx_portal_apply_counter_script';
+
+		$this->assertSame( array( 'card', 'us_bank_account' ), $methods( array(), array(), array( 'id' => 1 ) ) );
+
+		// At payment the chosen card decides: one type, as the Payment Element showed it.
+		$form = array( 'id' => 1, 'fields' => array( (object) array( 'id' => 29, 'type' => 'radio', 'adminLabel' => 'ppx_payment_method' ) ) );
+		foreach ( array( 'credit' => array( 'card' ), 'debit' => array( 'card' ), 'ach' => array( 'us_bank_account' ), '' => array( 'card', 'us_bank_account' ) ) as $chosen => $expected ) {
+			$_POST = array( 'input_29' => $chosen );
+			$this->assertSame( $expected, $methods( array(), array(), $form ), "chosen: $chosen" );
+		}
+		$_POST = array();
+		$this->assertSame( array(), $methods( array(), array(), array( 'id' => 2 ) ), 'other forms keep the automatic methods' );
+		$this->assertSame( '', $counter( '<script>counter</script>', 1 ) );
+		$this->assertSame( '<script>counter</script>', $counter( '<script>counter</script>', 2 ) );
+	}
+
+	public function test_the_script_turns_link_off_and_waits_for_the_payment_element(): void {
+		$script = file_get_contents( dirname( __DIR__ ) . '/properx-portal/assets/apply.js' );
+
+		$this->assertStringContainsString( "elementOptions.wallets = Object.assign({}, elementOptions.wallets, { link: 'never' });", $script );
+		$this->assertStringContainsString( '__PrivateStripeElementLoader', $script );
+		// Our cards drive the element: one type at a time, updated when the card changes.
+		$this->assertStringContainsString( "chosen.value === 'ach' ? ['us_bank_account'] : ['card']", $script );
+		$this->assertStringContainsString( 'active.group.update({ paymentMethodTypes: types });', $script );
 	}
 
 	public function test_the_tier_box_lists_today_s_rates(): void {
@@ -1083,6 +1552,8 @@ class PluginTest extends TestCase {
 		$this->assertContains( 'properx-portal/properx-portal.php', $names );
 		$this->assertContains( 'properx-portal/uninstall.php', $names );
 		$this->assertContains( 'properx-portal/includes/approval-email.php', $names );
+		$this->assertContains( 'properx-portal/includes/license-copy.php', $names );
+		$this->assertContains( 'properx-portal/includes/welcome-email.php', $names );
 		$this->assertContains( 'properx-portal/assets/logo-color.png', $names );
 
 		foreach ( $names as $name ) {

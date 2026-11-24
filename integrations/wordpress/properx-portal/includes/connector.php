@@ -237,7 +237,28 @@ function properx_portal_payload( $entry ) {
 
 	$payload['partner_code'] = '' === $code ? null : $code;
 
-	foreach ( array( 'phone', 'firm_name', 'license_state', 'address' ) as $optional ) {
+	// Plugin 2.3.0: license number, license types with "Other" and its words, found by Admin Field
+	// Label. Entries of the earlier form keep field 17 (above) and have no license number.
+	$by_label = function ( $label ) use ( $form ) {
+		return is_array( $form ) && function_exists( 'properx_portal_field_by_label' ) ? properx_portal_field_by_label( $form, $label ) : null;
+	};
+
+	$number                     = $by_label( 'ppx_license_number' );
+	$payload['license_number']  = null === $number ? '' : strtoupper( trim( (string) rgar( $entry, (string) $number->id ) ) );
+	$types                      = $by_label( 'ppx_license_types' );
+
+	if ( null !== $types && is_array( $types->inputs ) ) {
+		$values = array_values( array_filter( array_map( fn ( $input ) => trim( (string) rgar( $entry, (string) $input['id'] ) ), $types->inputs ), 'strlen' ) );
+
+		if ( array() !== $values ) {
+			$payload['license_types'] = $values;
+		}
+	}
+
+	$other                         = $by_label( 'ppx_license_type_other' );
+	$payload['license_type_other'] = null === $other ? '' : trim( (string) rgar( $entry, (string) $other->id ) );
+
+	foreach ( array( 'phone', 'firm_name', 'license_state', 'address', 'npn', 'license_number', 'license_type_other' ) as $optional ) {
 		if ( '' === $payload[ $optional ] ) {
 			$payload[ $optional ] = null;
 		}
@@ -320,6 +341,22 @@ function properx_portal_deliver( $entry_id, $attempt = 0, $queued_at = 0 ) {
 
 	$result = properx_portal_post( $entry );
 
+	// The license copy follows the application (the portal needs the member first).
+	if ( 'ok' === $result['status'] && function_exists( 'properx_portal_send_license_copy' ) ) {
+		$copy = properx_portal_send_license_copy( $entry );
+
+		if ( 'ok' === $copy['status'] ) {
+			$result['reason'] .= '' === $copy['reason'] ? '' : '; ' . $copy['reason'];
+		} elseif ( 'rejected' === $copy['status'] ) {
+			properx_portal_note( $entry_id, 'Sent to portal: OK (' . $result['reason'] . '); ' . $copy['reason'] . '.', false );
+			gform_update_meta( $entry_id, PROPERX_PORTAL_META_STATUS, 'sent' );
+
+			return;
+		} else {
+			$result = array( 'status' => 'retry', 'reason' => 'application in the portal; ' . $copy['reason'] );
+		}
+	}
+
 	if ( 'ok' === $result['status'] ) {
 		gform_update_meta( $entry_id, PROPERX_PORTAL_META_STATUS, 'sent' );
 		properx_portal_note( $entry_id, 'Sent to portal: OK (' . $result['reason'] . ')', true );
@@ -367,6 +404,10 @@ function properx_portal_entry_box( $args ) {
 	$status = gform_get_meta( $entry['id'], PROPERX_PORTAL_META_STATUS );
 
 	echo '<p>Status: ' . esc_html( $status ? $status : 'not sent' ) . '</p>';
+
+	if ( function_exists( 'properx_portal_license_copy_status' ) && '' !== properx_portal_license_copy_status( $entry['id'] ) ) {
+		echo '<p>' . esc_html( properx_portal_license_copy_status( $entry['id'] ) ) . '</p>';
+	}
 
 	if ( function_exists( 'properx_portal_entry_cancellation_box' ) ) {
 		properx_portal_entry_cancellation_box( $entry );

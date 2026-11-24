@@ -67,7 +67,10 @@
         <dl class="review-list">
             <dt>Name</dt><dd>{{ trim($principal->first_name.' '.$principal->last_name) }}@if (isset($titles[$principal->title])) <span class="review-note">{{ $titles[$principal->title] }}</span>@endif</dd>
             <dt>Email</dt><dd>{{ $principal->email }}</dd>
-            <dt>NPN</dt><dd>{{ $principal->npn }} · {{ $states[$principal->license_state] ?? $principal->license_state }}</dd>
+            <dt>License</dt><dd>{{ $principal->license_number }} · {{ $states[$principal->license_state] ?? $principal->license_state }}@if ($principal->license_types !== []) <span class="review-note">{{ \App\Support\LicenseTypes::forProfile($principal->license_types, $principal->license_type_other) }}</span>@endif</dd>
+            @if ($principal->npn !== '')
+                <dt>NPN</dt><dd>{{ $principal->npn }}</dd>
+            @endif
         </dl>
     </div>
 
@@ -92,6 +95,9 @@
         <div class="review-total">
             <span>Total for the year</span>
             <strong>{{ \App\Support\Money::format($quote->subtotal) }}</strong>
+            @if ($quote->minimumApplied())
+                <span class="minimum-line">{{ $quote->minimumLine() }}</span>
+            @endif
             <span class="review-note">{{ $quote->summary() }}.@if ($surchargeApplies) Credit cards add {{ rtrim(rtrim(number_format(config('agency.credit_card_surcharge_basis_points') / 100, 2), '0'), '.') }}%; debit cards and bank transfers (ACH) do not.@endif</span>
         </div>
     @endif
@@ -124,7 +130,16 @@
 --}}
 <section class="payment" aria-labelledby="payment-title">
     <h3 class="section-title" id="payment-title">Payment</h3>
-    @php($ready = $review->allGiven() && $quote !== null)
+    @php($missingCopies = $this->missingLicenseCopies)
+    @php($ready = $review->allGiven() && $quote !== null && $missingCopies === [])
+
+    @if ($missingCopies !== [])
+        {{-- The client's rule (LicenseCopy): every licensed producer's license copy before payment. --}}
+        <div class="notice-info" id="license-copies-needed" role="status">
+            <p><strong>{{ \App\Support\LicenseCopy::NEEDED }}:</strong> {{ implode(', ', $missingCopies) }}.</p>
+            <p>Upload each copy on <button type="button" class="link" wire:click="goTo(5)">step 5</button>@if (in_array(trim($principal->first_name.' '.$principal->last_name), $missingCopies, true)) (yours on <button type="button" class="link" wire:click="goTo(4)">step 4</button>)@endif, then come back to pay.</p>
+        </div>
+    @endif
 
     @if (! $paymentConfigured)
         <div class="placeholder">Online payment is not set up yet. Your enrollment is saved; please contact ProPerX to complete it.</div>
@@ -132,7 +147,7 @@
         <button type="button" class="btn btn-primary pay is-blocked" disabled aria-describedby="pay-hint" wire:key="pay-blocked">
             Pay {{ $quote ? \App\Support\Money::format($quote->subtotal) : '' }} and enroll my agency
         </button>
-        <p class="hint" id="pay-hint">Tick all four boxes above to choose how to pay.</p>
+        <p class="hint" id="pay-hint">{{ $missingCopies !== [] ? 'Upload the license copies listed above first.' : 'Tick all four boxes above to choose how to pay.' }}</p>
     @else
         <p class="hint payment-intro">Pay by card or straight from a US bank account (ACH).@if ($surchargeApplies) Credit cards add {{ rtrim(rtrim(number_format(config('agency.credit_card_surcharge_basis_points') / 100, 2), '0'), '.') }}%; you'll see the total before you pay.@else You'll see the total before you pay.@endif</p>
         <div class="payment-element" wire:ignore wire:key="payment-element"

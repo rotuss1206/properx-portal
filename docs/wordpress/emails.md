@@ -50,5 +50,20 @@ Signed-in Active Members see "How to enroll" on the plans page, after the page's
 
 | Email | When | Change |
 |---|---|---|
-| User Pending Confirmation ("Your Membership Application is Under Review") | Was on form submission, before payment was confirmed. Now on the Subscription Created event | Text unchanged. See `changes.md`, item 3 |
+| User Pending Confirmation ("Your Membership Application is Under Review") | Was on form submission, before payment was confirmed; then on the Subscription Created event (`changes.md`, item 3) | **Inactive** with plugin 2.3.0 ("Apply /apply form changes"): the agent welcome replaces it. Text unchanged |
+| New Membership Request Staff Notification | On the Subscription Created event (plugin 2.3.0): paid applications only; ACH once the bank has cleared it | Text unchanged |
 | Your ProPerX Alliance member portal account | Sent by the portal, not WordPress, only with `INTAKE_SEND_INVITE=true` | Keep off until the portal is announced to members; otherwise a new member gets it right after paying, before approval |
+| Agent welcome ("Welcome to ProPerX Alliance! Your Next Steps") | Once per "Just me" application, to the address on it, right after the payment: when Stripe says the first payment succeeded (card) or is processing (ACH), else when the subscription starts; never for a declined card (plugin 2.3.0, event "ProPerX: application paid or bank payment started", added by "Apply /apply form changes") | The client's text from the go-live requirements. A Gravity Forms notification of the form, so the client edits it in Forms > Membership Application Form > Settings > Notifications > Agent welcome. Sender: the same as "User Pending Confirmation". The two links come from Forms > Settings > ProPerX Portal > "Welcome email links" (merge tags `{properx_health_enrollment_url}`, `{properx_provider_search_url}`); a section whose link is empty is left out. |
+
+### Personal data in the emails (to confirm with the client)
+
+| Email | Sent by | Personal data |
+|---|---|---|
+| Agent welcome | properx.org | First name in the greeting ("Hi [First Name],"), the client's template |
+| Agency owner welcome | the portal | First name in the greeting, the client's template |
+| User Pending Confirmation, New Membership Request Staff Notification | properx.org | Unchanged by this work (the staff email lists the application's fields) |
+| Receipt and account setup, invitations, reminders | the portal | None: no names, NPN, license or agency data (amounts and dates on the receipt only) |
+| License document rejected (`LicenseDocumentDecision`) | the portal | Staff's reason for the rejection, as before |
+
+The license copy uploaded on the application is never attached to or linked from any email: the plugin takes
+it out of the entry before the emails go.

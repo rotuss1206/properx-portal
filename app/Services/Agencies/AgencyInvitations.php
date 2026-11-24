@@ -12,6 +12,7 @@ use App\Models\MemberProfile;
 use App\Models\User;
 use App\Notifications\AgencyEnrolledStaff;
 use App\Notifications\AgencyInvitationEmail;
+use App\Notifications\AgencyOwnerWelcome;
 use App\Notifications\AgencyWelcome;
 use App\Notifications\Member\AgencyInvitationNotice;
 use App\Services\StaffAlerts;
@@ -112,6 +113,12 @@ class AgencyInvitations
         AuditLog::record('agency_invitation_sent', $profile, details: $details + ['invitation_id' => $link->getKey()]);
 
         $user = $profile->user;
+
+        // The client's welcome first, then the receipt with the account setup link.
+        if ($receipt !== null) {
+            $user->notifyNow(new AgencyOwnerWelcome((string) $profile->first_name));
+        }
+
         $user->notifyNow($receipt !== null
             ? new AgencyWelcome($token, $link->expires_at, $receipt, $profile->agency?->paid_through_at)
             : new AgencyInvitationEmail($token, $link->expires_at, $reminderOf !== null));

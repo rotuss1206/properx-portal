@@ -14,7 +14,18 @@
 
 return [
 
+    // An agency always pays for at least this many members (the client's rule): a principal alone pays
+    // for two. Billable members = max(this, people billed); see AgencyPricingService::billableSeats().
     'minimum_headcount' => 2,
+
+    // Whether agency employees (W2, no license) are billed like licensed producers. false: they count
+    // toward the minimum only, and the agency pays for its producers (at least the minimum). Waiting for
+    // the client's answer; true is the behaviour so far.
+    'bill_employees' => (bool) env('AGENCY_BILL_EMPLOYEES', true),
+
+    // Licensed producers need a copy of their license (PDF, JPG or PNG) before the agency can pay
+    // (wizard and "Add people"). Relaxed by setting AGENCY_REQUIRE_LICENSE_COPY=false.
+    'require_license_copy' => (bool) env('AGENCY_REQUIRE_LICENSE_COPY', true),
 
     // The Stripe product the six prices belong to (created in a test account by
     // `php artisan app:stripe:agency-prices --create`), and their currency.
@@ -29,8 +40,13 @@ return [
     'founding_cutoff' => '2027-01-01 00:00:00',
     'founding_cutoff_timezone' => 'America/New_York',
 
-    // With a valid MGA/FMO partner code the rate is the lower of this and the tier rate.
-    'partner_rate' => 14900,
+    // With a valid MGA/FMO partner code (client's rule): Agency and Agency Plus (2-49) are one tier at
+    // $149, Agency Enterprise (50+) is $129. The lower of this and the tier rate applies (no stacking).
+    'partner_rates' => [
+        'agency_2to9' => 14900,
+        'agency_10to49' => 14900,
+        'agency_50plus' => 12900,
+    ],
 
     // Credit cards only (card.funding = "credit"); not debit, prepaid, unknown or ACH.
     'credit_card_surcharge_basis_points' => 290,

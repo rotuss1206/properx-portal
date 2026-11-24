@@ -25,6 +25,12 @@ Route::post('/api/intake/individual', [IntakeController::class, 'individual'])
     ->middleware('throttle:intake')
     ->name('intake.individual');
 
+// The license copy uploaded with a paid application (after the application itself).
+Route::post('/api/intake/license-copy', [IntakeController::class, 'licenseCopy'])
+    ->withoutMiddleware('throttle:120,1')
+    ->middleware('throttle:intake')
+    ->name('intake.license-copy');
+
 // An individual subscription canceled on the marketing site (the 24-month rule).
 Route::post('/api/intake/cancellation', [IntakeController::class, 'cancellation'])
     ->withoutMiddleware('throttle:120,1')
