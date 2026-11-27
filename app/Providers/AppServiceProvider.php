@@ -24,6 +24,12 @@ use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** Livewire's JavaScript (the CSP-safe build, config/livewire.php csp_safe). */
+    public const LIVEWIRE_SCRIPT_PATH = '/livewire/livewire.min.js';
+
+    /** Livewire's update endpoint: every wire:click, wire:model.blur, "Continue". */
+    public const LIVEWIRE_UPDATE_PATH = '/livewire/update';
+
     /**
      * Register any application services.
      */
@@ -95,9 +101,17 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(config('portal.registration.livewire_requests_per_minute'))->by($request->ip());
         });
 
-        // Replaces Livewire's default update route (same path) to add the throttle; Livewire
-        // itself adds the "web" group (session, CSRF) and its header check.
-        Livewire::setUpdateRoute(fn (array $handle, string $path) => Route::post($path, $handle)
+        // Livewire's script and update routes on FIXED paths. Livewire 4's default paths are
+        // /livewire-<hash of APP_KEY>/..., but the image caches routes at build time under a
+        // throwaway APP_KEY (Dockerfile, route:cache), so pages rendered with the real key linked
+        // to paths the cached routes did not have: livewire.min.js and every update were 404.
+        // The upload and preview routes keep Livewire's paths; their URLs are generated from the
+        // named (cached) routes, so they always agree.
+        Livewire::setScriptRoute(fn (array $handle) => Route::get(self::LIVEWIRE_SCRIPT_PATH, $handle));
+
+        // The update route also gets the throttle; Livewire itself adds the "web" group
+        // (session, CSRF) and its header check.
+        Livewire::setUpdateRoute(fn (array $handle) => Route::post(self::LIVEWIRE_UPDATE_PATH, $handle)
             ->middleware(['web', 'throttle:livewire'])
             ->name('portal.livewire.update'));
 

@@ -33,8 +33,21 @@ class Dashboard extends Component
             'overview' => 'Overview',
             'documents' => 'Documents',
             'activity' => 'Activity',
-            'benefits' => config('portal.member_area.benefits') ? 'Benefits' : null,
+            'benefits' => self::benefits() !== [] ? 'Benefits' : null,
         ]);
+    }
+
+    /**
+     * The benefit cards shown (member_area.benefits without the hidden ones), in their order.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function benefits(): array
+    {
+        return array_values(array_filter(
+            (array) config('portal.member_area.benefits'),
+            fn (array $benefit) => ! ($benefit['hidden'] ?? false),
+        ));
     }
 
     public function mount(): void
@@ -76,7 +89,7 @@ class Dashboard extends Component
             'recent' => $this->tab === 'overview' ? DocumentList::recent($user) : collect(),
             'documents' => $this->tab === 'documents' ? DocumentList::for($user, $this->filter) : collect(),
             'activity' => $this->tab === 'activity' ? ActivityFeed::for($user) : collect(),
-            'benefits' => config('portal.member_area.benefits'),
+            'benefits' => self::benefits(),
         ]);
     }
 }

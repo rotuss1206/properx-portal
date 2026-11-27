@@ -3,13 +3,11 @@
 namespace App\Services\Certificates;
 
 use App\Enums\LicenseStatus;
-use App\Enums\Role;
 use App\Exceptions\CertificateUnavailableException;
 use App\Models\AuditLog;
 use App\Models\CertificateIssue;
 use App\Models\MemberProfile;
 use App\Models\StripeEvent;
-use App\Models\User;
 use BaconQrCode\Renderer\GDLibRenderer;
 use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -33,7 +31,7 @@ class CertificateGeneratorService
     /**
      * Bump when the template changes so cached PDFs are regenerated.
      */
-    private const TEMPLATE_VERSION = 13;
+    private const TEMPLATE_VERSION = 14;
 
     /**
      * The PDF's design (docs/design/Certificate.jpg) draws the Letter page 816 px wide; the page is 612 pt.
@@ -288,16 +286,42 @@ class CertificateGeneratorService
      */
     private function viewData(array $data): array
     {
-        return $data + [
+        $secondImage = $data['secondSignatoryName'] !== null ? $this->signatureImage() : null;
+
+        return $data + self::signatureRow($data, $secondImage) + [
             'preview' => false,
             'qrCode' => $this->qrCode($data['verificationUrl']),
-            'secondSignatureImage' => $data['secondSignatoryName'] !== null ? $this->signatureImage() : null,
+            'secondSignatureImage' => $secondImage,
             'logoImage' => self::embedded('logo-color.png', 'image/png'),
             'sealImage' => self::embedded('seal.svg', 'image/svg+xml'),
             'linkImage' => self::embedded('link.svg', 'image/svg+xml'),
             'diamondImage' => self::embedded('diamond.svg', 'image/svg+xml'),
             // The preview sits on a cream gradient: the transparent logo (the PNG has a white ground).
             'previewLogoImage' => 'data:image/svg+xml;base64,'.base64_encode((string) file_get_contents(public_path('portal/img/logo-color.svg'))),
+        ];
+    }
+
+    /**
+     * The bottom row, either side of the seal: each signatory in their own place (the first left, the second right),
+     * the date issued in the place left empty (the right one while there is no signatory at all). With two
+     * signatures the date moves to the bottom line ($issuedInFooter).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{signLeft: ?array<string, mixed>, signRight: array<string, mixed>, issuedInFooter: bool}
+     */
+    private static function signatureRow(array $data, ?string $secondImage): array
+    {
+        $person = fn (?string $name, ?string $title, ?string $image) => $name === null ? null
+            : ['date' => false, 'name' => $name, 'title' => $title, 'image' => $image];
+        $date = ['date' => true, 'name' => null, 'title' => null, 'image' => null];
+
+        $left = $person($data['signatoryName'], $data['signatoryTitle'], null);
+        $right = $person($data['secondSignatoryName'], $data['secondSignatoryTitle'], $secondImage);
+
+        return [
+            'signLeft' => $left ?? ($right !== null ? $date : null),
+            'signRight' => $right ?? $date,
+            'issuedInFooter' => $left !== null && $right !== null,
         ];
     }
 
@@ -350,7 +374,7 @@ class CertificateGeneratorService
      */
     private function certificateData(MemberProfile $profile, CertificateOptions $options): array
     {
-        $signatory = config('portal.member_area.certificate.signatory');
+        $first = config('portal.member_area.certificate.signatory');
         $second = config('portal.member_area.certificate.second_signatory');
         $memberName = $profile->fullName();
 
@@ -368,9 +392,8 @@ class CertificateGeneratorService
             'validThrough' => $validThrough?->toDateString(),
             'term' => self::term($validThrough),
             'certificateCode' => $profile->certificate_code,
-            // Name null: the longest-serving Executive Director.
-            'signatoryName' => $signatory['name'] ?? User::role(Role::ExecutiveDirector->value)->oldest('id')->first()?->name ?? $signatory['title'],
-            'signatoryTitle' => $signatory['title'],
+            'signatoryName' => $first['name'] ?? null,
+            'signatoryTitle' => $first['title'] ?? null,
             'secondSignatoryName' => $second['name'] ?? null,
             'secondSignatoryTitle' => $second['title'] ?? null,
             'verificationUrl' => route('certificates.verify', $profile->certificate_code),

@@ -434,6 +434,13 @@ body.ppx-member {
 
 .ppx-benefit .ppx-link { margin-top: 4px; justify-self: start; }
 
+.ppx-benefits--pairs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* The buttons sit at the bottom of the card, level across a row. */
+.ppx-benefit { grid-template-rows: auto auto 1fr; }
+
+.ppx-benefit__actions { display: flex; flex-wrap: wrap; align-self: end; gap: 8px; margin-top: 12px; }
+
 /* Upload drop zone */
 
 .ppx-dropzone {

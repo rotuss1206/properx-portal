@@ -1,9 +1,10 @@
 {{--
     The downloaded certificate, Letter portrait (docs/design/Certificate.jpg): gold corners, a diamond under the title,
-    a round seal, signatures without lines or titles. Data: CertificateGeneratorService::viewData(); only the chosen
-    parts are printed. The bottom row: one signatory, the date issued on the right in the signature's style; two, the
-    second signature there and the date in the line below. The verification number is always printed, the QR at the
-    right of that line when chosen. The member area's preview is a different design: member/certificate-preview.
+    a round seal. Data: CertificateGeneratorService::viewData(); only the chosen parts are printed. The bottom row,
+    symmetrical around the seal (pdf.certificate-sign): each signatory in their place with a line, the printed name
+    under a signature image and the title, as in the preview; the date issued in an empty place, or in the line below
+    with two signatures. The verification number is always printed, the QR at the right of that line when chosen.
+    The member area's preview is a different design: member/certificate-preview.
 --}}
 <div @class(['cert', 'cert--qr' => $showQr])>
     <div class="cert-frame"></div>
@@ -60,20 +61,16 @@
         </div>
     @endif
 
-    <div class="cert-sign cert-sign-left">{{ $signatoryName }}</div>
+    @if ($signLeft)
+        @include('pdf.certificate-sign', ['side' => 'left', 'sign' => $signLeft])
+    @endif
 
     <div class="cert-seal"><img class="cert-seal-content" src="{{ $sealImage }}" alt="Official seal"></div>
 
-    <div class="cert-sign cert-sign-right">
-        @if ($secondSignatureImage)
-            <img class="cert-sign-image" src="{{ $secondSignatureImage }}" alt="Signature of {{ $secondSignatoryName }}">
-        @else
-            {{ $secondSignatoryName ?: $issuedOnLabel }}
-        @endif
-    </div>
+    @include('pdf.certificate-sign', ['side' => 'right', 'sign' => $signRight])
 
     <div class="cert-line cert-footer">
-        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">@if ($secondSignatoryName)Issued {{ $issuedOnLabel }} ·@endif Verify authenticity at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · <span class="cert-footer-id">Certificate ID {{ $certificateCode }}</span>
+        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">@if ($issuedInFooter)Issued {{ $issuedOnLabel }} ·@endif Verify authenticity at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · <span class="cert-footer-id">Certificate ID {{ $certificateCode }}</span>
     </div>
 
     @if ($showQr)

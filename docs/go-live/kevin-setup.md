@@ -74,6 +74,9 @@ New in this release:
 | `AGENCY_WELCOME_LOGIN_URL` | empty | "Portal Login Link" in the agency owner's welcome. Empty: the portal's sign-in page |
 | `AGENCY_WELCOME_REPLY_TO` | `hello@properx.org` | The owner's welcome asks them to reply with the completed health enrollment application |
 | `AGENCY_WELCOME_ATTACHMENT` | empty for now | The health enrollment application attached to that welcome; set in a later release, when the client sends the file. While empty the email goes without it and the log says so |
+| `CERTIFICATE_FIRST_SIGNATORY_NAME`, `CERTIFICATE_FIRST_SIGNATORY_TITLE` | empty | No first signature on the certificate: Anne Glorioso's stands alone |
+| `BENEFITS_HEALTH_ENROLL_URL`, `BENEFITS_PET_ENROLL_URL` | empty | "Enroll" on the member's Benefits tab. Empty: the my-benefits.net forms (health, dental and vision share the first) |
+| `BENEFITS_HEALTH_PLAN_URL`, `BENEFITS_DENTAL_PLAN_URL`, `BENEFITS_VISION_PLAN_URL`, `BENEFITS_PET_PLAN_URL` | empty for now | "Choose a Plan" per benefit, when the client sends the addresses. Empty: no button |
 
 Changed:
 
@@ -142,7 +145,9 @@ To step back, turn the same switch off: nothing is lost, new applications wait o
    other person an invitation; in Stripe a yearly subscription with quantity 2. Then cancel it in Nova ("Cancel
    agency membership", now) and refund in Stripe.
 3. **Member area and certificate**: as a member, `https://portal.properx.org/member/certificate`: Anne Glorioso's
-   signature bottom right.
+   signature bottom right with her name and title under it, the date issued on the left, no other signature; the
+   same in the downloaded PDF. On the dashboard's **Benefits** tab: four cards, each **Enroll** opens my-benefits.net
+   in a new tab.
 
 ## Rollback
 

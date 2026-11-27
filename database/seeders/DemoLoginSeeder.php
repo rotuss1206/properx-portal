@@ -104,6 +104,27 @@ class DemoLoginSeeder extends Seeder
     }
 
     /**
+     * The accounts this seeder creates for a DEMO_LOGIN_EMAIL address (app:purge-test-data --demo):
+     * the plus addresses and the demo agency's colleague. None without an address.
+     *
+     * @return list<string>
+     */
+    public static function emails(?string $base): array
+    {
+        if (blank($base) || ! filter_var($base, FILTER_VALIDATE_EMAIL)) {
+            return [];
+        }
+
+        $local = Str::before(Str::before(self::plusAddress($base, 'x'), '@'), '+');
+        $tags = [...array_keys(self::STAFF), 'member', 'agency'];
+
+        return [
+            ...array_map(fn (string $tag) => self::plusAddress($base, $tag), $tags),
+            'demo-agency.'.Str::slug($local).'.person02@properx.test',
+        ];
+    }
+
+    /**
      * "kevin@example.com" + "member" → "kevin+member@example.com" (an existing +tag is replaced).
      */
     public static function plusAddress(string $base, string $tag): string

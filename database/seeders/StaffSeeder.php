@@ -20,6 +20,16 @@ class StaffSeeder extends Seeder
         'compliance@properx.test' => ['Riley Chen', Role::ComplianceSpecialist],
     ];
 
+    /**
+     * The accounts this seeder creates (app:purge-test-data --demo).
+     *
+     * @return list<string>
+     */
+    public static function emails(): array
+    {
+        return array_keys(self::STAFF);
+    }
+
     public function run(): void
     {
         foreach (self::STAFF as $email => [$name, $role]) {

@@ -47,6 +47,27 @@ class AgencySeeder extends Seeder
             'status' => AgencyStatus::Pending, 'referral' => 'linkedin'],
     ];
 
+    /**
+     * The accounts this seeder creates (app:purge-test-data --demo): each agency's principal and people.
+     *
+     * @return list<string>
+     */
+    public static function emails(): array
+    {
+        $emails = [];
+
+        foreach (self::AGENCIES as $index => $definition) {
+            $number = $index + 1;
+            $emails[] = sprintf('principal%02d@properx.test', $number);
+
+            for ($person = 2; $person <= $definition['headcount']; $person++) {
+                $emails[] = sprintf('agency%02d.person%02d@properx.test', $number, $person);
+            }
+        }
+
+        return $emails;
+    }
+
     public function run(): void
     {
         $codes = $this->partnerCodes();

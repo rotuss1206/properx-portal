@@ -42,30 +42,18 @@
         </table>
     </div>
 
-    <div class="cert-sign cert-sign-left">
-        <div class="cert-sign-name">{{ $signatoryName }}</div>
-        <div class="cert-sign-rule"></div>
-        <div class="cert-sign-title">{{ $signatoryTitle }}</div>
-    </div>
+    {{-- Each signatory in their place, the date issued in an empty one, symmetrical around the seal. --}}
+    @if ($signLeft)
+        @include('pdf.certificate-sign', ['side' => 'left', 'sign' => $signLeft])
+    @endif
 
     <div class="cert-seal"><img class="cert-seal-content" src="{{ $sealImage }}" alt="Official seal"></div>
 
-    {{-- The second signature, or the date of issue in its place. --}}
-    <div class="cert-sign cert-sign-right">
-        @if ($secondSignatureImage)
-            <div class="cert-sign-name"><img class="cert-sign-image" src="{{ $secondSignatureImage }}" alt="Signature of {{ $secondSignatoryName }}"></div>
-        @elseif ($secondSignatoryName)
-            <div class="cert-sign-name">{{ $secondSignatoryName }}</div>
-        @else
-            <div class="cert-sign-name" data-ppx-cert="issued">{{ $issuedOnLabel }}</div>
-        @endif
-        <div class="cert-sign-rule"></div>
-        <div class="cert-sign-title">{{ $secondSignatoryName ? $secondSignatoryTitle : 'Date issued' }}</div>
-    </div>
+    @include('pdf.certificate-sign', ['side' => 'right', 'sign' => $signRight])
 
     <div class="cert-hr"></div>
     <div class="cert-line cert-footer">
-        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">@if ($secondSignatoryName)Issued <span data-ppx-cert="issued">{{ $issuedOnLabel }}</span> ·@endif Verify at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · <span class="cert-footer-id">Certificate ID {{ $certificateCode }}</span>
+        <img class="cert-footer-icon" src="{{ $linkImage }}" alt="">@if ($issuedInFooter)Issued <span data-ppx-cert="issued">{{ $issuedOnLabel }}</span> ·@endif Verify at {{ parse_url($verificationUrl, PHP_URL_HOST) }}/verify · <span class="cert-footer-id">Certificate ID {{ $certificateCode }}</span>
     </div>
 
     <div class="cert-qr" data-ppx-cert="qr" @unless ($showQr) hidden @endunless>

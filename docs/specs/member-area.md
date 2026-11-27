@@ -191,7 +191,8 @@ The mockup's "Renewal reminder sent" is not an event we have (Stripe sends renew
 computed "Renewal due" lives in the notifications feed instead.
 
 **Benefits** — catalogue from `config/portal.php` (`member_area.benefits`: title, description, icon,
-optional URL). Statuses ("Enrolled", "Pending") are **not our data**: hidden behind
+optional URL, `enroll_url` ("Enroll"), `plan_url` ("Choose a Plan"), `hidden`). Shown: health, dental, vision,
+pet insurance (PetPartners), two to a row; CRM and business discounts hidden until offered. Statuses ("Enrolled", "Pending") are **not our data**: hidden behind
 `member_area.benefit_statuses = false`; cards show "Available" or nothing.
 
 ### Notifications feed (bell, dashboard right column, `/member/notifications` top)
@@ -285,7 +286,7 @@ code; QR code added next to the verification line (the mockup shows none). Data:
 | Member since | `users.created_at` (month and year) |
 | Valid through | `paid_through_at` (default 4.1); fallback while no Stripe date: `license_expires_at` as today |
 | Statement | "…is a recognized member in good standing of ProPerX Alliance, entitled to all rights, benefits, and privileges of membership. **Membership valid through Mar 12, 2027.**" (date = Valid through). No "2026 membership term" wording. |
-| Signatures | Executive Director name and title from config; optional second signatory (config), off by default |
+| Signatures | Optional first signatory (`CERTIFICATE_FIRST_SIGNATORY_NAME` / `_TITLE`, off in production) and second signatory with a signature image (Anne Glorioso, Founder and CEO); line, name and title under each, in the PDF too; the date issued in an empty place |
 | Verification | `route('certificates.verify', certificate_code)`, QR as data URI |
 
 Bump `CertificateGeneratorService::TEMPLATE_VERSION`. Fonts and the seal/logo images inside the dompdf
@@ -319,7 +320,7 @@ announcements), saved to `notification_settings` with the same policy as the Nov
 |---|---|---|
 | 4.1 | Certificate "Valid through" = `paid_through_at`; the term is yearly from the payment date, not a calendar year. | `member_area.certificate.valid_through = 'paid_through'` (`'license_expiry'` restores today's rule) |
 | 4.2 | Member ID in our format (`PPX-M000005`), shown as stored. | — (format lives in `MemberProfile::formatMemberNumber`) |
-| 4.3 | Second signature off. | `member_area.certificate.second_signatory = null` or `['name' => …, 'title' => …]`; first signatory `member_area.certificate.signatory` (name, title, optional image) |
+| 4.3 | Second signature off. | `member_area.certificate.second_signatory = null` or `['name' => …, 'title' => …]`; first signatory `member_area.certificate.signatory` (null, or name and title) |
 | 4.4 | Certificate PDF only (no PNG: no image renderer in the container); QR always printed. | — |
 | 4.5 | Agency people: license = NPN + state + verification status; no license upload; Billing shows the agency's subscription to the principal and who pays to the others; "My agency" for the principal. Individuals: fields from current data. | `member_area.agency_people.license_upload = false` |
 | 4.6 | No "scanned for malware" wording until scanning exists. | `member_area.malware_scan = false` |

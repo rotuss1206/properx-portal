@@ -98,6 +98,12 @@ php artisan app:assign-executive-director jane@example.com --revoke            #
   Member and API Service accounts are refused.
 - `--revoke` leaves the account without a role, so it can no longer sign in; the last Executive Director
   cannot be revoked (assign another one first). Executive Director accounts cannot be deleted in Nova.
+
+Test accounts are removed with `php artisan app:purge-test-data`: only the accounts listed by `--email`,
+`--domain` (member accounts only), `--file` (one email per line) or `--demo` (the demo seeders' accounts),
+with their profiles, documents and stored files, agencies left without people, drafts, invitations, intake
+submissions and notifications. A dry run unless `--force`; never the API Service account or the last
+Executive Director; Stripe is not called; one audit record with counts.
 - It asks for confirmation; `--force` skips the question (for scripted use). Every run that changes
   something is audited (`executive_director_assigned` / `executive_director_revoked`, plus `role_changed`).
   No password is printed.
@@ -158,7 +164,7 @@ Production values are App Service settings and Key Vault references (root `READM
 | `STRIPE_KEY` | Stripe publishable key of the same account: the payment form on `/join/agency` |
 | `STRIPE_PORTAL_CONFIGURATION` | Optional Stripe Customer Portal configuration (`bpc_…`) for "Manage payment method" on `/member/billing`; empty uses the account's default (payment method and invoices only, no cancelling or plan changes). The restricted key also needs Customer portal write and PaymentMethods read |
 | `STRIPE_PRICE_AGENCY_*` | Optional Stripe price IDs for agency membership (lookup keys otherwise). After deployment, `php artisan app:stripe:agency-prices` checks the six prices and the "Credit card surcharge" product |
-| `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default. Livewire uses `/livewire/*` routes, which the ingress must pass through. The Stripe webhook needs the events `invoice.paid` and `invoice.payment_failed` (already sent for members) |
+| `AGENCY_ENROLLMENT_ENABLED` | `true` opens the public agency enrollment wizard at `/join/agency`; off (404) by default. Livewire's script and updates use the fixed paths `/livewire/livewire.min.js` and `/livewire/update` (`AppServiceProvider`: Livewire 4's default `/livewire-<hash of APP_KEY>/` paths broke under the build-time route cache); file uploads keep `/livewire-<hash>/upload-file`. The ingress must pass both through. The Stripe webhook needs the events `invoice.paid` and `invoice.payment_failed` (already sent for members) |
 | `PORTAL_TERMS_URL`, `PORTAL_PRIVACY_URL` | Terms of Service and Privacy Policy linked from the enrollment's consents and from the last step of an agency invitation; properx.org's pages by default |
 | `AGENCY_STAFF_NOTIFICATION_EMAIL` | Optional address that also gets "New agency enrolled" by email (staff always see it in Nova) |
 | `AGENCY_SURCHARGE_EXEMPT_STATES` | Optional, comma-separated two-letter states (e.g. `CT,MA`): agencies whose legal address is there pay no credit card surcharge. Empty by default |
@@ -167,7 +173,8 @@ Production values are App Service settings and Key Vault references (root `READM
 | `PORTAL_SUPPORT_URL` | "Contact support" on the sign-in page (`https://` or `mailto:`); a notice is shown without it |
 | `PORTAL_BILLING_PATH` | Nova path of the future Billing page; the member sidebar hides "Billing" until it is set |
 | `MEMBER_AREA_ENABLED` | `true` opens the new member area at `/member` and sends members there from Nova (User Security and sign-out stay in Nova). The profile with contact, business, license, security and notification sections is at `/member/profile`; license documents (list, upload, withdrawing a pending one) are at `/member/license-documents`; the certificate (options, live preview, PDF download) is at `/member/certificate`; the compliance library (categories, search, details, preview) is at `/member/library`; tax documents are on the dashboard's Documents tab; billing (plan, payment method, invoices from Stripe, "Manage payment method" through Stripe's Customer Portal) is at `/member/billing`; the agency principal's agency (summary, people, invitations, agency details) is at `/member/agency`. Off by default; members then use Nova |
-| `CERTIFICATE_SECOND_SIGNATORY_NAME`, `CERTIFICATE_SECOND_SIGNATORY_TITLE` | Second signature on the certificate (bottom right; the date of issue then moves to the bottom line). Production: `Anne Glorioso`, `Founder and CEO`. Empty: the date of issue stands in its place |
-| `CERTIFICATE_SIGNATURE_IMAGE` | File name of the second signatory's signature (transparent PNG) in `resources/views/pdf/images`, used only with `CERTIFICATE_SECOND_SIGNATORY_NAME`. Production: `signature-anne-glorioso.png`. Empty: the name is set in type. The first signature (the Executive Director) is always set in type |
+| `CERTIFICATE_FIRST_SIGNATORY_NAME`, `CERTIFICATE_FIRST_SIGNATORY_TITLE` | Optional first signature on the certificate (bottom left, the name set in type, the title under a line). Production: empty, no first signature: the date of issue stands in its place |
+| `CERTIFICATE_SECOND_SIGNATORY_NAME`, `CERTIFICATE_SECOND_SIGNATORY_TITLE` | Second signature on the certificate (bottom right, over a line with the name and title under it; with a first signature too, the date of issue moves to the bottom line). Production: `Anne Glorioso`, `Founder and CEO`. Empty: the date of issue stands in its place |
+| `CERTIFICATE_SIGNATURE_IMAGE` | File name of the second signatory's signature (transparent PNG) in `resources/views/pdf/images`, used only with `CERTIFICATE_SECOND_SIGNATORY_NAME`. Production: `signature-anne-glorioso.png`. Empty: the name is set in type. The first signature, when set, is always set in type |
 | `AZURE_CLIENT_ID` | Client ID of a user-assigned managed identity, if one is used |
 | `NOVA_LICENSE_KEY` | Nova licence key |

@@ -837,6 +837,11 @@ class AgencyRegistrationWizardTest extends TestCase
             ->assertSeeHtml('data-join-payment data-key="pk_test_fake" data-amount="31800" data-currency="usd"')
             ->assertSeeHtml('data-join-pay-review');
 
+        // Cards and bank accounts only, without Stripe Link (as on properx.org's form).
+        $script = (string) file_get_contents(public_path('portal/join-payment.js'));
+        $this->assertStringContainsString("paymentMethodTypes: ['card', 'us_bank_account']", $script);
+        $this->assertStringContainsString("wallets: { link: 'never' }", $script);
+
         $this->assertCount(4, AgencyRegistrationDraft::query()->sole()->data['consents']['given_at']);
     }
 

@@ -128,7 +128,8 @@
             @endif
         </x-ppx.card>
     @elseif ($tab === 'benefits')
-        <div class="ppx-benefits">
+        {{-- Three to a row as in the mockup; an even count that three do not divide (four) in pairs. --}}
+        <div @class(['ppx-benefits', 'ppx-benefits--pairs' => count($benefits) % 3 !== 0 && count($benefits) % 2 === 0])>
             @foreach ($benefits as $benefit)
                 <section class="ppx-benefit">
                     <div class="ppx-benefit__top">
@@ -140,6 +141,17 @@
                     <p class="ppx-benefit__text">{{ $benefit['description'] ?? '' }}</p>
                     @if (! empty($benefit['url']))
                         <a class="ppx-link" href="{{ $benefit['url'] }}" target="_blank" rel="noopener noreferrer">Learn more</a>
+                    @endif
+                    {{-- Links to the enrollment site in a new tab, nothing embedded; each one hidden while empty. --}}
+                    @if (! empty($benefit['enroll_url']) || ! empty($benefit['plan_url']))
+                        <div class="ppx-benefit__actions">
+                            @if (! empty($benefit['enroll_url']))
+                                <x-ppx.button variant="primary" size="small" :href="$benefit['enroll_url']" target="_blank" rel="noopener noreferrer">Enroll<span class="ppx-visually-hidden"> in {{ $benefit['title'] }} (opens in a new tab)</span></x-ppx.button>
+                            @endif
+                            @if (! empty($benefit['plan_url']))
+                                <x-ppx.button variant="secondary" size="small" :href="$benefit['plan_url']" target="_blank" rel="noopener noreferrer">Choose a Plan<span class="ppx-visually-hidden"> for {{ $benefit['title'] }} (opens in a new tab)</span></x-ppx.button>
+                            @endif
+                        </div>
                     @endif
                 </section>
             @endforeach

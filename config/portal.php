@@ -86,17 +86,24 @@ return [
         'ce_credits' => false,
         'benefit_statuses' => false,
 
-        // Benefits tab (dashboard): one card per benefit, in this order; an empty list hides the
-        // tab. 'icon' is a symbol of public/portal/img/icons.svg; 'url' (optional) adds a
-        // "Learn more" link. Every card says "Available" (enrollment is not recorded, see
-        // benefit_statuses). Texts from the mockup until the client provides the catalogue.
+        // Benefits tab (dashboard): one card per benefit, in this order; no card left hides the
+        // tab. 'icon' is a symbol of public/portal/img/icons.svg; 'hidden' => true leaves a card
+        // out (kept here to bring it back); 'enroll_url' adds "Enroll" and 'plan_url' "Choose a
+        // Plan" (links to the enrollment site in a new tab, each hidden while empty); 'url'
+        // (optional) adds a "Learn more" link. Every card says "Available" (enrollment is not
+        // recorded, see benefit_statuses).
         'benefits' => [
-            ['title' => 'Group health insurance', 'description' => 'Nationwide PPO group health plan — effective January 1, 2027.', 'icon' => 'benefit-health', 'url' => null],
-            ['title' => 'Group dental', 'description' => 'Annual coverage from $2,000 to $5,000 at group rates.', 'icon' => 'benefit-dental', 'url' => null],
-            ['title' => 'Group vision', 'description' => 'Comprehensive vision benefit at negotiated group rates.', 'icon' => 'benefit-vision', 'url' => null],
-            ['title' => 'Group pet insurance', 'description' => 'Save up to 40% on pet insurance for your whole family.', 'icon' => 'benefit-pet', 'url' => null],
-            ['title' => 'CRM for agents', 'description' => 'A purpose-built CRM with a member discount, included.', 'icon' => 'benefit-crm', 'url' => null],
-            ['title' => 'Business discounts', 'description' => 'VOIP, payroll, office supply and print savings.', 'icon' => 'benefit-discounts', 'url' => null],
+            ['title' => 'Group health insurance', 'description' => 'Nationwide PPO group health plan — effective January 1, 2027.', 'icon' => 'benefit-health', 'url' => null,
+                'enroll_url' => env('BENEFITS_HEALTH_ENROLL_URL') ?: 'https://my-benefits.net/2027-group-health-coverage-enrollment-form/', 'plan_url' => env('BENEFITS_HEALTH_PLAN_URL') ?: null],
+            ['title' => 'Group dental', 'description' => 'Annual coverage from $2,000 to $5,000 at group rates.', 'icon' => 'benefit-dental', 'url' => null,
+                'enroll_url' => env('BENEFITS_HEALTH_ENROLL_URL') ?: 'https://my-benefits.net/2027-group-health-coverage-enrollment-form/', 'plan_url' => env('BENEFITS_DENTAL_PLAN_URL') ?: null],
+            ['title' => 'Group vision', 'description' => 'Comprehensive vision benefit at negotiated group rates.', 'icon' => 'benefit-vision', 'url' => null,
+                'enroll_url' => env('BENEFITS_HEALTH_ENROLL_URL') ?: 'https://my-benefits.net/2027-group-health-coverage-enrollment-form/', 'plan_url' => env('BENEFITS_VISION_PLAN_URL') ?: null],
+            ['title' => 'Group pet insurance', 'description' => 'Save up to 40% on pet insurance for your whole family. Provided by PetPartners.', 'icon' => 'benefit-pet', 'url' => null,
+                'enroll_url' => env('BENEFITS_PET_ENROLL_URL') ?: 'https://my-benefits.net/pet-insurance-enrollment-form/', 'plan_url' => env('BENEFITS_PET_PLAN_URL') ?: null],
+            // Not offered yet (client, Nov 2026): remove 'hidden' to show them again.
+            ['title' => 'CRM for agents', 'description' => 'A purpose-built CRM with a member discount, included.', 'icon' => 'benefit-crm', 'url' => null, 'hidden' => true],
+            ['title' => 'Business discounts', 'description' => 'VOIP, payroll, office supply and print savings.', 'icon' => 'benefit-discounts', 'url' => null, 'hidden' => true],
         ],
 
         // "Scanned for malware" wording only once uploads are scanned.
@@ -124,10 +131,12 @@ return [
             // payment date) or license_expiry (today's rule). Falls back to the license
             // expiry while there is no Stripe date.
             'valid_through' => 'paid_through',
-            // First signature: name null = the longest-serving Executive Director, as today.
-            'signatory' => ['name' => null, 'title' => 'Executive Director'],
-            // Optional second signature; empty until the client names one. While empty, the date of
-            // issue stands in that place on the certificate.
+            // Optional first signature (bottom left), the name set in Lora. Empty in production: Anne
+            // Glorioso's (the second) stands alone and the date of issue takes this place.
+            'signatory' => env('CERTIFICATE_FIRST_SIGNATORY_NAME')
+                ? ['name' => env('CERTIFICATE_FIRST_SIGNATORY_NAME'), 'title' => env('CERTIFICATE_FIRST_SIGNATORY_TITLE') ?: null]
+                : null,
+            // Optional second signature (bottom right). While empty, the date of issue stands in that place.
             'second_signatory' => env('CERTIFICATE_SECOND_SIGNATORY_NAME')
                 ? ['name' => env('CERTIFICATE_SECOND_SIGNATORY_NAME'), 'title' => env('CERTIFICATE_SECOND_SIGNATORY_TITLE')]
                 : null,
@@ -200,7 +209,7 @@ return [
 
         // File name of a PNG of the second signatory's signature (CERTIFICATE_SECOND_SIGNATORY_NAME) in
         // resources/views/pdf/images, transparent, trimmed to the ink. Used only with a second signatory; without
-        // it that name is set in Lora, as in the mockup. The first signature is always the name set in Lora.
+        // it that name is set in Lora, as in the mockup. The first signature, when there is one, is the name set in Lora.
         'signature_image' => env('CERTIFICATE_SIGNATURE_IMAGE') ? resource_path('views/pdf/images/'.env('CERTIFICATE_SIGNATURE_IMAGE')) : null,
     ],
 

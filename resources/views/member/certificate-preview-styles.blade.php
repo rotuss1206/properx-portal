@@ -27,6 +27,8 @@
 .cert-sign-name { height: 32px; color: #0a2d4b; font-family: 'PPX Lora', serif; font-size: 22px; font-style: italic; line-height: 32px; white-space: nowrap; }
 .cert-sign-image { height: 32px; }
 .cert .cert-sign-rule { height: 0; margin: 2px 0 8px; border-top: 1px solid #e6ddc4; }
+{{-- The printed name under a signature image, above the title. --}}
+.cert-sign-person { color: #0a2d4b; font-family: 'PPX Poppins', sans-serif; font-size: 11px; line-height: 16px; }
 .cert-sign-title { color: #9aa7b4; font-size: 10.5px; line-height: 14px; }
 .cert-seal { position: absolute; top: 409px; left: 292.5px; box-sizing: border-box; width: 74px; height: 74px; border: 2px solid #f0c846; border-radius: 28.86px; background: #fffdf6; }
 .cert-seal-content { position: absolute; top: 20.5px; left: 12px; width: 46px; height: 29px; }

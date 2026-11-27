@@ -77,26 +77,29 @@ class CertificateGenerationTest extends TestCase
         $this->assertStringNotContainsString($profile->npn, $html);
     }
 
-    public function test_the_signatory_comes_from_the_config_and_the_second_is_off(): void
+    public function test_both_signatories_are_off_by_default_and_the_first_comes_from_the_config(): void
     {
+        // An Executive Director's account no longer signs by itself.
         $this->staff(Role::ExecutiveDirector)->forceFill(['name' => 'Longest Serving'])->save();
         $profile = $this->member()->memberProfile;
 
         $document = $this->service->document($profile);
-        $this->assertSame('Longest Serving', $document['signatoryName']);
-        $this->assertSame('Executive Director', $document['signatoryTitle']);
+        $this->assertNull($document['signatoryName']);
         $this->assertNull($document['secondSignatoryName']);
-        $this->assertStringContainsString('Date issued', view('member.certificate-preview', $document)->render());
+        $this->assertNull($document['signLeft']);
+        $this->assertTrue($document['signRight']['date']);
+        $preview = view('member.certificate-preview', $document)->render();
+        $this->assertStringContainsString('Date issued', $preview);
+        $this->assertStringNotContainsString('Longest Serving', $preview);
+        $this->assertStringNotContainsString('cert-sign-left', $preview);
 
         config(['portal.member_area.certificate.signatory' => ['name' => 'D. Whitfield', 'title' => 'President']]);
         $old = $this->service->generate($profile);
         $html = view('member.certificate-preview', $this->service->document($profile))->render();
-        $this->assertStringContainsString('D. Whitfield', $html);
-        $this->assertStringContainsString('President', $html);
-        // The PDF prints the name only, no title (Certificate.jpg).
+        $this->assertMatchesRegularExpression('/cert-sign-left">.*?D\. Whitfield.*?cert-sign-rule.*?President/s', $html);
+        // The PDF too: the name in type, the line and the title.
         $pdf = view('pdf.certificate-body', $this->service->document($profile))->render();
-        $this->assertStringContainsString('D. Whitfield', $pdf);
-        $this->assertStringNotContainsString('President', $pdf);
+        $this->assertMatchesRegularExpression('/cert-sign-left">.*?D\. Whitfield.*?cert-sign-rule.*?President/s', $pdf);
 
         // What is printed is part of the cache key.
         config(['portal.member_area.certificate.signatory' => ['name' => 'Someone Else', 'title' => 'President']]);

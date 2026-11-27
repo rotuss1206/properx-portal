@@ -193,6 +193,11 @@ class AuditLog extends Resource
                 : null,
             'agency_tier_changed' => self::fromTo('Tier', AgencyTier::tryFrom((string) ($details['from'] ?? ''))?->label(), AgencyTier::tryFrom((string) ($details['to'] ?? ''))?->label(), $details['reason'] ?? null),
             'agency_rate_type_changed' => self::fromTo('Rate type', RateType::tryFrom((string) ($details['from'] ?? ''))?->label(), RateType::tryFrom((string) ($details['to'] ?? ''))?->label(), $details['reason'] ?? null),
+            'test_data_purged' => 'Test data removed (app:purge-test-data): '.implode(', ', array_map(
+                fn (string $kind, int $count) => $count.' '.str_replace('_', ' ', $kind),
+                array_keys(array_filter($details['counts'] ?? [])),
+                array_values(array_filter($details['counts'] ?? [])),
+            )),
             default => null,
         };
     }

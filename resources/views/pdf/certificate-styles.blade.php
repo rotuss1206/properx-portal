@@ -36,10 +36,16 @@
 .cert .cert-fields td { padding: 0 {{ $u(34) }}; text-align: center; white-space: nowrap; }
 .cert-label { color: #9aa7b4; font-size: {{ $u(11) }}; letter-spacing: {{ $u(1.2) }}; line-height: {{ $lh(18, 'open') }}; }
 .cert-value { color: #0a2d4b; font-family: 'PPX Poppins', sans-serif; font-size: {{ $u(17) }}; line-height: {{ $lh(30, 'poppins') }}; }
-.cert-sign { position: absolute; top: {{ $u(829 - $nudge) }}; width: {{ $u(260) }}; color: #0a2d4b; font-family: 'PPX Lora', serif; font-size: {{ $u(32) }}; font-style: italic; line-height: {{ $lh(40, 'lora') }}; text-align: center; white-space: nowrap; }
+{{-- Each place of the bottom row: the signature 40 px high, a line, the printed name (under an image) and the title,
+     centred on the seal's middle (839). --}}
+.cert-sign { position: absolute; top: {{ $u(795 - $nudge) }}; width: {{ $u(260) }}; text-align: center; white-space: nowrap; }
 .cert-sign-left { left: {{ $u(93) }}; }
 .cert-sign-right { left: {{ $u(463) }}; }
-.cert-sign-image { height: {{ $u(40) }}; }
+.cert-sign-name { height: {{ $u(40) }}; color: #0a2d4b; font-family: 'PPX Lora', serif; font-size: {{ $u(32) }}; font-style: italic; line-height: {{ $lh(40, 'lora') }}; }
+.cert-sign-image { height: {{ $u(40) }}; vertical-align: top; }
+.cert .cert-sign-rule { height: 0; margin: {{ $u(4) }} {{ $u(20) }} {{ $u(10) }}; border-top: {{ $u(1) }} solid #e6ddc4; }
+.cert-sign-person { color: #0a2d4b; font-family: 'PPX Poppins', sans-serif; font-size: {{ $u(13) }}; line-height: {{ $lh(18, 'poppins') }}; }
+.cert-sign-title { color: #9aa7b4; font-size: {{ $u(12) }}; line-height: {{ $lh(16, 'open') }}; }
 {{-- Round, 104 px with its 3 px border. --}}
 .cert-seal { position: absolute; top: {{ $u(787) }}; left: {{ $u(356) }}; width: {{ $u(98) }}; height: {{ $u(98) }}; border: {{ $u(3) }} solid {{ $gold }}; border-radius: {{ $u(52) }}; background: #fff9ec; }
 .cert-seal-content { position: absolute; top: {{ $u(27) }}; left: {{ $u(14) }}; width: {{ $u(70) }}; height: {{ $u(44) }}; }

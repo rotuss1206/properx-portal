@@ -43,6 +43,16 @@ class MemberSeeder extends Seeder
         ['png', 'image/png', 512_000],
     ];
 
+    /**
+     * The accounts this seeder creates (app:purge-test-data --demo).
+     *
+     * @return list<string>
+     */
+    public static function emails(): array
+    {
+        return array_map(fn (int $index) => sprintf('member%02d@properx.test', $index), range(1, self::MEMBERS));
+    }
+
     public function run(): void
     {
         for ($index = 1; $index <= self::MEMBERS; $index++) {

@@ -102,14 +102,38 @@ class DashboardTest extends TestCase
         $member = $this->member();
 
         $html = Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'benefits')
-            ->assertSeeInOrder(['Group health insurance', 'Group dental', 'Group vision', 'Group pet insurance', 'CRM for agents', 'Business discounts'])
+            ->assertSeeInOrder(['Group health insurance', 'Group dental', 'Group vision', 'Group pet insurance'])
             ->assertSee('Nationwide PPO group health plan')
+            ->assertSee('Provided by PetPartners.')
             ->assertSee('benefit-pet', false)
+            ->assertDontSee('CRM for agents')
+            ->assertDontSee('Business discounts')
             ->assertDontSee('Enrolled')
             ->assertDontSee('Pending')
             ->html();
 
-        $this->assertSame(6, substr_count($html, '>Available</span>'));
+        $this->assertSame(4, substr_count($html, '>Available</span>'));
+        $this->assertStringContainsString('ppx-benefits--pairs', $html);
+
+        // "Enroll" on every card, in a new tab; "Choose a Plan" only once its address is configured.
+        $health = 'https://my-benefits.net/2027-group-health-coverage-enrollment-form/';
+        $pet = 'https://my-benefits.net/pet-insurance-enrollment-form/';
+        // Livewire's <!--[if BLOCK]--> markers may sit between the tag and its text.
+        $link = fn (string $url) => '/<a href="'.preg_quote($url, '/').'"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>(\s|<!--.*?-->)*Enroll</';
+        $this->assertSame(3, preg_match_all($link($health), $html));
+        $this->assertSame(1, preg_match_all($link($pet), $html));
+        $this->assertSame(4, substr_count($html, 'Enroll<span'));
+        $this->assertStringNotContainsString('Choose a Plan', $html);
+        $this->assertStringNotContainsString('<iframe', $html);
+
+        config(['portal.member_area.benefits.1.plan_url' => 'https://example.test/dental-plans']);
+        $html = Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'benefits')->html();
+        $this->assertSame(1, substr_count($html, 'Choose a Plan<'));
+        $this->assertMatchesRegularExpression('/href="https:\/\/example\.test\/dental-plans"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>(\s|<!--.*?-->)*Choose a Plan<span class="ppx-visually-hidden"> for Group dental/', $html);
+
+        // A hidden card comes back by dropping its flag.
+        config(['portal.member_area.benefits.4.hidden' => false]);
+        Livewire::actingAs($member)->test(Dashboard::class)->call('show', 'benefits')->assertSee('CRM for agents')->assertDontSee('Business discounts');
 
         // The client edits the list in config/portal.php; an empty list hides the tab.
         config(['portal.member_area.benefits' => [['title' => 'Travel discounts', 'description' => 'Hotels and car rentals.', 'icon' => 'benefit-discounts', 'url' => 'https://example.test/travel']]]);
@@ -118,6 +142,39 @@ class DashboardTest extends TestCase
 
         config(['portal.member_area.benefits' => []]);
         Livewire::actingAs($member)->test(Dashboard::class)->assertDontSee('Benefits');
+
+        // Only hidden cards: no tab either.
+        config(['portal.member_area.benefits' => [['title' => 'Travel discounts', 'icon' => 'benefit-discounts', 'hidden' => true]]]);
+        Livewire::actingAs($member)->test(Dashboard::class)->assertDontSee('Benefits');
+    }
+
+    public function test_the_enrollment_addresses_come_from_the_environment(): void
+    {
+        $env = [
+            'BENEFITS_HEALTH_ENROLL_URL' => 'https://example.test/health',
+            'BENEFITS_PET_ENROLL_URL' => 'https://example.test/pet',
+            'BENEFITS_HEALTH_PLAN_URL' => 'https://example.test/health-plans',
+            'BENEFITS_DENTAL_PLAN_URL' => '',
+            'BENEFITS_VISION_PLAN_URL' => '',
+            'BENEFITS_PET_PLAN_URL' => 'https://example.test/pet-plans',
+        ];
+        $saved = array_map(fn (string $name) => getenv($name), array_combine(array_keys($env), array_keys($env)));
+
+        try {
+            foreach ($env as $name => $value) {
+                putenv("{$name}={$value}");
+                $_ENV[$name] = $_SERVER[$name] = $value;
+            }
+            $benefits = (require config_path('portal.php'))['member_area']['benefits'];
+        } finally {
+            foreach ($saved as $name => $value) {
+                $value === false ? putenv($name) : putenv("{$name}={$value}");
+                unset($_ENV[$name], $_SERVER[$name]);
+            }
+        }
+
+        $this->assertSame(['https://example.test/health', 'https://example.test/health', 'https://example.test/health', 'https://example.test/pet'], array_column(array_slice($benefits, 0, 4), 'enroll_url'));
+        $this->assertSame(['https://example.test/health-plans', null, null, 'https://example.test/pet-plans'], array_column(array_slice($benefits, 0, 4), 'plan_url'));
     }
 
     // Own data only

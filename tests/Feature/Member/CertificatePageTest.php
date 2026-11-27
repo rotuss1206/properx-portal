@@ -199,44 +199,67 @@ class CertificatePageTest extends TestCase
         return view('member.certificate-preview', app(CertificateGeneratorService::class)->document($this->member()->memberProfile))->render();
     }
 
-    public function test_the_pdf_with_one_signature_prints_the_date_issued_on_the_right_in_the_signatures_style(): void
+    public function test_without_signatories_both_designs_print_only_the_date_issued_on_the_right(): void
     {
         $this->travelTo('2026-11-05 15:00:00');
-        $html = $this->pdf();
 
-        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">\s*Nov 5, 2026\s*</', $html);
-        $this->assertStringNotContainsString('Date issued', $html);
-        $this->assertStringNotContainsString('cert-sign-rule', $html);
-        $this->assertStringNotContainsString('Issued Nov', $html);
-        $this->assertStringContainsString('Verify authenticity at', strip_tags($html));
+        foreach ([$this->pdf(), $this->preview()] as $html) {
+            $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">\s*<div class="cert-sign-name" data-ppx-cert="issued">Nov 5, 2026<\/div>\s*<div class="cert-sign-rule"><\/div>\s*<div class="cert-sign-title">Date issued</', $html);
+            $this->assertStringNotContainsString('cert-sign-left', $html);
+            $this->assertStringNotContainsString('Issued Nov', $html);
+        }
     }
 
-    public function test_the_pdf_with_two_signatures_moves_the_date_to_the_bottom_line(): void
+    public function test_one_signatory_stands_right_of_the_seal_with_the_date_issued_left_of_it(): void
     {
         $this->travelTo('2026-11-05 15:00:00');
-        $html = $this->pdf(['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']]);
+        $config = ['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']];
 
-        $this->assertMatchesRegularExpression('/class="cert-sign cert-sign-right">\s*R\. Alvarez\s*</', $html);
-        $this->assertStringNotContainsString('Membership Secretary', $html);
-        $this->assertStringContainsString('Issued Nov 5, 2026 · Verify authenticity at', strip_tags($html));
+        foreach ([$this->pdf($config), $this->preview($config)] as $html) {
+            $this->assertMatchesRegularExpression('/cert-sign-left">.*?Nov 5, 2026.*?cert-sign-rule.*?Date issued/s', $html);
+            $this->assertMatchesRegularExpression('/cert-sign-right">\s*<div class="cert-sign-name">R\. Alvarez<\/div>\s*<div class="cert-sign-rule"><\/div>\s*<div class="cert-sign-title">Membership Secretary</', $html);
+            // The name set in type is the signature: not printed twice.
+            $this->assertSame(1, substr_count($html, 'R. Alvarez'));
+            $this->assertStringNotContainsString('Issued Nov', strip_tags($html));
+        }
     }
 
-    public function test_the_preview_keeps_lines_and_titles_under_the_signatures(): void
+    public function test_two_signatures_move_the_date_to_the_bottom_line_in_both_designs(): void
     {
         $this->travelTo('2026-11-05 15:00:00');
-        $html = $this->preview();
-        $this->assertMatchesRegularExpression('/cert-sign-right.*?Nov 5, 2026.*?cert-sign-rule.*?Date issued/s', $html);
-        $this->assertStringContainsString('Verify at', strip_tags($html));
-        $this->assertStringContainsString('cert-hr', $html);
+        $config = [
+            'portal.member_area.certificate.signatory' => ['name' => 'D. Whitfield', 'title' => 'President'],
+            'portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary'],
+        ];
 
-        $html = $this->preview(['portal.member_area.certificate.second_signatory' => ['name' => 'R. Alvarez', 'title' => 'Membership Secretary']]);
-        $this->assertMatchesRegularExpression('/cert-sign-right.*?R\. Alvarez.*?cert-sign-rule.*?Membership Secretary/s', $html);
-        $this->assertStringContainsString('Issued', strip_tags($html));
+        $pdf = $this->pdf($config);
+        $this->assertMatchesRegularExpression('/cert-sign-left">.*?D\. Whitfield.*?cert-sign-rule.*?President/s', $pdf);
+        $this->assertMatchesRegularExpression('/cert-sign-right">.*?R\. Alvarez.*?cert-sign-rule.*?Membership Secretary/s', $pdf);
+        $this->assertStringNotContainsString('Date issued', $pdf);
+        $this->assertStringContainsString('Issued Nov 5, 2026 · Verify authenticity at', strip_tags($pdf));
+
+        $preview = $this->preview($config);
+        $this->assertStringNotContainsString('Date issued', $preview);
+        $this->assertStringContainsString('Issued Nov 5, 2026 · Verify at', strip_tags($preview));
+        $this->assertStringContainsString('cert-hr', $preview);
     }
 
-    public function test_the_second_signature_is_off_by_default(): void
+    public function test_the_signatures_are_off_by_default(): void
     {
+        $this->assertNull(config('portal.member_area.certificate.signatory'));
         $this->assertNull(config('portal.member_area.certificate.second_signatory'));
+    }
+
+    public function test_the_first_signatory_comes_from_the_environment_and_stays_off_without_it(): void
+    {
+        $config = $this->portalConfigWith(['CERTIFICATE_FIRST_SIGNATORY_NAME' => 'D. Whitfield', 'CERTIFICATE_FIRST_SIGNATORY_TITLE' => 'President']);
+        $this->assertSame(['name' => 'D. Whitfield', 'title' => 'President'], $config['member_area']['certificate']['signatory']);
+
+        $config = $this->portalConfigWith(['CERTIFICATE_FIRST_SIGNATORY_NAME' => 'D. Whitfield', 'CERTIFICATE_FIRST_SIGNATORY_TITLE' => '']);
+        $this->assertSame(['name' => 'D. Whitfield', 'title' => null], $config['member_area']['certificate']['signatory']);
+
+        $config = $this->portalConfigWith(['CERTIFICATE_FIRST_SIGNATORY_NAME' => '', 'CERTIFICATE_FIRST_SIGNATORY_TITLE' => 'President']);
+        $this->assertNull($config['member_area']['certificate']['signatory']);
     }
 
     public function test_the_pdf_has_gold_corners_a_diamond_and_a_round_seal_and_the_preview_does_not(): void
@@ -338,19 +361,14 @@ class CertificatePageTest extends TestCase
         ]);
         $image = 'data:image/png;base64,'.base64_encode((string) file_get_contents($config['certificates']['signature_image']));
 
-        // PDF: her signature bottom right, no line or title; the date moves to the bottom line.
-        $pdf = $this->pdf();
-        $this->assertMatchesRegularExpression('/cert-sign-right">\s*<img class="cert-sign-image" src="'.preg_quote($image, '/').'" alt="Signature of Anne Glorioso">/', $pdf);
-        $this->assertStringNotContainsString('Founder and CEO', $pdf);
-        $this->assertStringContainsString('Issued Nov 5, 2026 · Verify authenticity at', strip_tags($pdf));
-
-        // Preview: the signature over the line, the title under it.
-        $preview = $this->preview();
-        $this->assertMatchesRegularExpression('/cert-sign-right">.*?alt="Signature of Anne Glorioso".*?cert-sign-rule.*?Founder and CEO/s', $preview);
-
-        // The first signature stays the Executive Director's name in type.
-        $this->assertSame(1, substr_count($pdf, 'cert-sign-image'));
-        $this->assertMatchesRegularExpression('/cert-sign-left">[^<]+</', $pdf);
+        // Both designs: her signature right of the seal, the line, her name and title under it; the date issued
+        // left of the seal; nobody else signs.
+        foreach ([$this->pdf(), $this->preview()] as $html) {
+            $this->assertMatchesRegularExpression('/cert-sign-right">\s*<div class="cert-sign-name"><img class="cert-sign-image" src="'.preg_quote($image, '/').'" alt="Signature of Anne Glorioso"><\/div>\s*<div class="cert-sign-rule"><\/div>\s*<div class="cert-sign-person">Anne Glorioso<\/div>\s*<div class="cert-sign-title">Founder and CEO<\/div>/', $html);
+            $this->assertMatchesRegularExpression('/cert-sign-left">.*?Nov 5, 2026.*?Date issued/s', $html);
+            $this->assertSame(1, substr_count($html, 'cert-sign-image'));
+            $this->assertStringNotContainsString('Issued Nov', strip_tags($html));
+        }
     }
 
     public function test_without_the_environment_there_is_no_second_signatory_and_no_image(): void

@@ -68,6 +68,8 @@
             layout: 'tabs',
             // The name in the mandate text ("you authorize … to charge you"), whatever the Stripe account is called.
             business: { name: element.getAttribute('data-business') || 'ProPerX Alliance' },
+            // No Stripe Link ("Secure, fast checkout with Link"), as on properx.org's application form.
+            wallets: { link: 'never' },
             // Members are US agencies; Stripe would otherwise guess the country from the visitor's IP.
             defaultValues: { billingDetails: { address: { country: 'US' } } },
         })
